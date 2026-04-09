@@ -9,7 +9,7 @@ interface AuthGuardProps {
   requireApproval?: boolean;
 }
 
-export default function AuthGuard({ children, requireApproval = true }: AuthGuardProps) {
+export default function AuthGuard({ children, requireApproval = false }: AuthGuardProps) {
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated' | 'pending'>('loading');
 

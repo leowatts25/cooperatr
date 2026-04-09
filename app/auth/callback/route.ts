@@ -33,29 +33,17 @@ export async function GET(req: NextRequest) {
           .single();
 
         if (!profile) {
-          // Create new profile (trigger will auto-approve admin)
+          // Auto-approve all new users
           await supabase.from('user_profiles').insert({
             id: user.id,
             email: user.email || '',
+            status: 'approved',
+            approved_at: new Date().toISOString(),
+            approved_by: 'auto',
           });
-
-          // Check if admin (auto-approved)
-          const { data: newProfile } = await supabase
-            .from('user_profiles')
-            .select('status')
-            .eq('id', user.id)
-            .single();
-
-          if (newProfile?.status === 'approved') {
-            return NextResponse.redirect(new URL('/dashboard', req.url));
-          }
-          return NextResponse.redirect(new URL('/auth/pending', req.url));
         }
 
-        if (profile.status === 'approved') {
-          return NextResponse.redirect(new URL('/dashboard', req.url));
-        }
-        return NextResponse.redirect(new URL('/auth/pending', req.url));
+        return NextResponse.redirect(new URL('/dashboard', req.url));
       }
     }
   }

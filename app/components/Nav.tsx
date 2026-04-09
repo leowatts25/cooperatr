@@ -3,19 +3,21 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getCurrentUser, signOut, ADMIN_EMAIL } from '@/app/lib/supabase-auth';
+import { useTranslation } from '@/app/lib/i18n/context';
 
 const modules = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/opportunities', label: 'Opportunities' },
-  { href: '/proposals', label: 'Proposals' },
-  { href: '/partners', label: 'Partners' },
-  { href: '/projects', label: 'Projects' },
-  { href: '/reports', label: 'Reports' },
-  { href: '/agents', label: 'AI Agents', accent: true },
+  { href: '/dashboard', key: 'nav.dashboard' as const },
+  { href: '/opportunities', key: 'nav.opportunities' as const },
+  { href: '/proposals', key: 'nav.proposals' as const },
+  { href: '/partners', key: 'nav.partners' as const },
+  { href: '/projects', key: 'nav.projects' as const },
+  { href: '/reports', key: 'nav.reports' as const },
+  { href: '/agents', key: 'nav.agents' as const, accent: true },
 ];
 
 export default function Nav() {
   const pathname = usePathname();
+  const { locale, setLocale, t } = useTranslation();
   const [user, setUser] = useState<{ email?: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -26,7 +28,6 @@ export default function Nav() {
     });
   }, []);
 
-  // Don't show nav on auth pages
   if (pathname.startsWith('/auth')) return null;
 
   return (
@@ -65,7 +66,7 @@ export default function Nav() {
                   fontWeight: active ? '600' : '400',
                   color: active ? 'var(--text-primary)' : 'accent' in m && m.accent ? 'var(--accent)' : 'var(--text-muted)',
                 }}>
-                  {m.label}
+                  {t(m.key)}
                 </span>
               </div>
             </Link>
@@ -78,29 +79,47 @@ export default function Nav() {
               backgroundColor: pathname === '/admin' ? 'var(--bg-elevated)' : 'transparent',
               border: pathname === '/admin' ? '1px solid var(--border)' : '1px solid transparent',
             }}>
-              <span style={{ fontSize: '13px', fontWeight: pathname === '/admin' ? '600' : '400', color: '#EF4444' }}>Admin</span>
+              <span style={{ fontSize: '13px', fontWeight: pathname === '/admin' ? '600' : '400', color: '#EF4444' }}>{t('nav.admin')}</span>
             </div>
           </Link>
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {/* Language toggle */}
+        <div style={{ display: 'flex', borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden' }}>
+          {(['en', 'es'] as const).map(lang => (
+            <button
+              key={lang}
+              onClick={() => setLocale(lang)}
+              style={{
+                padding: '4px 8px', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                background: locale === lang ? 'var(--accent)' : 'transparent',
+                color: locale === lang ? '#0F1623' : 'var(--text-muted)',
+                transition: 'all 0.15s',
+              }}
+            >
+              {lang.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
         {user ? (
           <>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user.email}
             </span>
             <button
               onClick={signOut}
               style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}
             >
-              Sign out
+              {t('nav.signOut')}
             </button>
           </>
         ) : (
           <Link href="/auth" style={{ textDecoration: 'none' }}>
-            <span style={{ padding: '6px 16px', borderRadius: 8, background: 'var(--accent)', color: '#0F1623', fontSize: 13, fontWeight: 600 }}>
-              Sign in
+            <span style={{ padding: '6px 14px', borderRadius: 8, background: 'var(--accent)', color: '#0F1623', fontSize: 13, fontWeight: 600 }}>
+              {t('nav.signIn')}
             </span>
           </Link>
         )}
