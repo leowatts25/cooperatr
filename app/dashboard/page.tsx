@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AuthGuard from '@/app/components/AuthGuard';
 
 interface Stats {
   opportunities: number;
@@ -35,7 +36,7 @@ const STATUS_COLORS: Record<string, string> = {
   high: '#EF4444',
 };
 
-export default function Dashboard() {
+function DashboardContent() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats>({ opportunities: 0, savedOpportunities: 0, proposals: 0, projects: 0, indicators: 0, partners: 0 });
   const [recentOpps, setRecentOpps] = useState<RecentItem[]>([]);
@@ -266,5 +267,13 @@ export default function Dashboard() {
         <span style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 600 }}>View Agents →</span>
       </div>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <AuthGuard>
+      <DashboardContent />
+    </AuthGuard>
   );
 }

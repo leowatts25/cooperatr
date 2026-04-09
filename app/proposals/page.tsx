@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AuthGuard from '@/app/components/AuthGuard';
 
 interface Proposal {
   id: string;
@@ -15,7 +16,7 @@ interface Proposal {
 
 const STATUS_COLORS: Record<string, string> = { draft: '#7A90A8', in_review: '#F59E0B', submitted: '#22C55E' };
 
-export default function ProposalsPage() {
+function ProposalsContent() {
   const router = useRouter();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,3 +84,5 @@ export default function ProposalsPage() {
     </div>
   );
 }
+
+export default function ProposalsPage() { return <AuthGuard><ProposalsContent /></AuthGuard>; }

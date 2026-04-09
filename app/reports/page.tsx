@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AuthGuard from '@/app/components/AuthGuard';
 
 interface Project {
   id: string;
@@ -18,7 +19,7 @@ interface Project {
   }[];
 }
 
-export default function ReportsPage() {
+function ReportsContent() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,3 +116,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+export default function ReportsPage() { return <AuthGuard><ReportsContent /></AuthGuard>; }

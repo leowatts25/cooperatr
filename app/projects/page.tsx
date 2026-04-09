@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AuthGuard from '@/app/components/AuthGuard';
 
 interface Project {
   id: string;
@@ -24,7 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
   suspended: '#F59E0B',
 };
 
-export default function ProjectsPage() {
+function ProjectsContent() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,3 +125,5 @@ export default function ProjectsPage() {
     </div>
   );
 }
+
+export default function ProjectsPage() { return <AuthGuard><ProjectsContent /></AuthGuard>; }

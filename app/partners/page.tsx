@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AuthGuard from '@/app/components/AuthGuard';
 
 interface Partner {
   id: string;
@@ -20,7 +21,7 @@ interface Partner {
 const RISK_COLORS: Record<string, string> = { low: '#22C55E', medium: '#F59E0B', high: '#EF4444', pending: '#7A90A8' };
 const STATUS_ICONS: Record<string, string> = { cleared: '✓', flagged: '⚠', needs_review: '?', pending: '○' };
 
-export default function PartnersPage() {
+function PartnersContent() {
   const router = useRouter();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,3 +203,5 @@ export default function PartnersPage() {
     </div>
   );
 }
+
+export default function PartnersPage() { return <AuthGuard><PartnersContent /></AuthGuard>; }

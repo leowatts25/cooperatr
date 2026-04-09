@@ -45,28 +45,9 @@ export async function POST(req: NextRequest) {
     const profile = await req.json();
     const supabase = createServerClient();
 
-    // 1. Upsert company profile
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .upsert({
-        name: profile.companyName,
-        sector: profile.sector,
-        organization_type: profile.organizationType,
-        revenue_range: profile.revenueRange || null,
-        prior_eu_experience: profile.priorEUExperience || false,
-        description: profile.description || null,
-        geographies: profile.geographies || [],
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'name',
-        ignoreDuplicates: false,
-      })
-      .select('id')
-      .single();
-
-    // If upsert fails (no unique constraint on name), just insert
-    let companyId: string;
-    if (companyError) {
+    // 1. Insert company profile
+    let companyId = '';
+    try {
       const { data: inserted, error: insertError } = await supabase
         .from('companies')
         .insert({
@@ -83,13 +64,11 @@ export async function POST(req: NextRequest) {
 
       if (insertError) {
         console.error('Company insert error:', insertError);
-        // Continue without persistence — still generate opportunities
-        companyId = '';
       } else {
         companyId = inserted.id;
       }
-    } else {
-      companyId = company.id;
+    } catch (dbErr) {
+      console.error('Company DB error:', dbErr);
     }
 
     // 2. Generate opportunities via Claude
@@ -163,8 +142,9 @@ Make each opportunity specific and actionable — reference real instruments, re
       companyId: companyId || null,
     });
   } catch (error) {
-    console.error('Opportunity Engine error:', error);
-    return NextResponse.json({ error: 'Failed to generate opportunities' }, { status: 500 });
+    console.error('Opportunity Engine error:', error instanceof Error ? error.message : error);
+    console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error as object)));
+    return NextResponse.json({ error: 'Failed to generate opportunities', detail: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }
 

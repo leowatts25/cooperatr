@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import AuthGuard from '@/app/components/AuthGuard';
 
 const SECTORS = ['Agri-food', 'Renewable Energy', 'Water Technology', 'Digital & ICT', 'Health Services', 'Infrastructure', 'Other'];
 const GEOGRAPHIES = ['West Africa', 'North Africa', 'Latin America', 'Southeast Asia', 'Eastern Europe', 'Middle East & North Africa'];
@@ -216,7 +217,7 @@ function Modal({ opp: rawOpp, onClose }: { opp: Opportunity; onClose: () => void
   );
 }
 
-export default function OpportunitiesPage() {
+function OpportunitiesContent() {
   const [form, setForm] = useState({
     companyName: '',
     sector: '',
@@ -535,4 +536,8 @@ export default function OpportunitiesPage() {
       )}
     </div>
   );
+}
+
+export default function OpportunitiesPage() {
+  return <AuthGuard><OpportunitiesContent /></AuthGuard>;
 }
