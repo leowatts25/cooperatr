@@ -1,46 +1,85 @@
-import Link from 'next/link';
+'use client';
 
-const proposals = [
-  { title: 'Solar Electrification Programme — Sahel Region', funder: 'INTPA / Global Gateway', deadline: '2026-09-15', status: 'In Review', statusColor: '#F59E0B', pct: 72, edited: '2 days ago' },
-  { title: 'Agri-food Value Chain Development — West Africa', funder: 'AECID Convocatoria Abierta', deadline: '2026-11-30', status: 'Draft', statusColor: '#7A90A8', pct: 31, edited: 'Today' },
-];
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+interface Proposal {
+  id: string;
+  title: string;
+  status: string;
+  progress: number;
+  created_at: string;
+  updated_at: string;
+  opportunities?: { funder: string; funder_abbrev: string } | null;
+}
+
+const STATUS_COLORS: Record<string, string> = { draft: '#7A90A8', in_review: '#F59E0B', submitted: '#22C55E' };
 
 export default function ProposalsPage() {
+  const router = useRouter();
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/proposals')
+      .then(r => r.json())
+      .then(data => setProposals(data.proposals || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 32px' }}>
-      <Link href="/" style={{ fontSize: '13px', color: 'var(--text-muted)', textDecoration: 'none' }}>← Dashboard</Link>
-      <div style={{ borderLeft: '4px solid var(--accent)', paddingLeft: '16px', margin: '16px 0 32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-          <h1 className="font-serif" style={{ fontSize: '32px', color: 'var(--text-primary)' }}>Proposal Development</h1>
-          <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', backgroundColor: 'rgba(42,58,82,0.8)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>SPRINT 2</span>
+    <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>Proposals</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>AI-generated proposal drafts from matched opportunities</p>
         </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>End-to-end proposal drafting calibrated to funder evaluation criteria.</p>
+        <button onClick={() => router.push('/opportunities')} style={{ padding: '10px 20px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+          Find Opportunities →
+        </button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {proposals.map((p, i) => (
-          <div key={i} style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <div>
-                <h3 className="font-serif" style={{ fontSize: '17px', color: 'var(--text-primary)', marginBottom: '4px' }}>{p.title}</h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.funder} · Deadline: {p.deadline} · Last edited {p.edited}</p>
+      {loading ? (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {[1, 2].map(i => <div key={i} style={{ height: 100, background: 'var(--bg-surface)', borderRadius: 12, animation: 'skeleton 1.5s infinite' }} />)}
+        </div>
+      ) : proposals.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 60, background: 'var(--bg-surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>No proposals yet</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>Generate your first proposal from a saved opportunity.</div>
+          <button onClick={() => router.push('/opportunities')} style={{ padding: '12px 24px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+            Find Opportunities →
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {proposals.map(p => (
+            <div key={p.id} onClick={() => router.push(`/proposals/${p.id}`)}
+              style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = '#60A5FA44')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)', marginBottom: 4 }}>{p.title}</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600, textTransform: 'uppercase', background: `${STATUS_COLORS[p.status] || '#7A90A8'}22`, color: STATUS_COLORS[p.status] || '#7A90A8' }}>{p.status.replace('_', ' ')}</span>
+                    {p.opportunities && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.opportunities.funder_abbrev}</span>}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: '#60A5FA' }}>{p.progress}%</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>complete</div>
+                </div>
               </div>
-              <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', backgroundColor: 'rgba(42,58,82,0.8)', color: p.statusColor, border: `1px solid ${p.statusColor}40`, whiteSpace: 'nowrap' as const }}>{p.status}</span>
+              <div style={{ height: 5, borderRadius: 3, background: 'var(--bg-elevated)' }}>
+                <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: 3, background: '#60A5FA' }} />
+              </div>
             </div>
-            <div style={{ backgroundColor: 'var(--bg-elevated)', borderRadius: '6px', height: '6px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${p.pct}%`, backgroundColor: 'var(--accent)', borderRadius: '6px' }} />
-            </div>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>{p.pct}% complete</p>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ marginTop: '24px', padding: '24px', backgroundColor: 'var(--bg-surface)', border: '1px dashed var(--border)', borderRadius: '12px', textAlign: 'center' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-          Full module coming in Sprint 2.{' '}
-          <Link href="/opportunities" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Find an opportunity to propose →</Link>
-        </p>
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

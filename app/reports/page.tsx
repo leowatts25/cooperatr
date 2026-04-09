@@ -1,68 +1,117 @@
-import Link from 'next/link';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+interface Project {
+  id: string;
+  title: string;
+  funder: string;
+  status: string;
+  indicators: {
+    id: string;
+    name: string;
+    category: string;
+    target_value: number;
+    current_value: number;
+    unit: string;
+  }[];
+}
 
 export default function ReportsPage() {
-  return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 32px' }}>
-      <Link href="/" style={{ fontSize: '13px', color: 'var(--text-muted)', textDecoration: 'none' }}>← Dashboard</Link>
+  const router = useRouter();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
-      <div style={{ borderLeft: '4px solid var(--accent)', paddingLeft: '16px', margin: '16px 0 32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-          <h1 className="font-serif" style={{ fontSize: '32px', color: 'var(--text-primary)' }}>Reporting & Verification</h1>
-          <span style={{
-            fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px',
-            backgroundColor: 'rgba(42,58,82,0.8)', color: 'var(--text-muted)', border: '1px solid var(--border)',
-          }}>SPRINT 2</span>
-        </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-          Donor-compliant impact reports mapped to GRI, CSRD, and SDG frameworks automatically.
-        </p>
+  useEffect(() => {
+    fetch('/api/projects')
+      .then(r => r.json())
+      .then(data => setProjects((data.projects || []).filter((p: Project) => p.status === 'active' || p.status === 'completed')))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const frameworks = [
+    { name: 'GRI Standards', description: 'Global Reporting Initiative sustainability metrics', icon: '🌍', color: '#22C55E' },
+    { name: 'EU CSRD/ESRS', description: 'Corporate Sustainability Reporting Directive', icon: '🇪🇺', color: '#60A5FA' },
+    { name: 'SDG Indicators', description: 'UN Sustainable Development Goals alignment', icon: '🎯', color: '#F59E0B' },
+    { name: 'EFRAG Guidance', description: 'European Financial Reporting Advisory Group', icon: '📐', color: '#8B5CF6' },
+  ];
+
+  return (
+    <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>Reports & Verification</h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Donor-compliant impact reports mapped to international frameworks</p>
       </div>
 
       {/* Frameworks */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '32px' }}>
-        {[
-          { label: 'GRI Standards', desc: 'Global Reporting Initiative sustainability disclosure' },
-          { label: 'EU CSRD/ESRS', desc: 'Corporate Sustainability Reporting Directive taxonomy' },
-          { label: 'SDG Indicators', desc: 'UN Sustainable Development Goals mapping' },
-          { label: 'EFRAG Guidance', desc: 'European Financial Reporting Advisory Group standards' },
-        ].map((f) => (
-          <div key={f.label} style={{
-            backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)',
-            borderRadius: '12px', padding: '16px',
-          }}>
-            <div style={{
-              fontSize: '11px', fontWeight: '700', padding: '3px 8px', borderRadius: '4px',
-              backgroundColor: 'var(--accent-dim)', color: 'var(--accent)',
-              border: '1px solid rgba(240,165,0,0.2)', display: 'inline-block', marginBottom: '8px',
-            }}>{f.label}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{f.desc}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+        {frameworks.map(fw => (
+          <div key={fw.name} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>{fw.icon}</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>{fw.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fw.description}</div>
           </div>
         ))}
       </div>
 
-      {/* Empty state */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface)', border: '1px dashed var(--border)',
-        borderRadius: '12px', padding: '64px 32px', textAlign: 'center',
-      }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
-        <h3 className="font-serif" style={{ fontSize: '20px', color: 'var(--text-primary)', marginBottom: '8px' }}>
-          No reports generated yet
-        </h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: 1.7, maxWidth: '440px', margin: '0 auto 24px' }}>
-          Reports are generated automatically from live project data. Once a project is active
-          in the Project Management module, donor-compliant reports will appear here.
-          Full reporting functionality launches in Sprint 2.
-        </p>
-        <Link href="/projects">
-          <button style={{
-            backgroundColor: 'var(--accent)', color: '#0F1623', fontWeight: '600',
-            fontSize: '13px', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-          }}>
+      {/* Project Reports */}
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 16 }}>Project Reports</h2>
+
+      {loading ? (
+        <div style={{ height: 200, background: 'var(--bg-surface)', borderRadius: 12, animation: 'skeleton 1.5s infinite' }} />
+      ) : projects.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 60, background: 'var(--bg-surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>No reports available yet</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>Reports are generated from active projects with tracked indicators.</div>
+          <button onClick={() => router.push('/projects')} style={{ padding: '12px 24px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
             View Projects →
           </button>
-        </Link>
-      </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 16 }}>
+          {projects.map(project => {
+            const indicators = project.indicators || [];
+            const onTrack = indicators.filter(i => i.target_value > 0 && (i.current_value / i.target_value) >= 0.75).length;
+            const atRisk = indicators.filter(i => i.target_value > 0 && (i.current_value / i.target_value) >= 0.4 && (i.current_value / i.target_value) < 0.75).length;
+            const behind = indicators.filter(i => i.target_value > 0 && (i.current_value / i.target_value) < 0.4).length;
+
+            return (
+              <div key={project.id} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)', marginBottom: 4 }}>{project.title}</div>
+                    {project.funder && <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{project.funder}</div>}
+                  </div>
+                  <button
+                    onClick={() => router.push(`/projects/${project.id}`)}
+                    style={{ padding: '8px 16px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                  >
+                    View Project →
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E' }} />
+                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{onTrack} on track</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
+                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{atRisk} at risk</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }} />
+                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{behind} behind</span>
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{indicators.length} total indicators</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

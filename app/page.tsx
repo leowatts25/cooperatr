@@ -11,10 +11,10 @@ const sectors = [
 
 const modules = [
   { num: '01', icon: '🔍', name: 'Opportunity Engine', description: 'AI monitors EU, bilateral, and multilateral funding pipelines daily and surfaces matched opportunities before deadlines hit.', href: '/opportunities', live: true },
-  { num: '02', icon: '📝', name: 'Proposal Development', description: 'Drafts technical, financial, and compliance sections calibrated to each funder evaluation criteria — in hours, not weeks.', href: '/proposals', live: false },
-  { num: '03', icon: '🔎', name: 'Partner Vetting', description: 'Automated CSDDD and sanctions screening for every consortium partner — meeting the due diligence standards EU funders require.', href: '/partners', live: false },
-  { num: '04', icon: '📊', name: 'Project Management', description: 'From award to closeout: milestone tracking, financial reporting, and M&E in one place.', href: '/projects', live: false },
-  { num: '05', icon: '📋', name: 'Reporting & Verification', description: 'Generates donor-compliant impact reports mapped to GRI, CSRD, and SDG frameworks automatically from your project data.', href: '/reports', live: false },
+  { num: '02', icon: '📝', name: 'Proposal Development', description: 'Drafts technical, financial, and compliance sections calibrated to each funder evaluation criteria — in hours, not weeks.', href: '/proposals', live: true },
+  { num: '03', icon: '🔎', name: 'Partner Vetting', description: 'Automated CSDDD and sanctions screening for every consortium partner — meeting the due diligence standards EU funders require.', href: '/partners', live: true },
+  { num: '04', icon: '📊', name: 'Project Management', description: 'From award to closeout: milestone tracking, financial reporting, and M&E in one place.', href: '/projects', live: true },
+  { num: '05', icon: '📋', name: 'Reporting & Verification', description: 'Generates donor-compliant impact reports mapped to GRI, CSRD, and SDG frameworks automatically from your project data.', href: '/reports', live: true },
 ];
 
 const missed = [
