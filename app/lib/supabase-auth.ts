@@ -37,23 +37,22 @@ export async function signInWithMagicLink(email: string) {
 }
 
 export async function signUpWithPassword(email: string, password: string) {
-  const supabase = createAuthClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
+  // Server-side signup: bypasses Supabase email confirmation + rate limits
+  const res = await fetch('/api/auth/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
   });
 
-  if (!error && data.user) {
-    // Create user profile (auto-approved)
-    await supabase.from('user_profiles').upsert({
-      id: data.user.id,
-      email: data.user.email || email,
-      status: 'approved',
-      approved_at: new Date().toISOString(),
-      approved_by: 'auto',
-    }, { onConflict: 'id' });
+  const body = await res.json();
+
+  if (!res.ok) {
+    return { data: null, error: { message: body.error || 'Signup failed' } };
   }
 
+  // After successful signup, sign in immediately to establish a client session
+  const supabase = createAuthClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   return { data, error };
 }
 
