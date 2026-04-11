@@ -10,61 +10,79 @@ export const maxDuration = 60;
 // SYSTEM PROMPTS — Discovery Engine (one per tag, run in parallel)
 // ============================================================================
 
-const BASE_PROMPT = `You are Cooperatr's Discovery Engine — a senior EU/multilateral development finance strategist helping European SMEs uncover non-obvious paths to revenue, capital, and impact.
+const BASE_PROMPT = `You are Cooperatr's Discovery Engine — a senior EU/multilateral development finance strategist. Uncover non-obvious paths to revenue, capital, and impact for European SMEs.
 
-Known instruments: NDICI-Global Europe, Global Gateway, Team Europe Initiatives, AECID, COFIDES, ICEX Vives, FEDES, GIZ, AFD, FCDO, SIDA, World Bank, IDB, AfDB, IFC, EIB, EBRD, Proparco, FMO, Green Climate Fund. Known impact investors: Acumen, LeapFrog, Bamboo Capital, Triodos, responsAbility, Blue Orchard, Incofin.
+Known instruments: NDICI-Global Europe, Global Gateway, Team Europe, AECID, COFIDES, ICEX Vives, FEDES, GIZ, AFD, FCDO, SIDA, World Bank, IDB, IFC, EIB, EBRD, Proparco, FMO, Green Climate Fund. Impact investors: Acumen, LeapFrog, Bamboo, Triodos, responsAbility.
 
-Anti-hallucination: do NOT invent call IDs or deadlines. Use "Q3 2026 typical cycle" or "rolling". Flag uncertainty via missing_data and lower confidence.
+Rules:
+- Do NOT invent call IDs/deadlines. Use "Q3 2026 typical cycle" or "rolling".
+- Prioritize Spanish instruments for Andalusian companies.
+- If prior_eu_experience=false, offer an entry-level path.
 
-Prioritize Spanish instruments for Andalusian companies. If prior_eu_experience=false, surface an entry-level path.
+Output exactly ONE idea via emit_ideas. The idea MUST include:
+- funding_paths: 2-3 items, each {name, type, amount_range, timeline, how_to_access, fit_rationale}
+- partners: 2-3 items, each {name, type, country, why, verified}
+- next_steps: 3-4 items, each {step, owner, timeline}
+- buyers/investors: include only if revenue/equity path is relevant, each with {name, why, verified}
 
-## Sub-section field shapes (populate every idea with these):
+BE TERSE. Short phrases, not sentences. Title 6-12 words. Summary 1-2 short sentences. Each sub-field under 15 words.`;
 
-funding_paths — array of 2-3 objects, each with fields:
-  { name, type, amount_range, timeline, how_to_access, fit_rationale }
-  Example: { name: "AECID Cooperación Delegada", type: "grant", amount_range: "€500K-€2M", timeline: "Q2 2026 typical cycle", how_to_access: "Submit EOI via AECID portal", fit_rationale: "Spanish implementer preference" }
-
-partners — array of 2-3 objects, each with fields:
-  { name, type, country, why, verified }
-  Example: { name: "GIZ Mozambique", type: "implementer", country: "Mozambique", why: "Active in same sector, need local SME partner", verified: false }
-
-buyers — array of 1-3 objects (when revenue path relevant):
-  { name, type, deal_shape, why, verified }
-
-investors — array of 1-3 objects (when equity/blended relevant):
-  { name, type, ticket_size, why, verified }
-
-next_steps — array of 3-5 objects, each with fields:
-  { step, owner, timeline }
-  Example: { step: "Email ICEX Vives for eligibility check", owner: "CEO", timeline: "this week" }
-
-Always populate funding_paths (2-3), partners (2-3), and next_steps (3-5) on EVERY idea. Keep values concise — short phrases, not paragraphs. Title 6-12 words. Summary 2 crisp sentences.`;
-
-// Each batch produces 2 ideas in ~25-30s, so we run 5 of them in parallel
-// to hit 10 ideas inside the 60s function budget. Different angles per batch
-// keep variety across the concrete/creative/hybrid mix.
-type BatchKey = 'concrete_funding' | 'concrete_buyers' | 'creative_consortia' | 'creative_capital' | 'hybrid';
+// Each batch produces ONE idea in ~15-25s. We run 10 of them in parallel to
+// hit 10 ideas under the 60s function budget. Different angles per batch keep
+// variety across the concrete/creative/hybrid mix and avoid empty tool_use
+// from max_tokens truncation.
+type BatchKey =
+  | 'concrete_funding_a'
+  | 'concrete_funding_b'
+  | 'concrete_buyer_a'
+  | 'concrete_buyer_b'
+  | 'creative_consortium'
+  | 'creative_capital'
+  | 'creative_diaspora'
+  | 'hybrid_blended'
+  | 'hybrid_consortium'
+  | 'hybrid_offtake';
 
 const BATCH_INSTRUCTIONS: Record<BatchKey, { tag: 'concrete' | 'creative' | 'hybrid'; instructions: string }> = {
-  concrete_funding: {
+  concrete_funding_a: {
     tag: 'concrete',
-    instructions: `Generate exactly 2 CONCRETE ideas (confidence 75-95) focused on NAMED FUNDING INSTRUMENTS — grants, blended finance, DFI facilities, or ICEX/AECID/COFIDES instruments. Each must anchor on a real instrument name and be actionable within 90 days.`,
+    instructions: `Generate ONE CONCRETE idea (confidence 75-95) anchored on a Spanish or EU funding instrument (AECID, COFIDES, ICEX Vives, NDICI, Global Gateway). Actionable within 90 days.`,
   },
-  concrete_buyers: {
+  concrete_funding_b: {
     tag: 'concrete',
-    instructions: `Generate exactly 2 CONCRETE ideas (confidence 75-95) focused on NAMED BUYERS — multilateral procurement (WFP, UNICEF, UNOPS), EU institutions, large corporates with off-take needs, or public tenders. Each must name the buyer and the realistic deal shape.`,
+    instructions: `Generate ONE CONCRETE idea (confidence 75-95) anchored on a multilateral DFI facility (EIB, EBRD, IFC, Proparco, FMO, AfDB). Specific program, realistic ticket size.`,
   },
-  creative_consortia: {
+  concrete_buyer_a: {
+    tag: 'concrete',
+    instructions: `Generate ONE CONCRETE idea (confidence 75-95) anchored on multilateral procurement (WFP, UNICEF, UNOPS, UNDP). Name the buyer, deal shape, and entry path.`,
+  },
+  concrete_buyer_b: {
+    tag: 'concrete',
+    instructions: `Generate ONE CONCRETE idea (confidence 75-95) anchored on a named corporate off-taker or public tender in the target geography. Realistic revenue path.`,
+  },
+  creative_consortium: {
     tag: 'creative',
-    instructions: `Generate exactly 2 CREATIVE ideas (confidence 50-75) focused on UNCONVENTIONAL CONSORTIA — non-obvious co-applicants, cross-sector partnerships, regional cooperation, or SME-NGO pairings that unlock instruments the company couldn't access alone.`,
+    instructions: `Generate ONE CREATIVE idea (confidence 55-75) built around an UNCONVENTIONAL CONSORTIUM — a non-obvious co-applicant or cross-sector partnership that unlocks an instrument the company couldn't access alone.`,
   },
   creative_capital: {
     tag: 'creative',
-    instructions: `Generate exactly 2 CREATIVE ideas (confidence 50-75) focused on NON-OBVIOUS CAPITAL ROUTES — diaspora bonds, philanthropic catalytic capital, impact-linked debt, revenue-based financing, or blended structures with family offices or named impact VCs.`,
+    instructions: `Generate ONE CREATIVE idea (confidence 55-75) built around NON-OBVIOUS CAPITAL — catalytic philanthropic capital, impact-linked debt, revenue-based financing, or a named family office/impact VC.`,
   },
-  hybrid: {
+  creative_diaspora: {
+    tag: 'creative',
+    instructions: `Generate ONE CREATIVE idea (confidence 55-75) that taps DIASPORA, ALUMNI, or CULTURAL networks — diaspora bonds, remittance-linked products, alumni-led consortia, or trade-attaché pipelines in the target geography.`,
+  },
+  hybrid_blended: {
     tag: 'hybrid',
-    instructions: `Generate exactly 2 HYBRID ideas (confidence 60-80). Each combines a concrete anchor (specific EU instrument or corporate buyer) with a creative twist (e.g., pairing with a named impact investor for blended finance, or a consortium with a non-obvious co-applicant). Show both halves clearly.`,
+    instructions: `Generate ONE HYBRID idea (confidence 60-80) that pairs a concrete EU/DFI instrument with a creative blended-finance twist — e.g., AECID grant layered with a named impact investor's equity.`,
+  },
+  hybrid_consortium: {
+    tag: 'hybrid',
+    instructions: `Generate ONE HYBRID idea (confidence 60-80) that pairs a concrete Global Gateway or Team Europe pipeline with an unconventional consortium composition.`,
+  },
+  hybrid_offtake: {
+    tag: 'hybrid',
+    instructions: `Generate ONE HYBRID idea (confidence 60-80) that pairs a concrete corporate off-take with grant-funded technical assistance or pilot capital from a named donor.`,
   },
 };
 
@@ -107,7 +125,7 @@ const ideasTool: Anthropic.Tool = {
     properties: {
       ideas: {
         type: 'array',
-        description: 'Exactly 2 ranked ideas.',
+        description: 'Exactly ONE idea.',
         items: {
           type: 'object',
           properties: {
@@ -144,7 +162,7 @@ const ideasTool: Anthropic.Tool = {
 
 async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaFromModel[]> {
   const { tag, instructions } = BATCH_INSTRUCTIONS[batch];
-  const system = `${BASE_PROMPT}\n\n${instructions}\n\nCall emit_ideas with exactly 2 ideas. EVERY idea MUST have funding_paths (2-3), partners (2-3), and next_steps (3-5) populated with specific named entries. Keep text concise.`;
+  const system = `${BASE_PROMPT}\n\n## This batch: ${instructions}`;
 
   const t0 = Date.now();
   console.log(`[discovery:${batch}] calling Anthropic...`);
@@ -152,7 +170,7 @@ async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaF
   try {
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
+      max_tokens: 3000,
       system,
       tools: [ideasTool],
       tool_choice: { type: 'tool', name: 'emit_ideas' },
@@ -160,7 +178,7 @@ async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaF
     });
 
     console.log(
-      `[discovery:${batch}] responded in ${Date.now() - t0}ms, stop_reason=${response.stop_reason}, out=${response.usage?.output_tokens}`,
+      `[discovery:${batch}] responded in ${Date.now() - t0}ms, stop=${response.stop_reason}, out=${response.usage?.output_tokens}`,
     );
 
     const toolBlock = response.content.find((b) => b.type === 'tool_use');
@@ -171,8 +189,8 @@ async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaF
     const parsed = toolBlock.input as { ideas?: IdeaFromModel[] };
     const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
     if (ideas.length === 0) {
-      const inputPreview = JSON.stringify(toolBlock.input).slice(0, 400);
-      console.error(`[discovery:${batch}] empty ideas. stop_reason=${response.stop_reason}, input: ${inputPreview}`);
+      const preview = JSON.stringify(toolBlock.input).slice(0, 300);
+      console.error(`[discovery:${batch}] empty ideas. stop=${response.stop_reason}, in=${preview}`);
     }
     return ideas.map((idea) => ({ ...idea, tag }));
   } catch (err) {
@@ -239,19 +257,25 @@ export async function POST(req: NextRequest) {
     // 2. Build user prompt
     const userPrompt = buildUserPrompt(profile);
 
-    // 3. Five parallel calls (2 ideas each) = 10 ideas, each small enough to
-    //    finish under the 60s function budget
+    // 3. Ten parallel calls (1 idea each) = 10 ideas. Single-idea batches
+    //    finish in ~15-25s so they comfortably fit under the 60s budget and
+    //    never hit max_tokens (which nukes tool_use into an empty object).
     const t0 = Date.now();
     const batches: BatchKey[] = [
-      'concrete_funding',
-      'concrete_buyers',
-      'creative_consortia',
+      'concrete_funding_a',
+      'concrete_funding_b',
+      'concrete_buyer_a',
+      'concrete_buyer_b',
+      'creative_consortium',
       'creative_capital',
-      'hybrid',
+      'creative_diaspora',
+      'hybrid_blended',
+      'hybrid_consortium',
+      'hybrid_offtake',
     ];
     const results = await Promise.all(batches.map((b) => generateBatch(b, userPrompt)));
     const batchCounts = batches.map((b, i) => `${b}=${results[i].length}`).join(', ');
-    console.log(`[discovery] all 5 batches completed in ${Date.now() - t0}ms — ${batchCounts}`);
+    console.log(`[discovery] all 10 batches completed in ${Date.now() - t0}ms — ${batchCounts}`);
 
     // Merge, sort by confidence descending
     const rawIdeas = results.flat().sort(
