@@ -7,33 +7,32 @@ const client = new Anthropic();
 export const maxDuration = 60;
 
 // ============================================================================
-// SYSTEM PROMPT — Discovery Engine
-// ============================================================================
-// This is NOT a fund-matcher. This is an ideation engine that uncovers
-// non-obvious paths to revenue, capital, and impact for the user's company:
-// - Concrete ideas: real instruments, verified calls, known buyers/partners
-// - Creative ideas: novel angles grounded in evidence (adjacent markets,
-//   unconventional consortia, hybrid financing structures)
-// - Hybrid: a concrete anchor + creative extension
+// SYSTEM PROMPTS — Discovery Engine (one per tag, run in parallel)
 // ============================================================================
 
-const SYSTEM_PROMPT = `You are Cooperatr's Discovery Engine — a senior EU/multilateral development finance strategist. You help European SMEs uncover non-obvious paths to revenue, capital, and impact (funding, partners, buyers, impact investors, novel consortia).
+const BASE_PROMPT = `You are Cooperatr's Discovery Engine — a senior EU/multilateral development finance strategist helping European SMEs uncover non-obvious paths to revenue, capital, and impact.
 
-Known instruments: NDICI-Global Europe, Global Gateway, Team Europe Initiatives, AECID, COFIDES, ICEX Vives, FEDES, GIZ, AFD, FCDO, SIDA, World Bank, IDB, AfDB, IFC, EIB, EBRD, Proparco, FMO, Green Climate Fund. Known impact investors: Acumen, LeapFrog, Bamboo Capital, Triodos, responsAbility. Known corporate off-take buyers across agri, energy, water, circular.
+Known instruments: NDICI-Global Europe, Global Gateway, Team Europe Initiatives, AECID, COFIDES, ICEX Vives, FEDES, GIZ, AFD, FCDO, SIDA, World Bank, IDB, AfDB, IFC, EIB, EBRD, Proparco, FMO, Green Climate Fund. Known impact investors: Acumen, LeapFrog, Bamboo Capital, Triodos, responsAbility, Blue Orchard, Incofin.
 
-Idea types:
-- concrete (75-95 confidence) — real instrument or known buyer, actionable now
-- creative (50-75) — novel angle, grounded in evidence
-- hybrid (60-80) — concrete anchor + creative twist
+Anti-hallucination rules:
+- Do NOT invent specific call IDs, deadlines, or named contacts. Use "Q3 2026 typical cycle" or "rolling".
+- If you are not ~80% sure a partner/investor is active in this niche, mark verified=false.
+- Flag uncertainty via missing_data and a lower confidence score.
 
-Anti-hallucination: do NOT invent specific call IDs, deadlines, or named contacts. Use "Q3 2026 typical cycle" or "rolling". Flag uncertainty via missing_data and lower confidence.
+Style:
+- Prioritize Spanish instruments for Andalusian companies.
+- If prior_eu_experience=false, surface at least one entry-level path.
+- Always populate partners (2-3), funding_paths (2-3), and next_steps (3-5) on EVERY idea — do not leave them empty.
+- Title: punchy, 6-12 words. Summary: 2-3 crisp sentences with specific numbers or names.`;
 
-Prioritize Spanish instruments for Andalusian companies. Match budget to revenue. If prior_eu_experience=false, surface an entry-level path. Always include at least one non-grant path (off-take, equity, blended, corporate buyer).
-
-Output: call the emit_ideas tool with exactly 2 ideas (1 concrete + 1 creative OR 1 hybrid). Keep text concise, populate only the most important sub-sections.`;
+const TAG_INSTRUCTIONS: Record<string, string> = {
+  concrete: `Generate exactly 4 CONCRETE ideas (confidence 75-95). Each must anchor on a real, named instrument (e.g. "AECID Cooperación Delegada", "NDICI Global Gateway") or a real buyer type (e.g. "WFP East Africa food aid procurement"). Actionable within 90 days. Specific funding mechanics, specific named partners.`,
+  creative: `Generate exactly 3 CREATIVE ideas (confidence 50-75). Novel angles grounded in evidence — adjacent markets, unconventional consortia, unusual partnerships, diaspora or philanthropic capital routes, hybrid revenue-plus-impact structures. Must still name specific instruments or partners, but apply them in non-obvious ways no generic advisor would suggest.`,
+  hybrid: `Generate exactly 3 HYBRID ideas (confidence 60-80). Each combines a concrete anchor (specific EU instrument or corporate buyer) with a creative twist (e.g., pairing with a named impact investor for blended finance, or a consortium with a non-obvious co-applicant). Show both halves clearly in the summary.`,
+};
 
 // ============================================================================
-// POST — Generate ideas for a company profile
+// Types
 // ============================================================================
 
 type IdeaFromModel = {
@@ -56,14 +55,178 @@ type IdeaFromModel = {
   data_provenance?: unknown[];
   missing_data?: string[];
   proposal_ready?: boolean;
+  dbId?: string;
 };
+
+// ============================================================================
+// Tool schema — tight, with required sub-fields so Haiku stops drifting
+// ============================================================================
+
+const ideasTool: Anthropic.Tool = {
+  name: 'emit_ideas',
+  description: 'Emit the ranked ideas as structured data.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      ideas: {
+        type: 'array',
+        description: 'The ranked ideas. Populate the required sub-sections on every idea.',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Punchy 6-12 word title.' },
+            summary: { type: 'string', description: '2-3 sentence summary with specific numbers or names.' },
+            tag: { type: 'string', enum: ['concrete', 'creative', 'hybrid'] },
+            confidence: { type: 'number', description: '0-100 confidence score.' },
+            confidence_rationale: { type: 'string', description: 'One short sentence explaining the confidence level.' },
+            estimated_value_min: { type: 'number', description: 'Minimum value in EUR.' },
+            estimated_value_max: { type: 'number', description: 'Maximum value in EUR.' },
+            currency: { type: 'string', description: 'Currency code, default EUR.' },
+            estimated_timeline_months: { type: 'number', description: 'Months from kickoff to first revenue/disbursement.' },
+            funding_paths: {
+              type: 'array',
+              description: 'REQUIRED: 2-3 specific funding paths with real instrument names. Never leave empty.',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', description: 'Specific instrument name, e.g. "AECID Cooperación Delegada".' },
+                  type: { type: 'string', description: 'One of: grant, debt, equity, blended, off-take, guarantee, technical assistance.' },
+                  amount_range: { type: 'string', description: 'e.g. "€500K - €2M".' },
+                  timeline: { type: 'string', description: 'e.g. "Q3 2026 typical cycle" or "rolling".' },
+                  how_to_access: { type: 'string', description: 'Concrete first action to pursue this path.' },
+                  fit_rationale: { type: 'string', description: 'Why this fits this specific company.' },
+                },
+                required: ['name', 'type', 'fit_rationale'],
+              },
+            },
+            partners: {
+              type: 'array',
+              description: 'REQUIRED: 2-3 named partner organizations. Never leave empty.',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', description: 'Specific org name, e.g. "GIZ Mozambique" or "Fundación Cepaim".' },
+                  type: { type: 'string', description: 'One of: NGO, implementer, corporate, university, multilateral, agency, diaspora.' },
+                  country: { type: 'string' },
+                  why: { type: 'string', description: 'Why this partner fits this idea.' },
+                  verified: { type: 'boolean', description: 'true only if you are confident this org is active in this niche.' },
+                },
+                required: ['name', 'type', 'why'],
+              },
+            },
+            buyers: {
+              type: 'array',
+              description: 'Named corporate or public-sector buyers, when a revenue path is relevant.',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  type: { type: 'string', description: 'e.g. "multilateral procurement", "off-taker", "public tender".' },
+                  deal_shape: { type: 'string', description: 'e.g. "5-year off-take" or "pilot + scale".' },
+                  why: { type: 'string' },
+                  verified: { type: 'boolean' },
+                },
+                required: ['name', 'why'],
+              },
+            },
+            investors: {
+              type: 'array',
+              description: 'Named impact investors, when equity or blended finance is relevant.',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  type: { type: 'string', description: 'e.g. "impact VC", "DFI", "family office".' },
+                  ticket_size: { type: 'string', description: 'e.g. "€1M - €5M".' },
+                  why: { type: 'string' },
+                  verified: { type: 'boolean' },
+                },
+                required: ['name', 'why'],
+              },
+            },
+            next_steps: {
+              type: 'array',
+              description: 'REQUIRED: 3-5 concrete actions the user can take this week. Never leave empty.',
+              items: {
+                type: 'object',
+                properties: {
+                  step: { type: 'string', description: 'Specific action, e.g. "Email ICEX Vives to request eligibility check".' },
+                  owner: { type: 'string', description: 'Who on the team owns it, e.g. "CEO" or "BD lead".' },
+                  timeline: { type: 'string', description: 'e.g. "this week", "within 2 weeks".' },
+                },
+                required: ['step'],
+              },
+            },
+            regulatory_requirements: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Key certifications or compliance items required (e.g. "EU AEO", "B-Corp").',
+            },
+            risks: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Top 2-3 execution risks specific to this idea.',
+            },
+            missing_data: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'What you would need to raise confidence on this idea.',
+            },
+            proposal_ready: { type: 'boolean', description: 'True only if this idea has enough data to start drafting a proposal today.' },
+          },
+          required: ['title', 'summary', 'tag', 'confidence', 'funding_paths', 'partners', 'next_steps'],
+        },
+      },
+    },
+    required: ['ideas'],
+  },
+};
+
+// ============================================================================
+// Generate a batch of ideas for one tag (concrete/creative/hybrid)
+// ============================================================================
+
+async function generateForTag(
+  tag: 'concrete' | 'creative' | 'hybrid',
+  userPrompt: string,
+): Promise<IdeaFromModel[]> {
+  const system = `${BASE_PROMPT}\n\n${TAG_INSTRUCTIONS[tag]}\n\nCall emit_ideas with the specified count. EVERY idea MUST have funding_paths (2-3), partners (2-3), and next_steps (3-5) populated with specific named entries.`;
+
+  const t0 = Date.now();
+  console.log(`[discovery:${tag}] calling Anthropic...`);
+
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 5000,
+    system,
+    tools: [ideasTool],
+    tool_choice: { type: 'tool', name: 'emit_ideas' },
+    messages: [{ role: 'user', content: userPrompt }],
+  });
+
+  console.log(`[discovery:${tag}] responded in ${Date.now() - t0}ms`);
+
+  const toolBlock = response.content.find((b) => b.type === 'tool_use');
+  if (!toolBlock || toolBlock.type !== 'tool_use') {
+    console.error(`[discovery:${tag}] no tool_use block`);
+    return [];
+  }
+  const parsed = toolBlock.input as { ideas: IdeaFromModel[] };
+  const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
+  // Force the tag in case the model forgets
+  return ideas.map((idea) => ({ ...idea, tag }));
+}
+
+// ============================================================================
+// POST — Generate ideas for a company profile
+// ============================================================================
 
 export async function POST(req: NextRequest) {
   try {
     const profile = await req.json();
     const supabase = createServerClient();
 
-    // 1. Upsert company profile. If companyId is passed, update; else insert.
+    // 1. Upsert company
     let companyId: string = profile.companyId || '';
     try {
       const companyRow = {
@@ -74,7 +237,6 @@ export async function POST(req: NextRequest) {
         prior_eu_experience: profile.priorEUExperience || false,
         description: profile.description || null,
         geographies: profile.geographies || [],
-        // Stage 2 fields (optional on first pass)
         capabilities: profile.capabilities || [],
         certifications: profile.certifications || [],
         team_size: profile.teamSize || null,
@@ -110,73 +272,27 @@ export async function POST(req: NextRequest) {
       console.error('Company DB error:', dbErr);
     }
 
-    // 2. Build user prompt for the discovery engine
+    // 2. Build user prompt
     const userPrompt = buildUserPrompt(profile);
 
-    // 3. Call Claude with tool_use to guarantee valid structured JSON
-    const ideasTool: Anthropic.Tool = {
-      name: 'emit_ideas',
-      description: 'Emit the ranked ideas as structured data.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          ideas: {
-            type: 'array',
-            description: 'Exactly 2 ranked ideas.',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                summary: { type: 'string' },
-                tag: { type: 'string', enum: ['concrete', 'creative', 'hybrid'] },
-                confidence: { type: 'number' },
-                confidence_rationale: { type: 'string' },
-                estimated_value_min: { type: 'number' },
-                estimated_value_max: { type: 'number' },
-                currency: { type: 'string' },
-                estimated_timeline_months: { type: 'number' },
-                funding_paths: { type: 'array', items: { type: 'object' } },
-                partners: { type: 'array', items: { type: 'object' } },
-                buyers: { type: 'array', items: { type: 'object' } },
-                investors: { type: 'array', items: { type: 'object' } },
-                next_steps: { type: 'array', items: { type: 'object' } },
-                regulatory_requirements: { type: 'array', items: { type: 'string' } },
-                risks: { type: 'array', items: { type: 'string' } },
-                data_provenance: { type: 'array', items: { type: 'object' } },
-                missing_data: { type: 'array', items: { type: 'string' } },
-                proposal_ready: { type: 'boolean' },
-              },
-              required: ['title', 'summary', 'tag', 'confidence'],
-            },
-          },
-        },
-        required: ['ideas'],
-      },
-    };
-
+    // 3. Three parallel calls — concrete, creative, hybrid
     const t0 = Date.now();
-    console.log('[discovery] calling Anthropic...');
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
-      system: SYSTEM_PROMPT,
-      tools: [ideasTool],
-      tool_choice: { type: 'tool', name: 'emit_ideas' },
-      messages: [{ role: 'user', content: userPrompt }],
-    });
-    console.log(`[discovery] Anthropic responded in ${Date.now() - t0}ms`);
+    const [concrete, creative, hybrid] = await Promise.all([
+      generateForTag('concrete', userPrompt),
+      generateForTag('creative', userPrompt),
+      generateForTag('hybrid', userPrompt),
+    ]);
+    console.log(`[discovery] all 3 tag calls completed in ${Date.now() - t0}ms — totals: concrete=${concrete.length}, creative=${creative.length}, hybrid=${hybrid.length}`);
 
-    // Extract ideas from the tool_use response block
-    const toolBlock = response.content.find((b) => b.type === 'tool_use');
-    if (!toolBlock || toolBlock.type !== 'tool_use') {
-      throw new Error('Model did not return a tool_use block');
-    }
-    const parsed = toolBlock.input as { ideas: IdeaFromModel[] };
-    const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
+    // Merge, sort by confidence descending
+    const rawIdeas = [...concrete, ...creative, ...hybrid].sort(
+      (a, b) => (b.confidence || 0) - (a.confidence || 0),
+    );
 
-    // 4. Persist ideas to DB
-    if (companyId && ideas.length > 0) {
-      const rows = ideas.map((idea) => ({
+    // 4. Persist to DB — cleanly map dbId back via insertion order
+    let persistedIdeas: IdeaFromModel[] = rawIdeas;
+    if (companyId && rawIdeas.length > 0) {
+      const rows = rawIdeas.map((idea) => ({
         company_id: companyId,
         title: idea.title,
         summary: idea.summary,
@@ -205,18 +321,18 @@ export async function POST(req: NextRequest) {
         .insert(rows)
         .select('id');
 
-      if (ideasError) console.error('Ideas insert error:', ideasError);
-
-      if (savedIdeas) {
-        ideas.forEach((idea, i) => {
-          if (savedIdeas[i]) {
-            (idea as IdeaFromModel & { dbId?: string }).dbId = savedIdeas[i].id;
-          }
-        });
+      if (ideasError) {
+        console.error('Ideas insert error:', ideasError);
+      } else if (savedIdeas) {
+        // Map dbId by insertion order — PG returns in insert order
+        persistedIdeas = rawIdeas.map((idea, i) => ({
+          ...idea,
+          dbId: savedIdeas[i]?.id,
+        }));
       }
     }
 
-    return NextResponse.json({ ideas, companyId: companyId || null });
+    return NextResponse.json({ ideas: persistedIdeas, companyId: companyId || null });
   } catch (error) {
     console.error('Discovery Engine error:', error instanceof Error ? error.message : error);
     return NextResponse.json(
@@ -231,7 +347,7 @@ export async function POST(req: NextRequest) {
 
 function buildUserPrompt(profile: Record<string, unknown>): string {
   const lines: string[] = [];
-  lines.push('Generate 2 ranked ideas for the following company.');
+  lines.push('Generate ideas for the following company.');
   lines.push('');
   lines.push('## Company profile');
   lines.push(`Name: ${profile.companyName || 'Unnamed'}`);
@@ -244,7 +360,6 @@ function buildUserPrompt(profile: Record<string, unknown>): string {
   lines.push(`Prior EU contracting experience: ${profile.priorEUExperience ? 'Yes' : 'No'}`);
   lines.push(`Description: ${profile.description || 'Not provided'}`);
 
-  // Stage 2 fields — only include if present
   const hasStage2 =
     profile.capabilities ||
     profile.certifications ||
@@ -283,13 +398,7 @@ function buildUserPrompt(profile: Record<string, unknown>): string {
   }
 
   lines.push('');
-  lines.push('## Instructions');
-  lines.push(
-    'Return exactly 2 ideas: one concrete and one creative (or hybrid). Populate the most important sub-sections. When data is thin, mark it in missing_data. Keep text very concise.',
-  );
-  lines.push(
-    'Make the ideas feel like insights a senior business-development strategist would share — non-obvious, actionable, and specific to this company.',
-  );
+  lines.push('Make each idea feel like an insight a senior BD strategist would share — non-obvious, specific, and actionable.');
 
   return lines.join('\n');
 }
@@ -315,7 +424,10 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    return NextResponse.json({ ideas: data });
+    // Normalize: the DB column is `id`, client expects `dbId` for consistency
+    const ideas = (data || []).map((row) => ({ ...row, dbId: row.id }));
+
+    return NextResponse.json({ ideas });
   } catch (error) {
     console.error('Get ideas error:', error);
     return NextResponse.json({ error: 'Failed to fetch ideas' }, { status: 500 });
@@ -330,6 +442,10 @@ export async function PATCH(req: NextRequest) {
   try {
     const supabase = createServerClient();
     const { id, status } = await req.json();
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
 
     const { error } = await supabase.from('ideas').update({ status }).eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

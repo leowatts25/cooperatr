@@ -77,7 +77,25 @@ export async function POST(req: NextRequest) {
       messages: Message[];
     };
 
-    // Seed the first turn with a system-side framing of the known profile
+    // Seed the first turn with a system-side framing of the known profile,
+    // including Stage 2 fields already learned so the model skips them.
+    const stage2Lines: string[] = [];
+    if (profile.capabilities && (profile.capabilities as string[]).length)
+      stage2Lines.push(`Capabilities: ${(profile.capabilities as string[]).join(', ')}`);
+    if (profile.certifications && (profile.certifications as string[]).length)
+      stage2Lines.push(`Certifications: ${(profile.certifications as string[]).join(', ')}`);
+    if (profile.teamSize) stage2Lines.push(`Team size: ${profile.teamSize}`);
+    if (profile.existingPartners && (profile.existingPartners as string[]).length)
+      stage2Lines.push(`Existing partners: ${(profile.existingPartners as string[]).join(', ')}`);
+    if (profile.keyCustomers && (profile.keyCustomers as string[]).length)
+      stage2Lines.push(`Key customers: ${(profile.keyCustomers as string[]).join(', ')}`);
+    if (profile.typicalProjectSize) stage2Lines.push(`Typical project size: ${profile.typicalProjectSize}`);
+    if (profile.threeYearVision) stage2Lines.push(`Three-year vision: ${profile.threeYearVision}`);
+    if (profile.cashRunway) stage2Lines.push(`Cash runway: ${profile.cashRunway}`);
+    if (profile.consortiumPosture) stage2Lines.push(`Consortium posture: ${profile.consortiumPosture}`);
+    if (profile.internationalContacts && (profile.internationalContacts as string[]).length)
+      stage2Lines.push(`International contacts: ${(profile.internationalContacts as string[]).join(', ')}`);
+
     const framing = `Existing profile snapshot:
 Name: ${profile.companyName || 'Unnamed'}
 Sector: ${profile.sector || 'Not specified'}
@@ -85,7 +103,7 @@ Organization type: ${profile.organizationType || 'Not specified'}
 Revenue: ${profile.revenueRange || 'Not specified'}
 Geographies: ${Array.isArray(profile.geographies) ? (profile.geographies as string[]).join(', ') : 'Not specified'}
 Prior EU experience: ${profile.priorEUExperience ? 'Yes' : 'No'}
-Description: ${profile.description || 'Not provided'}`;
+Description: ${profile.description || 'Not provided'}${stage2Lines.length ? '\n\nAlready gathered (do NOT re-ask):\n' + stage2Lines.join('\n') : ''}`;
 
     const conversationMessages: Message[] =
       messages.length === 0

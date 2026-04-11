@@ -613,33 +613,55 @@ function OpportunitiesContent() {
     submitForIdeas();
   };
 
+  // Re-open the deepen drawer to strengthen the profile further, then regenerate
+  const handleStrengthen = () => {
+    setDeepenOpen(true);
+  };
+
   const handleSave = async (id: string) => {
+    if (!id) {
+      console.warn('handleSave called with empty id — dbId missing from idea');
+      return;
+    }
     setSaving(id);
     try {
-      await fetch('/api/opportunities', {
+      const res = await fetch('/api/opportunities', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: 'saved' }),
       });
-      if (ideas) {
-        setIdeas(ideas.map(i => (i.dbId === id || i.id === id) ? { ...i, status: 'saved' } : i));
-      }
-    } catch (err) { console.error(err); }
-    finally { setSaving(null); }
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setIdeas(prev => prev ? prev.map(i => (i.dbId === id || i.id === id) ? { ...i, status: 'saved' } : i) : prev);
+      setSavedIdeas(prev => prev.map(i => (i.dbId === id || i.id === id) ? { ...i, status: 'saved' } : i));
+    } catch (err) {
+      console.error('Save failed:', err);
+    } finally {
+      setSaving(null);
+    }
   };
 
   const handleDismiss = async (id: string) => {
+    if (!id) {
+      console.warn('handleDismiss called with empty id');
+      return;
+    }
     setSaving(id);
     try {
-      await fetch('/api/opportunities', {
+      const res = await fetch('/api/opportunities', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: 'dismissed' }),
       });
-      if (ideas) setIdeas(ideas.filter(i => i.dbId !== id && i.id !== id));
-      setSavedIdeas(prev => prev.filter(i => i.id !== id));
-    } catch (err) { console.error(err); }
-    finally { setSaving(null); }
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setIdeas(prev => prev ? prev.filter(i => i.dbId !== id && i.id !== id) : prev);
+      setSavedIdeas(prev => prev.filter(i => i.dbId !== id && i.id !== id));
+    } catch (err) {
+      console.error('Dismiss failed:', err);
+    } finally {
+      setSaving(null);
+    }
   };
 
   const inputStyle = {
@@ -659,7 +681,7 @@ function OpportunitiesContent() {
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 32px' }}>
       {deepenOpen && (
         <DeepenDrawer
-          profile={form}
+          profile={{ ...form, ...extendedProfile }}
           onClose={handleDeepenClose}
           onComplete={handleDeepenComplete}
         />
@@ -791,14 +813,14 @@ function OpportunitiesContent() {
             {loading && (
               <div>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12, fontStyle: 'italic' }}>
-                  Scanning EU instruments, Global Gateway pipelines, impact-investor theses, and corporate off-take patterns...
+                  Scanning EU instruments, Global Gateway pipelines, impact-investor theses, and corporate off-take patterns across concrete, creative, and hybrid angles...
                 </p>
-                {[1, 2, 3, 4].map(i => <IdeaSkeleton key={i} />)}
+                {[1, 2, 3, 4, 5, 6].map(i => <IdeaSkeleton key={i} />)}
               </div>
             )}
             {ideas && (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
                   <div>
                     <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
                       {ideas.length} ideas ranked
@@ -807,9 +829,38 @@ function OpportunitiesContent() {
                       Tailored for {form.companyName}. Click any section to expand.
                     </p>
                   </div>
-                  <button onClick={() => setIdeas(null)} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    Clear results
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button
+                      onClick={handleStrengthen}
+                      style={{
+                        padding: '8px 14px', borderRadius: 8,
+                        border: '1px solid var(--accent)',
+                        backgroundColor: 'var(--accent-dim)',
+                        color: 'var(--accent)',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >
+                      ↑ Strengthen profile
+                    </button>
+                    <button
+                      onClick={() => submitForIdeas()}
+                      style={{
+                        padding: '8px 14px', borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        backgroundColor: 'var(--bg-elevated)',
+                        color: 'var(--text-muted)',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >
+                      ↻ Regenerate
+                    </button>
+                    <button
+                      onClick={() => setIdeas(null)}
+                      style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
                 {ideas.map((idea, i) => (
                   <IdeaCard
