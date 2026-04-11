@@ -192,23 +192,62 @@ export async function POST(req: NextRequest) {
     // 2. Build user prompt for the discovery engine
     const userPrompt = buildUserPrompt(profile);
 
-    // 3. Call Claude
+    // 3. Call Claude with tool_use to guarantee valid structured JSON
+    const ideasTool: Anthropic.Tool = {
+      name: 'emit_ideas',
+      description: 'Emit the ranked ideas as structured data.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          ideas: {
+            type: 'array',
+            description: 'Exactly 4 ranked ideas.',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                summary: { type: 'string' },
+                tag: { type: 'string', enum: ['concrete', 'creative', 'hybrid'] },
+                confidence: { type: 'number' },
+                confidence_rationale: { type: 'string' },
+                estimated_value_min: { type: 'number' },
+                estimated_value_max: { type: 'number' },
+                currency: { type: 'string' },
+                estimated_timeline_months: { type: 'number' },
+                funding_paths: { type: 'array', items: { type: 'object' } },
+                partners: { type: 'array', items: { type: 'object' } },
+                buyers: { type: 'array', items: { type: 'object' } },
+                investors: { type: 'array', items: { type: 'object' } },
+                next_steps: { type: 'array', items: { type: 'object' } },
+                regulatory_requirements: { type: 'array', items: { type: 'string' } },
+                risks: { type: 'array', items: { type: 'string' } },
+                data_provenance: { type: 'array', items: { type: 'object' } },
+                missing_data: { type: 'array', items: { type: 'string' } },
+                proposal_ready: { type: 'boolean' },
+              },
+              required: ['title', 'summary', 'tag', 'confidence'],
+            },
+          },
+        },
+        required: ['ideas'],
+      },
+    };
+
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 5000,
+      max_tokens: 8000,
       system: SYSTEM_PROMPT,
+      tools: [ideasTool],
+      tool_choice: { type: 'tool', name: 'emit_ideas' },
       messages: [{ role: 'user', content: userPrompt }],
     });
 
-    const raw = response.content[0].type === 'text' ? response.content[0].text : '';
-
-    // Extract JSON object — tolerates markdown fences and stray prose
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    if (start === -1 || end === -1 || end <= start) {
-      throw new Error('Model did not return a JSON object: ' + raw.slice(0, 200));
+    // Extract ideas from the tool_use response block
+    const toolBlock = response.content.find((b) => b.type === 'tool_use');
+    if (!toolBlock || toolBlock.type !== 'tool_use') {
+      throw new Error('Model did not return a tool_use block');
     }
-    const parsed = JSON.parse(raw.slice(start, end + 1)) as { ideas: IdeaFromModel[] };
+    const parsed = toolBlock.input as { ideas: IdeaFromModel[] };
     const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
 
     // 4. Persist ideas to DB
