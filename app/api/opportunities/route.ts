@@ -197,22 +197,28 @@ async function generateForTag(
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 5000,
+    max_tokens: 8192,
     system,
     tools: [ideasTool],
     tool_choice: { type: 'tool', name: 'emit_ideas' },
     messages: [{ role: 'user', content: userPrompt }],
   });
 
-  console.log(`[discovery:${tag}] responded in ${Date.now() - t0}ms`);
+  console.log(
+    `[discovery:${tag}] responded in ${Date.now() - t0}ms, stop_reason=${response.stop_reason}, input_tokens=${response.usage?.input_tokens}, output_tokens=${response.usage?.output_tokens}`,
+  );
 
   const toolBlock = response.content.find((b) => b.type === 'tool_use');
   if (!toolBlock || toolBlock.type !== 'tool_use') {
-    console.error(`[discovery:${tag}] no tool_use block`);
+    console.error(`[discovery:${tag}] no tool_use block, content types: ${response.content.map((c) => c.type).join(',')}`);
     return [];
   }
-  const parsed = toolBlock.input as { ideas: IdeaFromModel[] };
+  const parsed = toolBlock.input as { ideas?: IdeaFromModel[] };
   const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
+  if (ideas.length === 0) {
+    const inputPreview = JSON.stringify(toolBlock.input).slice(0, 500);
+    console.error(`[discovery:${tag}] empty ideas array. stop_reason=${response.stop_reason}, input preview: ${inputPreview}`);
+  }
   // Force the tag in case the model forgets
   return ideas.map((idea) => ({ ...idea, tag }));
 }
