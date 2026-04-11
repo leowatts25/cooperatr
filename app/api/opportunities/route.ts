@@ -4,7 +4,7 @@ import { createServerClient } from '@/app/lib/supabase';
 
 const client = new Anthropic();
 
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 // ============================================================================
 // SYSTEM PROMPT — Discovery Engine
@@ -37,7 +37,7 @@ EU TED, EUROPEAID/INTPA, NDICI-Global Europe (€79.5B 2021–2027), Global Gate
 - If you are reasoning from pattern-matching rather than a specific verifiable fact, mark it creative and explain the pattern.
 
 ## Output format
-Return a single JSON object with an \`ideas\` array of exactly 4 ideas, ranked by a combination of confidence × strategic value. No preamble, no markdown fences, raw JSON only. Keep every text field concise — no fluff.
+Return a single JSON object with an \`ideas\` array of exactly 3 ideas, ranked by a combination of confidence × strategic value. No preamble, no markdown fences, raw JSON only. Keep every text field concise — no fluff.
 
 Schema for each idea:
 {
@@ -100,8 +100,8 @@ Schema for each idea:
 }
 
 ## Distribution of ideas
-For every response, aim for this mix across the 4 ideas:
-- 2 concrete (known instruments/buyers they should pursue immediately)
+For every response, aim for this mix across the 3 ideas:
+- 1 concrete (known instrument/buyer they should pursue immediately)
 - 1 creative (novel angle they haven't considered)
 - 1 hybrid (concrete anchor + creative twist)
 
@@ -234,8 +234,10 @@ export async function POST(req: NextRequest) {
     };
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
+      // Haiku 4.5 keeps generation time comfortably under the 60s Vercel
+      // function budget while still producing strong tool_use output.
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 6000,
       system: SYSTEM_PROMPT,
       tools: [ideasTool],
       tool_choice: { type: 'tool', name: 'emit_ideas' },
@@ -361,7 +363,7 @@ function buildUserPrompt(profile: Record<string, unknown>): string {
   lines.push('');
   lines.push('## Instructions');
   lines.push(
-    'Return exactly 4 ideas following the schema. Aim for the distribution: 2 concrete, 1 creative, 1 hybrid. Rank by confidence × strategic value. For each idea, populate the most important sub-sections with specific, grounded content. When data is thin, mark it in missing_data rather than fabricating. Keep text concise.',
+    'Return exactly 3 ideas following the schema: 1 concrete, 1 creative, 1 hybrid. Rank by confidence × strategic value. For each idea, populate the most important sub-sections with specific, grounded content. When data is thin, mark it in missing_data rather than fabricating. Keep text concise.',
   );
   lines.push(
     'Make the ideas feel like insights a senior business-development strategist would share — non-obvious, actionable, and specific to this company.',
