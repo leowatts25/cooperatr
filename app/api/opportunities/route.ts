@@ -160,6 +160,17 @@ const ideasTool: Anthropic.Tool = {
 // Generate a batch of ideas for one tag (concrete/creative/hybrid)
 // ============================================================================
 
+async function callHaiku(batch: BatchKey, system: string, userPrompt: string) {
+  return client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 3000,
+    system,
+    tools: [ideasTool],
+    tool_choice: { type: 'tool', name: 'emit_ideas' },
+    messages: [{ role: 'user', content: userPrompt }],
+  });
+}
+
 async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaFromModel[]> {
   const { tag, instructions } = BATCH_INSTRUCTIONS[batch];
   const system = `${BASE_PROMPT}\n\n## This batch: ${instructions}`;
@@ -167,36 +178,51 @@ async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaF
   const t0 = Date.now();
   console.log(`[discovery:${batch}] calling Anthropic...`);
 
+  let response;
   try {
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 3000,
-      system,
-      tools: [ideasTool],
-      tool_choice: { type: 'tool', name: 'emit_ideas' },
-      messages: [{ role: 'user', content: userPrompt }],
-    });
-
-    console.log(
-      `[discovery:${batch}] responded in ${Date.now() - t0}ms, stop=${response.stop_reason}, out=${response.usage?.output_tokens}`,
-    );
-
-    const toolBlock = response.content.find((b) => b.type === 'tool_use');
-    if (!toolBlock || toolBlock.type !== 'tool_use') {
-      console.error(`[discovery:${batch}] no tool_use block`);
+    response = await callHaiku(batch, system, userPrompt);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Retry once on rate limit with a short delay
+    if (msg.includes('429') || msg.includes('rate_limit')) {
+      console.warn(`[discovery:${batch}] 429, retrying in 2s...`);
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        response = await callHaiku(batch, system, userPrompt);
+      } catch (err2) {
+        console.error(`[discovery:${batch}] retry failed:`, err2 instanceof Error ? err2.message : err2);
+        return [];
+      }
+    } else {
+      console.error(`[discovery:${batch}] error:`, msg);
       return [];
     }
-    const parsed = toolBlock.input as { ideas?: IdeaFromModel[] };
-    const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
-    if (ideas.length === 0) {
-      const preview = JSON.stringify(toolBlock.input).slice(0, 300);
-      console.error(`[discovery:${batch}] empty ideas. stop=${response.stop_reason}, in=${preview}`);
-    }
-    return ideas.map((idea) => ({ ...idea, tag }));
-  } catch (err) {
-    console.error(`[discovery:${batch}] error:`, err instanceof Error ? err.message : err);
+  }
+
+  console.log(
+    `[discovery:${batch}] responded in ${Date.now() - t0}ms, stop=${response.stop_reason}, out=${response.usage?.output_tokens}`,
+  );
+
+  const toolBlock = response.content.find((b) => b.type === 'tool_use');
+  if (!toolBlock || toolBlock.type !== 'tool_use') {
+    console.error(`[discovery:${batch}] no tool_use block`);
     return [];
   }
+  const parsed = toolBlock.input as { ideas?: IdeaFromModel[] };
+  const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
+  if (ideas.length === 0) {
+    const preview = JSON.stringify(toolBlock.input).slice(0, 300);
+    console.error(`[discovery:${batch}] empty ideas. stop=${response.stop_reason}, in=${preview}`);
+  }
+  // Force the tag + normalize confidence (some model outputs use 0-1 scale)
+  return ideas.map((idea) => {
+    let conf = Number(idea.confidence) || 0;
+    if (conf > 0 && conf <= 1) conf = Math.round(conf * 100);
+    else conf = Math.round(conf);
+    if (conf < 0) conf = 0;
+    if (conf > 100) conf = 100;
+    return { ...idea, tag, confidence: conf };
+  });
 }
 
 // ============================================================================
