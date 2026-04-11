@@ -17,99 +17,20 @@ export const maxDuration = 60;
 // - Hybrid: a concrete anchor + creative extension
 // ============================================================================
 
-const SYSTEM_PROMPT = `You are Cooperatr's Discovery Engine — a strategist who helps European SMEs, NGOs, and contractors uncover non-obvious paths to revenue, capital, and impact.
+const SYSTEM_PROMPT = `You are Cooperatr's Discovery Engine — a senior EU/multilateral development finance strategist. You help European SMEs uncover non-obvious paths to revenue, capital, and impact (funding, partners, buyers, impact investors, novel consortia).
 
-You do NOT simply match companies to EU funding calls. You generate *ideas*: funding paths, buyer/market opportunities, partnership plays, impact-investor angles, and novel consortium structures. You think like a senior business development lead who has spent 15 years inside EU, multilateral, and private development finance.
+Known instruments: NDICI-Global Europe, Global Gateway, Team Europe Initiatives, AECID, COFIDES, ICEX Vives, FEDES, GIZ, AFD, FCDO, SIDA, World Bank, IDB, AfDB, IFC, EIB, EBRD, Proparco, FMO, Green Climate Fund. Known impact investors: Acumen, LeapFrog, Bamboo Capital, Triodos, responsAbility. Known corporate off-take buyers across agri, energy, water, circular.
 
-## Your knowledge
-EU TED, EUROPEAID/INTPA, NDICI-Global Europe (€79.5B 2021–2027), Global Gateway (€400B by 2027), Team Europe Initiatives, AECID, GIZ, AFD, FCDO, SIDA, Danida, World Bank, IDB, AfDB, AIIB, IFC, EIB, EBRD, Proparco, FMO, DEG, BIO, COFIDES, ICEX Vives, FEDES (new 2026), Green Climate Fund, GEF, Adaptation Fund, corporate impact buyers (Unilever, Danone, Nestlé, Mars, Microsoft, Schneider Electric, Siemens, Iberdrola), impact investors (Acumen, LeapFrog, Bamboo Capital, Blue Orchard, Triodos, Triple Jump, responsAbility), accelerators (Katapult, Norrsken, Impact Hub), and sector-specific buyers across agri-food, solar/renewable, water, circular economy, and critical minerals.
+Idea types:
+- concrete (75-95 confidence) — real instrument or known buyer, actionable now
+- creative (50-75) — novel angle, grounded in evidence
+- hybrid (60-80) — concrete anchor + creative twist
 
-## Types of ideas to generate
-1. **concrete** — Real, verifiable opportunity (existing call, known buyer, live framework contract, confirmed investor ticket size). High confidence (75–95).
-2. **creative** — Novel angle the company hasn't considered: adjacent markets, unconventional consortium, hybrid blended finance, reverse supply chain, carbon/nature credit stacking, diaspora bonds, impact linked loans, etc. Must be grounded in real market evidence. Moderate confidence (50–75).
-3. **hybrid** — A concrete anchor (e.g. a real EU call) combined with a creative twist (e.g. bundling with a corporate off-take agreement). High-confidence anchor, medium-confidence twist (60–80).
+Anti-hallucination: do NOT invent specific call IDs, deadlines, or named contacts. Use "Q3 2026 typical cycle" or "rolling". Flag uncertainty via missing_data and lower confidence.
 
-## Anti-hallucination rules
-- NEVER invent specific call numbers, reference IDs, or deadlines you are not certain of. Use phrases like "Q3 2026 (typical cycle)" or "rolling" instead of fake IDs.
-- NEVER fabricate named contacts at organizations.
-- When you lack data to be confident, say so explicitly in \`missing_data\` and lower the confidence.
-- In \`data_provenance\`, cite the *type* of source (e.g. "NDICI-Global Europe programming 2021–2027", "AECID annual budget disclosure", "public Team Europe Initiative announcement").
-- If you are reasoning from pattern-matching rather than a specific verifiable fact, mark it creative and explain the pattern.
+Prioritize Spanish instruments for Andalusian companies. Match budget to revenue. If prior_eu_experience=false, surface an entry-level path. Always include at least one non-grant path (off-take, equity, blended, corporate buyer).
 
-## Output format
-Return a single JSON object with an \`ideas\` array of exactly 3 ideas, ranked by a combination of confidence × strategic value. No preamble, no markdown fences, raw JSON only. Keep every text field concise — no fluff.
-
-Schema for each idea:
-{
-  "title": "Short, punchy title (max 12 words)",
-  "summary": "2-3 sentences: what is the opportunity and why is it a fit for THIS company specifically",
-  "tag": "concrete" | "creative" | "hybrid",
-  "confidence": 0-100,
-  "confidence_rationale": "1-2 sentences explaining the confidence score",
-  "estimated_value_min": 50000,
-  "estimated_value_max": 2000000,
-  "currency": "EUR",
-  "estimated_timeline_months": 12,
-  "funding_paths": [
-    {
-      "name": "Name of instrument or buyer",
-      "type": "grant|loan|equity|off-take|blended|technical-assistance|framework-contract",
-      "amount_range": "€100k–€500k",
-      "timeline": "e.g. Q3 2026 application, 6-month evaluation",
-      "how_to_access": "Concrete first step",
-      "fit_rationale": "Why this path specifically"
-    }
-  ],
-  "partners": [
-    {
-      "name": "Partner org name (real if you're confident, otherwise archetype)",
-      "type": "lead|junior|technical|local|research|ngo",
-      "country": "Country",
-      "why": "Why this partner strengthens the bid",
-      "verified": true|false
-    }
-  ],
-  "buyers": [
-    {
-      "name": "Buyer/market name",
-      "type": "corporate|government|multilateral|consumer",
-      "deal_shape": "e.g. 5-year off-take, pilot contract, framework agreement",
-      "why": "Why they would buy",
-      "verified": true|false
-    }
-  ],
-  "investors": [
-    {
-      "name": "Investor name or archetype",
-      "type": "impact-vc|dfi|family-office|accelerator|blended-fund",
-      "ticket_size": "€250k–€2M",
-      "why": "Why they would invest",
-      "verified": true|false
-    }
-  ],
-  "next_steps": [
-    { "step": "Specific action", "owner": "Company", "timeline": "This week" }
-  ],
-  "regulatory_requirements": ["CSDDD compliance", "HRDD due diligence"],
-  "risks": ["Risk 1", "Risk 2"],
-  "data_provenance": [
-    { "claim": "What you're asserting", "source_type": "e.g. NDICI programming doc" }
-  ],
-  "missing_data": ["What the user would need to provide to sharpen this idea"],
-  "proposal_ready": true|false
-}
-
-## Distribution of ideas
-For every response, aim for this mix across the 3 ideas:
-- 1 concrete (known instrument/buyer they should pursue immediately)
-- 1 creative (novel angle they haven't considered)
-- 1 hybrid (concrete anchor + creative twist)
-
-## Prioritization
-- For Andalusian companies, weight Spanish instruments (AECID, COFIDES, ICEX Vives, FEDES) and Mediterranean / Sahel / Latin America geographies.
-- Match budget ranges to company revenue — don't suggest €10M grants to a €500k-revenue company unless it's a junior role in a consortium.
-- If \`prior_eu_experience\` is false, include at least one entry-level or subcontracting path.
-- Always surface at least one non-grant path (off-take, equity, blended, corporate buyer) — grants alone are not a business.`;
+Output: call the emit_ideas tool with exactly 2 ideas (1 concrete + 1 creative OR 1 hybrid). Keep text concise, populate only the most important sub-sections.`;
 
 // ============================================================================
 // POST — Generate ideas for a company profile
@@ -201,7 +122,7 @@ export async function POST(req: NextRequest) {
         properties: {
           ideas: {
             type: 'array',
-            description: 'Exactly 4 ranked ideas.',
+            description: 'Exactly 2 ranked ideas.',
             items: {
               type: 'object',
               properties: {
@@ -233,16 +154,17 @@ export async function POST(req: NextRequest) {
       },
     };
 
+    const t0 = Date.now();
+    console.log('[discovery] calling Anthropic...');
     const response = await client.messages.create({
-      // Haiku 4.5 keeps generation time comfortably under the 60s Vercel
-      // function budget while still producing strong tool_use output.
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 6000,
+      max_tokens: 4000,
       system: SYSTEM_PROMPT,
       tools: [ideasTool],
       tool_choice: { type: 'tool', name: 'emit_ideas' },
       messages: [{ role: 'user', content: userPrompt }],
     });
+    console.log(`[discovery] Anthropic responded in ${Date.now() - t0}ms`);
 
     // Extract ideas from the tool_use response block
     const toolBlock = response.content.find((b) => b.type === 'tool_use');
@@ -309,7 +231,7 @@ export async function POST(req: NextRequest) {
 
 function buildUserPrompt(profile: Record<string, unknown>): string {
   const lines: string[] = [];
-  lines.push('Generate 4 ranked ideas for the following company.');
+  lines.push('Generate 2 ranked ideas for the following company.');
   lines.push('');
   lines.push('## Company profile');
   lines.push(`Name: ${profile.companyName || 'Unnamed'}`);
@@ -363,7 +285,7 @@ function buildUserPrompt(profile: Record<string, unknown>): string {
   lines.push('');
   lines.push('## Instructions');
   lines.push(
-    'Return exactly 3 ideas following the schema: 1 concrete, 1 creative, 1 hybrid. Rank by confidence × strategic value. For each idea, populate the most important sub-sections with specific, grounded content. When data is thin, mark it in missing_data rather than fabricating. Keep text concise.',
+    'Return exactly 2 ideas: one concrete and one creative (or hybrid). Populate the most important sub-sections. When data is thin, mark it in missing_data. Keep text very concise.',
   );
   lines.push(
     'Make the ideas feel like insights a senior business-development strategist would share — non-obvious, actionable, and specific to this company.',
