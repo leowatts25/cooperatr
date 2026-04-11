@@ -14,16 +14,31 @@ const BASE_PROMPT = `You are Cooperatr's Discovery Engine — a senior EU/multil
 
 Known instruments: NDICI-Global Europe, Global Gateway, Team Europe Initiatives, AECID, COFIDES, ICEX Vives, FEDES, GIZ, AFD, FCDO, SIDA, World Bank, IDB, AfDB, IFC, EIB, EBRD, Proparco, FMO, Green Climate Fund. Known impact investors: Acumen, LeapFrog, Bamboo Capital, Triodos, responsAbility, Blue Orchard, Incofin.
 
-Anti-hallucination rules:
-- Do NOT invent specific call IDs, deadlines, or named contacts. Use "Q3 2026 typical cycle" or "rolling".
-- If you are not ~80% sure a partner/investor is active in this niche, mark verified=false.
-- Flag uncertainty via missing_data and a lower confidence score.
+Anti-hallucination: do NOT invent call IDs or deadlines. Use "Q3 2026 typical cycle" or "rolling". Flag uncertainty via missing_data and lower confidence.
 
-Style:
-- Prioritize Spanish instruments for Andalusian companies.
-- If prior_eu_experience=false, surface at least one entry-level path.
-- Always populate partners (2-3), funding_paths (2-3), and next_steps (3-5) on EVERY idea — do not leave them empty.
-- Title: punchy, 6-12 words. Summary: 2-3 crisp sentences with specific numbers or names.`;
+Prioritize Spanish instruments for Andalusian companies. If prior_eu_experience=false, surface an entry-level path.
+
+## Sub-section field shapes (populate every idea with these):
+
+funding_paths — array of 2-3 objects, each with fields:
+  { name, type, amount_range, timeline, how_to_access, fit_rationale }
+  Example: { name: "AECID Cooperación Delegada", type: "grant", amount_range: "€500K-€2M", timeline: "Q2 2026 typical cycle", how_to_access: "Submit EOI via AECID portal", fit_rationale: "Spanish implementer preference" }
+
+partners — array of 2-3 objects, each with fields:
+  { name, type, country, why, verified }
+  Example: { name: "GIZ Mozambique", type: "implementer", country: "Mozambique", why: "Active in same sector, need local SME partner", verified: false }
+
+buyers — array of 1-3 objects (when revenue path relevant):
+  { name, type, deal_shape, why, verified }
+
+investors — array of 1-3 objects (when equity/blended relevant):
+  { name, type, ticket_size, why, verified }
+
+next_steps — array of 3-5 objects, each with fields:
+  { step, owner, timeline }
+  Example: { step: "Email ICEX Vives for eligibility check", owner: "CEO", timeline: "this week" }
+
+Always populate funding_paths (2-3), partners (2-3), and next_steps (3-5) on EVERY idea. Keep values concise — short phrases, not paragraphs. Title 6-12 words. Summary 2 crisp sentences.`;
 
 // Each batch produces 2 ideas in ~25-30s, so we run 5 of them in parallel
 // to hit 10 ideas inside the 60s function budget. Different angles per batch
@@ -92,111 +107,30 @@ const ideasTool: Anthropic.Tool = {
     properties: {
       ideas: {
         type: 'array',
-        description: 'The ranked ideas. Populate the required sub-sections on every idea.',
+        description: 'Exactly 2 ranked ideas.',
         items: {
           type: 'object',
           properties: {
-            title: { type: 'string', description: 'Punchy 6-12 word title.' },
-            summary: { type: 'string', description: '2-3 sentence summary with specific numbers or names.' },
+            title: { type: 'string' },
+            summary: { type: 'string' },
             tag: { type: 'string', enum: ['concrete', 'creative', 'hybrid'] },
-            confidence: { type: 'number', description: '0-100 confidence score.' },
-            confidence_rationale: { type: 'string', description: 'One short sentence explaining the confidence level.' },
-            estimated_value_min: { type: 'number', description: 'Minimum value in EUR.' },
-            estimated_value_max: { type: 'number', description: 'Maximum value in EUR.' },
-            currency: { type: 'string', description: 'Currency code, default EUR.' },
-            estimated_timeline_months: { type: 'number', description: 'Months from kickoff to first revenue/disbursement.' },
-            funding_paths: {
-              type: 'array',
-              description: 'REQUIRED: 2-3 specific funding paths with real instrument names. Never leave empty.',
-              items: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string', description: 'Specific instrument name, e.g. "AECID Cooperación Delegada".' },
-                  type: { type: 'string', description: 'One of: grant, debt, equity, blended, off-take, guarantee, technical assistance.' },
-                  amount_range: { type: 'string', description: 'e.g. "€500K - €2M".' },
-                  timeline: { type: 'string', description: 'e.g. "Q3 2026 typical cycle" or "rolling".' },
-                  how_to_access: { type: 'string', description: 'Concrete first action to pursue this path.' },
-                  fit_rationale: { type: 'string', description: 'Why this fits this specific company.' },
-                },
-                required: ['name', 'type', 'fit_rationale'],
-              },
-            },
-            partners: {
-              type: 'array',
-              description: 'REQUIRED: 2-3 named partner organizations. Never leave empty.',
-              items: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string', description: 'Specific org name, e.g. "GIZ Mozambique" or "Fundación Cepaim".' },
-                  type: { type: 'string', description: 'One of: NGO, implementer, corporate, university, multilateral, agency, diaspora.' },
-                  country: { type: 'string' },
-                  why: { type: 'string', description: 'Why this partner fits this idea.' },
-                  verified: { type: 'boolean', description: 'true only if you are confident this org is active in this niche.' },
-                },
-                required: ['name', 'type', 'why'],
-              },
-            },
-            buyers: {
-              type: 'array',
-              description: 'Named corporate or public-sector buyers, when a revenue path is relevant.',
-              items: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string' },
-                  type: { type: 'string', description: 'e.g. "multilateral procurement", "off-taker", "public tender".' },
-                  deal_shape: { type: 'string', description: 'e.g. "5-year off-take" or "pilot + scale".' },
-                  why: { type: 'string' },
-                  verified: { type: 'boolean' },
-                },
-                required: ['name', 'why'],
-              },
-            },
-            investors: {
-              type: 'array',
-              description: 'Named impact investors, when equity or blended finance is relevant.',
-              items: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string' },
-                  type: { type: 'string', description: 'e.g. "impact VC", "DFI", "family office".' },
-                  ticket_size: { type: 'string', description: 'e.g. "€1M - €5M".' },
-                  why: { type: 'string' },
-                  verified: { type: 'boolean' },
-                },
-                required: ['name', 'why'],
-              },
-            },
-            next_steps: {
-              type: 'array',
-              description: 'REQUIRED: 3-5 concrete actions the user can take this week. Never leave empty.',
-              items: {
-                type: 'object',
-                properties: {
-                  step: { type: 'string', description: 'Specific action, e.g. "Email ICEX Vives to request eligibility check".' },
-                  owner: { type: 'string', description: 'Who on the team owns it, e.g. "CEO" or "BD lead".' },
-                  timeline: { type: 'string', description: 'e.g. "this week", "within 2 weeks".' },
-                },
-                required: ['step'],
-              },
-            },
-            regulatory_requirements: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Key certifications or compliance items required (e.g. "EU AEO", "B-Corp").',
-            },
-            risks: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Top 2-3 execution risks specific to this idea.',
-            },
-            missing_data: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'What you would need to raise confidence on this idea.',
-            },
-            proposal_ready: { type: 'boolean', description: 'True only if this idea has enough data to start drafting a proposal today.' },
+            confidence: { type: 'number' },
+            confidence_rationale: { type: 'string' },
+            estimated_value_min: { type: 'number' },
+            estimated_value_max: { type: 'number' },
+            currency: { type: 'string' },
+            estimated_timeline_months: { type: 'number' },
+            funding_paths: { type: 'array', items: { type: 'object' } },
+            partners: { type: 'array', items: { type: 'object' } },
+            buyers: { type: 'array', items: { type: 'object' } },
+            investors: { type: 'array', items: { type: 'object' } },
+            next_steps: { type: 'array', items: { type: 'object' } },
+            regulatory_requirements: { type: 'array', items: { type: 'string' } },
+            risks: { type: 'array', items: { type: 'string' } },
+            missing_data: { type: 'array', items: { type: 'string' } },
+            proposal_ready: { type: 'boolean' },
           },
-          required: ['title', 'summary', 'tag', 'confidence', 'funding_paths', 'partners', 'next_steps'],
+          required: ['title', 'summary', 'tag', 'confidence'],
         },
       },
     },
