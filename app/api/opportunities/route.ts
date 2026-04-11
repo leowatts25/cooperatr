@@ -90,11 +90,22 @@ Make each opportunity specific and actionable — reference real instruments, re
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userPrompt }],
+      messages: [
+        { role: 'user', content: userPrompt },
+        // Prefill forces Claude to continue the JSON array instead of wrapping in markdown
+        { role: 'assistant', content: '[' },
+      ],
     });
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '[]';
-    const opportunities = JSON.parse(text);
+    const raw = response.content[0].type === 'text' ? response.content[0].text : '';
+    // Reattach the prefill '[' and extract the first JSON array, tolerating any stray prose or fences
+    const combined = '[' + raw;
+    const start = combined.indexOf('[');
+    const end = combined.lastIndexOf(']');
+    if (start === -1 || end === -1 || end <= start) {
+      throw new Error('Model did not return a JSON array: ' + raw.slice(0, 200));
+    }
+    const opportunities = JSON.parse(combined.slice(start, end + 1));
 
     // 3. Persist opportunities to database
     if (companyId && opportunities.length > 0) {
