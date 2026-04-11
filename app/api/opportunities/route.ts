@@ -25,10 +25,32 @@ Style:
 - Always populate partners (2-3), funding_paths (2-3), and next_steps (3-5) on EVERY idea — do not leave them empty.
 - Title: punchy, 6-12 words. Summary: 2-3 crisp sentences with specific numbers or names.`;
 
-const TAG_INSTRUCTIONS: Record<string, string> = {
-  concrete: `Generate exactly 4 CONCRETE ideas (confidence 75-95). Each must anchor on a real, named instrument (e.g. "AECID Cooperación Delegada", "NDICI Global Gateway") or a real buyer type (e.g. "WFP East Africa food aid procurement"). Actionable within 90 days. Specific funding mechanics, specific named partners.`,
-  creative: `Generate exactly 3 CREATIVE ideas (confidence 50-75). Novel angles grounded in evidence — adjacent markets, unconventional consortia, unusual partnerships, diaspora or philanthropic capital routes, hybrid revenue-plus-impact structures. Must still name specific instruments or partners, but apply them in non-obvious ways no generic advisor would suggest.`,
-  hybrid: `Generate exactly 3 HYBRID ideas (confidence 60-80). Each combines a concrete anchor (specific EU instrument or corporate buyer) with a creative twist (e.g., pairing with a named impact investor for blended finance, or a consortium with a non-obvious co-applicant). Show both halves clearly in the summary.`,
+// Each batch produces 2 ideas in ~25-30s, so we run 5 of them in parallel
+// to hit 10 ideas inside the 60s function budget. Different angles per batch
+// keep variety across the concrete/creative/hybrid mix.
+type BatchKey = 'concrete_funding' | 'concrete_buyers' | 'creative_consortia' | 'creative_capital' | 'hybrid';
+
+const BATCH_INSTRUCTIONS: Record<BatchKey, { tag: 'concrete' | 'creative' | 'hybrid'; instructions: string }> = {
+  concrete_funding: {
+    tag: 'concrete',
+    instructions: `Generate exactly 2 CONCRETE ideas (confidence 75-95) focused on NAMED FUNDING INSTRUMENTS — grants, blended finance, DFI facilities, or ICEX/AECID/COFIDES instruments. Each must anchor on a real instrument name and be actionable within 90 days.`,
+  },
+  concrete_buyers: {
+    tag: 'concrete',
+    instructions: `Generate exactly 2 CONCRETE ideas (confidence 75-95) focused on NAMED BUYERS — multilateral procurement (WFP, UNICEF, UNOPS), EU institutions, large corporates with off-take needs, or public tenders. Each must name the buyer and the realistic deal shape.`,
+  },
+  creative_consortia: {
+    tag: 'creative',
+    instructions: `Generate exactly 2 CREATIVE ideas (confidence 50-75) focused on UNCONVENTIONAL CONSORTIA — non-obvious co-applicants, cross-sector partnerships, regional cooperation, or SME-NGO pairings that unlock instruments the company couldn't access alone.`,
+  },
+  creative_capital: {
+    tag: 'creative',
+    instructions: `Generate exactly 2 CREATIVE ideas (confidence 50-75) focused on NON-OBVIOUS CAPITAL ROUTES — diaspora bonds, philanthropic catalytic capital, impact-linked debt, revenue-based financing, or blended structures with family offices or named impact VCs.`,
+  },
+  hybrid: {
+    tag: 'hybrid',
+    instructions: `Generate exactly 2 HYBRID ideas (confidence 60-80). Each combines a concrete anchor (specific EU instrument or corporate buyer) with a creative twist (e.g., pairing with a named impact investor for blended finance, or a consortium with a non-obvious co-applicant). Show both halves clearly.`,
+  },
 };
 
 // ============================================================================
@@ -186,41 +208,43 @@ const ideasTool: Anthropic.Tool = {
 // Generate a batch of ideas for one tag (concrete/creative/hybrid)
 // ============================================================================
 
-async function generateForTag(
-  tag: 'concrete' | 'creative' | 'hybrid',
-  userPrompt: string,
-): Promise<IdeaFromModel[]> {
-  const system = `${BASE_PROMPT}\n\n${TAG_INSTRUCTIONS[tag]}\n\nCall emit_ideas with the specified count. EVERY idea MUST have funding_paths (2-3), partners (2-3), and next_steps (3-5) populated with specific named entries.`;
+async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaFromModel[]> {
+  const { tag, instructions } = BATCH_INSTRUCTIONS[batch];
+  const system = `${BASE_PROMPT}\n\n${instructions}\n\nCall emit_ideas with exactly 2 ideas. EVERY idea MUST have funding_paths (2-3), partners (2-3), and next_steps (3-5) populated with specific named entries. Keep text concise.`;
 
   const t0 = Date.now();
-  console.log(`[discovery:${tag}] calling Anthropic...`);
+  console.log(`[discovery:${batch}] calling Anthropic...`);
 
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 8192,
-    system,
-    tools: [ideasTool],
-    tool_choice: { type: 'tool', name: 'emit_ideas' },
-    messages: [{ role: 'user', content: userPrompt }],
-  });
+  try {
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
+      system,
+      tools: [ideasTool],
+      tool_choice: { type: 'tool', name: 'emit_ideas' },
+      messages: [{ role: 'user', content: userPrompt }],
+    });
 
-  console.log(
-    `[discovery:${tag}] responded in ${Date.now() - t0}ms, stop_reason=${response.stop_reason}, input_tokens=${response.usage?.input_tokens}, output_tokens=${response.usage?.output_tokens}`,
-  );
+    console.log(
+      `[discovery:${batch}] responded in ${Date.now() - t0}ms, stop_reason=${response.stop_reason}, out=${response.usage?.output_tokens}`,
+    );
 
-  const toolBlock = response.content.find((b) => b.type === 'tool_use');
-  if (!toolBlock || toolBlock.type !== 'tool_use') {
-    console.error(`[discovery:${tag}] no tool_use block, content types: ${response.content.map((c) => c.type).join(',')}`);
+    const toolBlock = response.content.find((b) => b.type === 'tool_use');
+    if (!toolBlock || toolBlock.type !== 'tool_use') {
+      console.error(`[discovery:${batch}] no tool_use block`);
+      return [];
+    }
+    const parsed = toolBlock.input as { ideas?: IdeaFromModel[] };
+    const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
+    if (ideas.length === 0) {
+      const inputPreview = JSON.stringify(toolBlock.input).slice(0, 400);
+      console.error(`[discovery:${batch}] empty ideas. stop_reason=${response.stop_reason}, input: ${inputPreview}`);
+    }
+    return ideas.map((idea) => ({ ...idea, tag }));
+  } catch (err) {
+    console.error(`[discovery:${batch}] error:`, err instanceof Error ? err.message : err);
     return [];
   }
-  const parsed = toolBlock.input as { ideas?: IdeaFromModel[] };
-  const ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
-  if (ideas.length === 0) {
-    const inputPreview = JSON.stringify(toolBlock.input).slice(0, 500);
-    console.error(`[discovery:${tag}] empty ideas array. stop_reason=${response.stop_reason}, input preview: ${inputPreview}`);
-  }
-  // Force the tag in case the model forgets
-  return ideas.map((idea) => ({ ...idea, tag }));
 }
 
 // ============================================================================
@@ -281,17 +305,22 @@ export async function POST(req: NextRequest) {
     // 2. Build user prompt
     const userPrompt = buildUserPrompt(profile);
 
-    // 3. Three parallel calls — concrete, creative, hybrid
+    // 3. Five parallel calls (2 ideas each) = 10 ideas, each small enough to
+    //    finish under the 60s function budget
     const t0 = Date.now();
-    const [concrete, creative, hybrid] = await Promise.all([
-      generateForTag('concrete', userPrompt),
-      generateForTag('creative', userPrompt),
-      generateForTag('hybrid', userPrompt),
-    ]);
-    console.log(`[discovery] all 3 tag calls completed in ${Date.now() - t0}ms — totals: concrete=${concrete.length}, creative=${creative.length}, hybrid=${hybrid.length}`);
+    const batches: BatchKey[] = [
+      'concrete_funding',
+      'concrete_buyers',
+      'creative_consortia',
+      'creative_capital',
+      'hybrid',
+    ];
+    const results = await Promise.all(batches.map((b) => generateBatch(b, userPrompt)));
+    const batchCounts = batches.map((b, i) => `${b}=${results[i].length}`).join(', ');
+    console.log(`[discovery] all 5 batches completed in ${Date.now() - t0}ms — ${batchCounts}`);
 
     // Merge, sort by confidence descending
-    const rawIdeas = [...concrete, ...creative, ...hybrid].sort(
+    const rawIdeas = results.flat().sort(
       (a, b) => (b.confidence || 0) - (a.confidence || 0),
     );
 
