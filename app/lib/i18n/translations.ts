@@ -182,6 +182,62 @@ const translations = {
     'landing.bottomCta': 'See what is available for your company',
     'landing.bottomCtaButton': 'Get my free opportunity preview',
     'landing.live': 'LIVE',
+    'landing.comingSoon': 'COMING SOON',
+
+    // Landing — hero highlight + ctaNoCommit
+    'landing.heroHighlight': 'new markets worldwide',
+    'landing.heroPrefix': 'We connect your company to',
+    'landing.heroSuffix': 'and the funding to get there.',
+    'landing.bottomCtaDesc': 'Enter your company profile and get a real AI-powered preview of matched funding opportunities in under two minutes.',
+    'landing.bottomCtaSub': 'No upfront cost. No commitment. You pay only when you win.',
+
+    // Landing — sectors
+    'landing.sectors.agri': 'Agri-food & Agri-tech',
+    'landing.sectors.energy': 'Renewable Energy',
+    'landing.sectors.water': 'Water Technology',
+    'landing.sectors.circular': 'Circular Economy & ESG',
+    'landing.sectors.minerals': 'Critical Minerals',
+
+    // Landing — market context
+    'landing.marketLabel': 'The market is moving quickly',
+    'landing.marketTitle': 'There is more opportunity here than most companies realise.',
+    'landing.missed.1': 'A Global Gateway tender for your sector closes this month — and most Andalusian companies will never know it existed.',
+    'landing.missed.2': 'AECID has €592M to deploy in 2026 across West Africa and Latin America, in sectors where Andalusian companies have a direct advantage.',
+    'landing.missed.3': 'Development finance organisations that previously worked with USAID are actively seeking new European implementing partners.',
+    'landing.missed.4': 'The next CDTI deadline is in 6 weeks. Applications take 4. It helps to start early.',
+
+    // Landing — stats
+    'landing.statsLabel.1': 'EU Global Gateway committed through 2027',
+    'landing.statsLabel.2': 'Former USAID annual programming now seeking new partners',
+    'landing.statsLabel.3': 'Funding instruments indexed',
+    'landing.statsLabel.4': 'Priority geographies covered',
+
+    // Landing — modules block
+    'landing.modulesKicker': 'The Platform',
+    'landing.modulesTitle': 'Five modules. One integrated platform.',
+    'landing.modulesSubtitle': 'From spotting a funding opportunity to filing the final impact report — no other tool integrates the full development project lifecycle.',
+    'landing.module.1.name': 'Opportunity Engine',
+    'landing.module.1.desc': 'AI monitors EU, bilateral, and multilateral funding pipelines daily and surfaces matched opportunities before deadlines hit.',
+    'landing.module.2.name': 'Proposal Development',
+    'landing.module.2.desc': 'Drafts technical, financial, and compliance sections calibrated to each funder evaluation criteria — in hours, not weeks.',
+    'landing.module.3.name': 'Partner Vetting',
+    'landing.module.3.desc': 'Automated CSDDD and sanctions screening for every consortium partner — meeting the due diligence standards EU funders require.',
+    'landing.module.4.name': 'Project Management',
+    'landing.module.4.desc': 'From award to closeout: milestone tracking, financial reporting, and M&E in one place.',
+    'landing.module.5.name': 'Reporting & Verification',
+    'landing.module.5.desc': 'Generates donor-compliant impact reports mapped to GRI, CSRD, and SDG frameworks automatically from your project data.',
+
+    // Landing — FAQ
+    'landing.faqLabel': 'Common questions',
+    'landing.faqTitle': 'Questions we hear often.',
+    'landing.faq.1.q': 'EU grants feel complex and bureaucratic',
+    'landing.faq.1.a': 'We handle the process end to end — compliance, application, follow-up. Our platform pre-qualifies your company so we focus on opportunities you can realistically win.',
+    'landing.faq.2.q': 'We do not know how to find international contracts',
+    'landing.faq.2.a': 'That is exactly what the Opportunity Engine is for. It scans EU, bilateral, multilateral, and foundation pipelines daily and surfaces relevant matches automatically.',
+    'landing.faq.3.q': 'We have never worked with EU funders before',
+    'landing.faq.3.a': 'Most Andalusian SMEs have not. We include entry-level pathways — subcontracting roles, technical assistance contracts — designed for companies entering the market for the first time.',
+    'landing.faq.4.q': 'We do not have capacity to manage complex projects',
+    'landing.faq.4.a': 'Our Project Management and Reporting modules handle the compliance burden — milestone tracking, M&E, donor reports — so your team can focus on delivery.',
 
     // Common
     'common.loading': 'Loading...',
@@ -372,6 +428,56 @@ const translations = {
     'landing.bottomCta': 'Descubre qué oportunidades hay para tu empresa',
     'landing.bottomCtaButton': 'Ver oportunidades gratis',
     'landing.live': 'ACTIVO',
+    'landing.comingSoon': 'PRÓXIMAMENTE',
+
+    'landing.heroHighlight': 'nuevos mercados en todo el mundo',
+    'landing.heroPrefix': 'Conectamos tu empresa con',
+    'landing.heroSuffix': 'y la financiación para llegar.',
+    'landing.bottomCtaDesc': 'Introduce el perfil de tu empresa y obtén una vista previa real con IA de oportunidades de financiación en menos de dos minutos.',
+    'landing.bottomCtaSub': 'Sin coste inicial. Sin compromiso. Solo pagas cuando ganas.',
+
+    'landing.sectors.agri': 'Agroalimentación y Agritech',
+    'landing.sectors.energy': 'Energías Renovables',
+    'landing.sectors.water': 'Tecnología del Agua',
+    'landing.sectors.circular': 'Economía Circular y ESG',
+    'landing.sectors.minerals': 'Minerales Críticos',
+
+    'landing.marketLabel': 'El mercado se mueve rápido',
+    'landing.marketTitle': 'Hay más oportunidades aquí de las que la mayoría de empresas imaginan.',
+    'landing.missed.1': 'Este mes cierra una licitación de Global Gateway en tu sector — y la mayoría de empresas andaluzas ni se enterarán.',
+    'landing.missed.2': 'AECID tiene 592M€ para desplegar en 2026 en África Occidental y América Latina, en sectores donde las empresas andaluzas tienen ventaja directa.',
+    'landing.missed.3': 'Organismos de financiación al desarrollo que antes trabajaban con USAID están buscando activamente nuevos socios europeos para implementar.',
+    'landing.missed.4': 'El próximo plazo del CDTI es en 6 semanas. Preparar la solicitud lleva 4. Merece la pena empezar pronto.',
+
+    'landing.statsLabel.1': 'Comprometidos por EU Global Gateway hasta 2027',
+    'landing.statsLabel.2': 'Antigua programación anual de USAID buscando nuevos socios',
+    'landing.statsLabel.3': 'Instrumentos de financiación indexados',
+    'landing.statsLabel.4': 'Geografías prioritarias cubiertas',
+
+    'landing.modulesKicker': 'La Plataforma',
+    'landing.modulesTitle': 'Cinco módulos. Una plataforma integrada.',
+    'landing.modulesSubtitle': 'Desde detectar una oportunidad de financiación hasta presentar el informe final de impacto — ninguna otra herramienta integra todo el ciclo de vida del proyecto.',
+    'landing.module.1.name': 'Motor de Oportunidades',
+    'landing.module.1.desc': 'La IA monitoriza a diario los flujos de financiación europeos, bilaterales y multilaterales, y muestra oportunidades relevantes antes de que cierren los plazos.',
+    'landing.module.2.name': 'Desarrollo de Propuestas',
+    'landing.module.2.desc': 'Redacta las secciones técnica, financiera y de cumplimiento calibradas a los criterios de evaluación de cada financiador — en horas, no en semanas.',
+    'landing.module.3.name': 'Evaluación de Socios',
+    'landing.module.3.desc': 'Due diligence automatizada (CSDDD y sanciones) para cada socio del consorcio — cumpliendo los estándares que exigen los financiadores europeos.',
+    'landing.module.4.name': 'Gestión de Proyectos',
+    'landing.module.4.desc': 'De la adjudicación al cierre: seguimiento de hitos, reporting financiero y monitoreo en un solo lugar.',
+    'landing.module.5.name': 'Informes y Verificación',
+    'landing.module.5.desc': 'Genera informes de impacto conformes a los estándares del financiador, mapeados a GRI, CSRD y ODS, automáticamente desde los datos del proyecto.',
+
+    'landing.faqLabel': 'Preguntas frecuentes',
+    'landing.faqTitle': 'Preguntas que escuchamos a menudo.',
+    'landing.faq.1.q': 'Las subvenciones europeas parecen complejas y burocráticas',
+    'landing.faq.1.a': 'Nos ocupamos del proceso de principio a fin — cumplimiento, solicitud y seguimiento. Nuestra plataforma precalifica tu empresa para que nos centremos en oportunidades que realmente puedes ganar.',
+    'landing.faq.2.q': 'No sabemos cómo encontrar contratos internacionales',
+    'landing.faq.2.a': 'Para eso está el Motor de Oportunidades. Escanea a diario los flujos europeos, bilaterales, multilaterales y de fundaciones, y muestra las oportunidades relevantes automáticamente.',
+    'landing.faq.3.q': 'Nunca hemos trabajado con financiadores europeos',
+    'landing.faq.3.a': 'La mayoría de las pymes andaluzas tampoco. Incluimos vías de entrada — subcontratación, contratos de asistencia técnica — diseñadas para empresas que acceden al mercado por primera vez.',
+    'landing.faq.4.q': 'No tenemos capacidad para gestionar proyectos complejos',
+    'landing.faq.4.a': 'Nuestros módulos de Gestión de Proyectos e Informes absorben la carga de cumplimiento — hitos, monitoreo, informes al financiador — para que tu equipo se centre en la ejecución.',
 
     // Common
     'common.loading': 'Cargando...',
