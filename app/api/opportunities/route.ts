@@ -303,10 +303,19 @@ export async function POST(req: NextRequest) {
     const batchCounts = batches.map((b, i) => `${b}=${results[i].length}`).join(', ');
     console.log(`[discovery] all 10 batches completed in ${Date.now() - t0}ms — ${batchCounts}`);
 
-    // Merge, sort by confidence descending
-    const rawIdeas = results.flat().sort(
-      (a, b) => (b.confidence || 0) - (a.confidence || 0),
-    );
+    // Merge, filter out placeholder/empty ideas, sort by confidence desc
+    const rawIdeas = results
+      .flat()
+      .filter((idea) => {
+        const title = (idea.title || '').toLowerCase();
+        const hasContent =
+          title.length > 5 &&
+          !title.includes('placeholder') &&
+          !title.includes('not evaluated') &&
+          (idea.confidence || 0) > 0;
+        return hasContent;
+      })
+      .sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
 
     // 4. Persist to DB — cleanly map dbId back via insertion order
     let persistedIdeas: IdeaFromModel[] = rawIdeas;
