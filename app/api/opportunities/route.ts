@@ -37,7 +37,7 @@ EU TED, EUROPEAID/INTPA, NDICI-Global Europe (€79.5B 2021–2027), Global Gate
 - If you are reasoning from pattern-matching rather than a specific verifiable fact, mark it creative and explain the pattern.
 
 ## Output format
-Return a single JSON object with an \`ideas\` array of exactly 5 ideas, ranked by a combination of confidence × strategic value. No preamble, no markdown fences, raw JSON only.
+Return a single JSON object with an \`ideas\` array of exactly 4 ideas, ranked by a combination of confidence × strategic value. No preamble, no markdown fences, raw JSON only. Keep every text field concise — no fluff.
 
 Schema for each idea:
 {
@@ -100,9 +100,9 @@ Schema for each idea:
 }
 
 ## Distribution of ideas
-For every response, aim for this mix across the 5 ideas:
+For every response, aim for this mix across the 4 ideas:
 - 2 concrete (known instruments/buyers they should pursue immediately)
-- 2 creative (novel angles they haven't considered)
+- 1 creative (novel angle they haven't considered)
 - 1 hybrid (concrete anchor + creative twist)
 
 ## Prioritization
@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
     // 3. Call Claude
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
+      max_tokens: 5000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],
     });
@@ -268,7 +268,7 @@ export async function POST(req: NextRequest) {
 
 function buildUserPrompt(profile: Record<string, unknown>): string {
   const lines: string[] = [];
-  lines.push('Generate 5 ranked ideas for the following company.');
+  lines.push('Generate 4 ranked ideas for the following company.');
   lines.push('');
   lines.push('## Company profile');
   lines.push(`Name: ${profile.companyName || 'Unnamed'}`);
@@ -322,7 +322,7 @@ function buildUserPrompt(profile: Record<string, unknown>): string {
   lines.push('');
   lines.push('## Instructions');
   lines.push(
-    'Return exactly 5 ideas following the schema. Aim for the distribution: 2 concrete, 2 creative, 1 hybrid. Rank by confidence × strategic value. For each idea, populate as many sub-sections as you can with specific, grounded content. When data is thin, mark it in missing_data rather than fabricating.',
+    'Return exactly 4 ideas following the schema. Aim for the distribution: 2 concrete, 1 creative, 1 hybrid. Rank by confidence × strategic value. For each idea, populate the most important sub-sections with specific, grounded content. When data is thin, mark it in missing_data rather than fabricating. Keep text concise.',
   );
   lines.push(
     'Make the ideas feel like insights a senior business-development strategist would share — non-obvious, actionable, and specific to this company.',
