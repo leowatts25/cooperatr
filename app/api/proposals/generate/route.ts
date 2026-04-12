@@ -180,11 +180,6 @@ function sectionTool(section: SectionKey): Anthropic.Tool {
     input_schema: {
       type: 'object',
       properties: {
-        title: {
-          type: 'string',
-          description:
-            'Final proposal title. Only include on executive_summary calls — other sections can leave empty.',
-        },
         content: { type: 'string', description: `The ${SECTION_BRIEFS[section].label} content.` },
       },
       required: ['content'],
@@ -240,17 +235,12 @@ async function draftSection(
   section: SectionKey,
   specialist: SpecialistKey,
   context: string,
-): Promise<{ content: string; title?: string }> {
+): Promise<{ content: string }> {
   const spec = SPECIALISTS[specialist];
   const brief = SECTION_BRIEFS[section];
   const system = `${BASE_SPECIALIST_PROMPT}\n\n## Your specialty: ${spec.label}\n${spec.guidance}\n\n## Your task right now: ${brief.label}\n${brief.instructions}`;
 
-  const tailoring =
-    section === 'executive_summary'
-      ? '\n\nAlso propose a final proposal title (one crisp line, may refine the idea title) and return it in the title field.'
-      : '';
-
-  const userPrompt = `${context}\n\nDraft the ${brief.label} now. Tailor to the company's experience level; if prior EU experience is "No", lean on consortium/partnership framing to de-risk the bid.${tailoring}`;
+  const userPrompt = `${context}\n\nDraft the ${brief.label} now. Tailor to the company's experience level; if prior EU experience is "No", lean on consortium/partnership framing to de-risk the bid.`;
 
   const t0 = Date.now();
   let response;
@@ -288,7 +278,7 @@ async function draftSection(
   if (!toolBlock || toolBlock.type !== 'tool_use') {
     throw new Error(`Section ${section} returned no tool use (stop=${response.stop_reason})`);
   }
-  const out = toolBlock.input as { content: string; title?: string };
+  const out = toolBlock.input as { content: string };
   return out;
 }
 
@@ -320,7 +310,7 @@ async function draftProposal(
 
   const [exec, tech, fin, comp] = results;
   return {
-    title: exec.title || (idea.title as string) || 'Proposal',
+    title: (idea.title as string) || 'Proposal',
     executive_summary: exec.content,
     technical_section: tech.content,
     financial_section: fin.content,
