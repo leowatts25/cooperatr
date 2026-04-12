@@ -525,6 +525,7 @@ function OpportunitiesContent() {
   const [extendedProfile, setExtendedProfile] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
+  const [insight, setInsight] = useState<string>('');
   const [savedIdeas, setSavedIdeas] = useState<Idea[]>([]);
   const [allIdeas, setAllIdeas] = useState<Idea[]>([]);
   const [error, setError] = useState('');
@@ -572,6 +573,7 @@ function OpportunitiesContent() {
     setError('');
     setLoading(true);
     setIdeas(null);
+    setInsight('');
     try {
       const payload = { ...form, ...extendedProfile, ...(overrideProfile || {}), companyId };
       const res = await fetch('/api/opportunities', {
@@ -583,6 +585,7 @@ function OpportunitiesContent() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setIdeas(data.ideas || []);
+      setInsight(data.insight || '');
       if (data.companyId) {
         setCompanyId(data.companyId);
         localStorage.setItem('cooperatr_companyId', data.companyId);
@@ -862,6 +865,44 @@ function OpportunitiesContent() {
                     </button>
                   </div>
                 </div>
+                {insight && (
+                  <div
+                    style={{
+                      marginBottom: 20,
+                      padding: '14px 18px',
+                      borderRadius: 12,
+                      border: '1px solid var(--accent)',
+                      backgroundColor: 'var(--accent-dim)',
+                      display: 'flex',
+                      gap: 12,
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: 0.5,
+                        textTransform: 'uppercase',
+                        color: 'var(--accent)',
+                        whiteSpace: 'nowrap',
+                        paddingTop: 2,
+                      }}
+                    >
+                      Advisor note
+                    </div>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        lineHeight: 1.55,
+                        color: 'var(--text-primary)',
+                        margin: 0,
+                      }}
+                    >
+                      {insight}
+                    </p>
+                  </div>
+                )}
                 {ideas.map((idea, i) => (
                   <IdeaCard
                     key={idea.dbId || idea.id || i}

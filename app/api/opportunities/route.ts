@@ -171,6 +171,186 @@ async function callHaiku(batch: BatchKey, system: string, userPrompt: string) {
   });
 }
 
+// ============================================================================
+// Critic agent — runs after parallel generation to curate, merge, and
+// synthesize a cross-cutting insight. Uses Sonnet for judgment quality.
+// ============================================================================
+
+const CRITIC_PROMPT = `You are Cooperatr's Discovery Critic — a senior partner at a development finance firm reviewing a junior analyst's brainstorm.
+
+You receive 8-10 raw ideas for a specific company and your job is to curate them into a sharp, non-redundant final set. You DO NOT generate new ideas — you only judge, merge, re-rank, and synthesize.
+
+Your responsibilities:
+1. **Drop duplicates and weak ideas.** If two ideas target the same instrument/partner with near-identical framing, drop the weaker one. If an idea is vague or generic, drop it.
+2. **Merge complementary ideas.** If two ideas are better together (e.g. one has a good funding path, the other has a better partner angle), merge them into one.
+3. **Re-rank with a partner's judgment.** Reorder by how much a senior BD strategist would actually recommend pursuing each one — not just raw confidence. Adjust confidence scores if needed.
+4. **Write one cross-cutting insight.** A 2-3 sentence "here's what I see across all the ideas" note that a real human advisor would say — e.g. "the strongest play is a staged entry: ideas 2 and 5 together form a natural pilot-then-scale path" or "four of your ideas depend on AECID timing, so the real bottleneck is the Q3 cycle".
+
+Be ruthless. Better to return 6 sharp ideas than 10 mediocre ones.`;
+
+const criticTool: Anthropic.Tool = {
+  name: 'emit_curation',
+  description: 'Emit the curated idea set and cross-cutting insight.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      insight: {
+        type: 'string',
+        description: '2-3 sentence cross-cutting synthesis. Written like a senior advisor speaking to the founder. Specific, not generic.',
+      },
+      ranked: {
+        type: 'array',
+        description: 'The curated ideas in final display order (best first). Each references raw idea indices.',
+        items: {
+          type: 'object',
+          properties: {
+            primary_index: { type: 'number', description: 'Index of the primary raw idea this entry is built from.' },
+            merge_with: {
+              type: 'array',
+              items: { type: 'number' },
+              description: 'Indices of other raw ideas to merge into this one (union their funding_paths, partners, etc.). Empty if no merge.',
+            },
+            refined_title: { type: 'string', description: 'Optional sharper title. Leave empty to keep original.' },
+            new_confidence: { type: 'number', description: 'Re-ranked confidence 0-100. Leave as original if no change.' },
+            why_this_rank: { type: 'string', description: 'One-line rationale for this ranking position.' },
+          },
+          required: ['primary_index'],
+        },
+      },
+      dropped: {
+        type: 'array',
+        items: { type: 'number' },
+        description: 'Indices of raw ideas to drop (duplicates or weak ideas).',
+      },
+    },
+    required: ['insight', 'ranked'],
+  },
+};
+
+type CriticOutput = {
+  insight: string;
+  ranked: Array<{
+    primary_index: number;
+    merge_with?: number[];
+    refined_title?: string;
+    new_confidence?: number;
+    why_this_rank?: string;
+  }>;
+  dropped?: number[];
+};
+
+async function runCritic(
+  rawIdeas: IdeaFromModel[],
+  profile: Record<string, unknown>,
+): Promise<{ ideas: IdeaFromModel[]; insight: string }> {
+  if (rawIdeas.length === 0) return { ideas: [], insight: '' };
+
+  // Serialize ideas with their indices so the critic can reference them
+  const ideasForCritic = rawIdeas.map((idea, i) => ({
+    index: i,
+    title: idea.title,
+    tag: idea.tag,
+    confidence: idea.confidence,
+    summary: idea.summary,
+    funding_paths_count: (idea.funding_paths || []).length,
+    partners_count: (idea.partners || []).length,
+  }));
+
+  const userPrompt = `## Company profile
+Name: ${profile.companyName || 'Unnamed'}
+Sector: ${profile.sector || '—'}
+Geographies: ${Array.isArray(profile.geographies) ? (profile.geographies as string[]).join(', ') : '—'}
+Revenue: ${profile.revenueRange || '—'}
+Prior EU experience: ${profile.priorEUExperience ? 'Yes' : 'No'}
+Description: ${profile.description || '—'}
+
+## Raw ideas to curate
+${JSON.stringify(ideasForCritic, null, 2)}
+
+Curate this brainstorm. Drop duplicates and weak ideas, merge complementary ones, re-rank with partner-level judgment, and write a cross-cutting insight.`;
+
+  const t0 = Date.now();
+  console.log('[critic] calling Sonnet...');
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2500,
+      system: CRITIC_PROMPT,
+      tools: [criticTool],
+      tool_choice: { type: 'tool', name: 'emit_curation' },
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    console.log(
+      `[critic] responded in ${Date.now() - t0}ms, stop=${response.stop_reason}, out=${response.usage?.output_tokens}`,
+    );
+
+    const toolBlock = response.content.find((b) => b.type === 'tool_use');
+    if (!toolBlock || toolBlock.type !== 'tool_use') {
+      console.error('[critic] no tool_use block — falling back to raw ideas');
+      return { ideas: rawIdeas, insight: '' };
+    }
+
+    const critique = toolBlock.input as CriticOutput;
+    const insight = critique.insight || '';
+    const dropped = new Set(critique.dropped || []);
+
+    // Apply the critic's curation to the raw ideas
+    const curated: IdeaFromModel[] = [];
+    const usedIndices = new Set<number>();
+
+    for (const entry of critique.ranked || []) {
+      const pIdx = entry.primary_index;
+      if (pIdx < 0 || pIdx >= rawIdeas.length || usedIndices.has(pIdx) || dropped.has(pIdx)) {
+        continue;
+      }
+      usedIndices.add(pIdx);
+      const primary = rawIdeas[pIdx];
+      const merged: IdeaFromModel = { ...primary };
+
+      // Merge complementary ideas: union their sub-sections
+      for (const mIdx of entry.merge_with || []) {
+        if (mIdx < 0 || mIdx >= rawIdeas.length || usedIndices.has(mIdx)) continue;
+        usedIndices.add(mIdx);
+        const other = rawIdeas[mIdx];
+        merged.funding_paths = [
+          ...(merged.funding_paths || []),
+          ...(other.funding_paths || []),
+        ];
+        merged.partners = [...(merged.partners || []), ...(other.partners || [])];
+        merged.buyers = [...(merged.buyers || []), ...(other.buyers || [])];
+        merged.investors = [...(merged.investors || []), ...(other.investors || [])];
+        merged.next_steps = [...(merged.next_steps || []), ...(other.next_steps || [])];
+      }
+
+      if (entry.refined_title) merged.title = entry.refined_title;
+      if (typeof entry.new_confidence === 'number') {
+        let conf = entry.new_confidence;
+        if (conf > 0 && conf <= 1) conf = Math.round(conf * 100);
+        merged.confidence = Math.max(0, Math.min(100, Math.round(conf)));
+      }
+      if (entry.why_this_rank) {
+        merged.confidence_rationale = entry.why_this_rank;
+      }
+
+      curated.push(merged);
+    }
+
+    console.log(
+      `[critic] curated ${curated.length}/${rawIdeas.length} ideas, dropped ${dropped.size}`,
+    );
+
+    // Safety: if the critic somehow curated nothing, fall back to raw
+    if (curated.length === 0) return { ideas: rawIdeas, insight };
+
+    return { ideas: curated, insight };
+  } catch (err) {
+    console.error('[critic] error — falling back to raw ideas:', err instanceof Error ? err.message : err);
+    return { ideas: rawIdeas, insight: '' };
+  }
+}
+
 async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaFromModel[]> {
   const { tag, instructions } = BATCH_INSTRUCTIONS[batch];
   const system = `${BASE_PROMPT}\n\n## This batch: ${instructions}`;
@@ -317,10 +497,13 @@ export async function POST(req: NextRequest) {
       })
       .sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
 
+    // 3b. Critic agent — curate, merge, re-rank, and emit cross-cutting insight
+    const { ideas: curatedIdeas, insight } = await runCritic(rawIdeas, profile);
+
     // 4. Persist to DB — cleanly map dbId back via insertion order
-    let persistedIdeas: IdeaFromModel[] = rawIdeas;
-    if (companyId && rawIdeas.length > 0) {
-      const rows = rawIdeas.map((idea) => ({
+    let persistedIdeas: IdeaFromModel[] = curatedIdeas;
+    if (companyId && curatedIdeas.length > 0) {
+      const rows = curatedIdeas.map((idea) => ({
         company_id: companyId,
         title: idea.title,
         summary: idea.summary,
@@ -360,7 +543,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ideas: persistedIdeas, companyId: companyId || null });
+    return NextResponse.json({ ideas: persistedIdeas, companyId: companyId || null, insight });
   } catch (error) {
     console.error('Discovery Engine error:', error instanceof Error ? error.message : error);
     return NextResponse.json(
