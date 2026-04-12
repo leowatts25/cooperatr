@@ -249,7 +249,7 @@ async function draftSection(
   try {
     response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2500,
+      max_tokens: 4000,
       system,
       tools: [sectionTool(section)],
       tool_choice: { type: 'tool', name: 'emit_section' },
