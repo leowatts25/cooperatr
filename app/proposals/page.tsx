@@ -11,8 +11,19 @@ interface Proposal {
   progress: number;
   created_at: string;
   updated_at: string;
-  opportunities?: { funder: string; funder_abbrev: string } | null;
+  idea_id?: string | null;
+  sector_specialist?: string | null;
 }
+
+const SPECIALIST_LABELS: Record<string, string> = {
+  agrifood: 'Agrifood',
+  cleantech_energy: 'Cleantech & energy',
+  health_pharma: 'Health & pharma',
+  infra_mobility: 'Infra & mobility',
+  digital_tech: 'Digital & AI',
+  circular_manufacturing: 'Circular economy',
+  generalist: 'Generalist',
+};
 
 const STATUS_COLORS: Record<string, string> = { draft: '#7A90A8', in_review: '#F59E0B', submitted: '#22C55E' };
 
@@ -34,7 +45,7 @@ function ProposalsContent() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>Proposals</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>AI-generated proposal drafts from matched opportunities</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Proposal drafts generated from your saved ideas</p>
         </div>
         <button onClick={() => router.push('/opportunities')} style={{ padding: '10px 20px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
           Find Opportunities →
@@ -66,7 +77,11 @@ function ProposalsContent() {
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)', marginBottom: 4 }}>{p.title}</div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600, textTransform: 'uppercase', background: `${STATUS_COLORS[p.status] || '#7A90A8'}22`, color: STATUS_COLORS[p.status] || '#7A90A8' }}>{p.status.replace('_', ' ')}</span>
-                    {p.opportunities && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.opportunities.funder_abbrev}</span>}
+                    {p.sector_specialist && (
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                        {SPECIALIST_LABELS[p.sector_specialist] || p.sector_specialist}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>

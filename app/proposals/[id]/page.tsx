@@ -14,16 +14,22 @@ interface Proposal {
   progress: number;
   created_at: string;
   updated_at: string;
-  opportunity_id: string;
+  opportunity_id: string | null;
+  idea_id: string | null;
   company_id: string;
-  opportunities?: {
-    funder: string;
-    funder_abbrev: string;
-    instrument_type: string;
-    budget_min: number;
-    budget_max: number;
-  };
+  sector_specialist: string | null;
+  specialist_rationale: string | null;
 }
+
+const SPECIALIST_LABELS: Record<string, string> = {
+  agrifood: 'Agrifood & rural value chains',
+  cleantech_energy: 'Cleantech, energy & climate',
+  health_pharma: 'Health, pharma & diagnostics',
+  infra_mobility: 'Infrastructure & mobility',
+  digital_tech: 'Digital, data & AI',
+  circular_manufacturing: 'Circular economy & manufacturing',
+  generalist: 'Cross-sector generalist',
+};
 
 const STATUS_COLORS: Record<string, string> = {
   draft: '#7A90A8',
@@ -111,7 +117,9 @@ export default function ProposalWorkspace() {
     );
   }
 
-  const opp = proposal.opportunities;
+  const specialistLabel = proposal.sector_specialist
+    ? SPECIALIST_LABELS[proposal.sector_specialist] || proposal.sector_specialist
+    : null;
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
@@ -131,7 +139,11 @@ export default function ProposalWorkspace() {
             }}>
               {proposal.status}
             </span>
-            {opp && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{opp.funder_abbrev} — {opp.instrument_type}</span>}
+            {specialistLabel && (
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                Drafted by {specialistLabel}
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -161,6 +173,39 @@ export default function ProposalWorkspace() {
           )}
         </div>
       </div>
+
+      {/* Specialist rationale */}
+      {proposal.specialist_rationale && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: 10,
+            border: '1px solid var(--accent)',
+            backgroundColor: 'var(--accent-dim)',
+            marginBottom: 16,
+            display: 'flex',
+            gap: 12,
+            alignItems: 'flex-start',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              textTransform: 'uppercase',
+              color: 'var(--accent)',
+              whiteSpace: 'nowrap',
+              paddingTop: 2,
+            }}
+          >
+            Routing
+          </div>
+          <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-primary)', margin: 0 }}>
+            {proposal.specialist_rationale}
+          </p>
+        </div>
+      )}
 
       {/* Progress */}
       <div style={{ background: 'var(--bg-surface)', borderRadius: 8, padding: 16, border: '1px solid var(--border)', marginBottom: 24 }}>

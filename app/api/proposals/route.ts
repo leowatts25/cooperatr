@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     if (proposalId) {
       const { data, error } = await supabase
         .from('proposals')
-        .select('*, opportunities(funder, funder_abbrev, instrument_type, budget_min, budget_max, geographies)')
+        .select('*')
         .eq('id', proposalId)
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 404 });
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from('proposals')
-      .select('id, title, status, progress, created_at, updated_at, opportunity_id, opportunities(funder, funder_abbrev)')
+      .select('id, title, status, progress, created_at, updated_at, idea_id, sector_specialist')
       .order('created_at', { ascending: false });
 
     if (companyId) query = query.eq('company_id', companyId);
