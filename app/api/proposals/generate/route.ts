@@ -252,14 +252,37 @@ async function draftSection(
 
   const userPrompt = `${context}\n\nDraft the ${brief.label} now. Tailor to the company's experience level; if prior EU experience is "No", lean on consortium/partnership framing to de-risk the bid.${tailoring}`;
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2500,
-    system,
-    tools: [sectionTool(section)],
-    tool_choice: { type: 'tool', name: 'emit_section' },
-    messages: [{ role: 'user', content: userPrompt }],
-  });
+  const t0 = Date.now();
+  let response;
+  try {
+    response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2000,
+      system,
+      tools: [sectionTool(section)],
+      tool_choice: { type: 'tool', name: 'emit_section' },
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('429') || msg.includes('rate_limit')) {
+      await new Promise((r) => setTimeout(r, 2000));
+      response = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        system,
+        tools: [sectionTool(section)],
+        tool_choice: { type: 'tool', name: 'emit_section' },
+        messages: [{ role: 'user', content: userPrompt }],
+      });
+    } else {
+      throw err;
+    }
+  }
+
+  console.log(
+    `[proposals:${section}] ${Date.now() - t0}ms, stop=${response.stop_reason}, out=${response.usage?.output_tokens}`,
+  );
 
   const toolBlock = response.content.find((b) => b.type === 'tool_use');
   if (!toolBlock || toolBlock.type !== 'tool_use') {
