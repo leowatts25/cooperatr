@@ -144,60 +144,59 @@ Pick the best specialist to draft this proposal.`;
 // Specialist: Sonnet drafts the 4-section proposal
 // ============================================================================
 
-const BASE_SPECIALIST_PROMPT = `You are a Cooperatr sector specialist drafting a full proposal for an Andalusian SME pursuing an idea from the Discovery Engine.
+const BASE_SPECIALIST_PROMPT = `You are a Cooperatr sector specialist drafting one section of a proposal for an Andalusian SME pursuing an idea from the Discovery Engine.
 
-Write a complete, professional EU/DFI-grade proposal with FOUR sections. Each section must be detailed and substantive — no placeholders, no "TBD", no generic filler. Use specific numbers, named standards, and realistic timelines. Reference the specific funder(s) in the idea and their known evaluation criteria where appropriate.`;
+Write a substantive, professional EU/DFI-grade section. No placeholders, no "TBD", no generic filler. Use specific numbers, named standards, and realistic timelines. Reference the specific funder(s) from the idea and their known evaluation criteria where appropriate.`;
 
-const proposalTool: Anthropic.Tool = {
-  name: 'emit_proposal',
-  description: 'Emit the four-section proposal draft.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      title: { type: 'string', description: 'Final proposal title (may refine the idea title).' },
-      executive_summary: {
-        type: 'string',
-        description: '2-3 paragraphs: project rationale, approach, expected impact, funder fit.',
-      },
-      technical_section: {
-        type: 'string',
-        description:
-          'Detailed technical approach: objectives, methodology, logframe (outputs → outcomes → impact), 3-5 work packages with activities and deliverables, and a month-by-month or quarterly timeline for an 18-36 month project.',
-      },
-      financial_section: {
-        type: 'string',
-        description:
-          'Budget narrative by work package with concrete line items (personnel, travel, equipment, subcontracting, indirect, contingency). Give subtotals and a total. Include co-financing split. Numbers must be plausible in EUR.',
-      },
-      compliance_section: {
-        type: 'string',
-        description:
-          'Compliance & ESG: CSDDD readiness, GDPR/data protection, environmental safeguards, gender mainstreaming, human rights due diligence, and sector-specific regulatory items.',
-      },
-    },
-    required: ['title', 'executive_summary', 'technical_section', 'financial_section', 'compliance_section'],
+type SectionKey =
+  | 'executive_summary'
+  | 'technical_section'
+  | 'financial_section'
+  | 'compliance_section';
+
+const SECTION_BRIEFS: Record<SectionKey, { label: string; instructions: string }> = {
+  executive_summary: {
+    label: 'Executive Summary',
+    instructions: `Write a 2-3 paragraph executive summary covering: project rationale and problem framing, the proposed approach, the expected impact with 3-4 measurable indicators, and why this specific funder is the right fit. Open with a single punchy sentence that names the outcome.`,
+  },
+  technical_section: {
+    label: 'Technical Approach',
+    instructions: `Write a detailed technical approach with: (1) specific objectives (SMART), (2) methodology and theory of change, (3) a logframe-style results chain (inputs → activities → outputs → outcomes → impact) with at least 6 indicators and targets, (4) 3-5 work packages with activities, lead partner, and deliverables, and (5) a quarterly timeline for an 18-36 month implementation.`,
+  },
+  financial_section: {
+    label: 'Financial Plan',
+    instructions: `Write a budget narrative by work package with concrete EUR line items: personnel (with FTEs and rates), travel, equipment, subcontracting, indirect costs, and contingency. Give per-work-package subtotals and a grand total. Include the co-financing split (donor share vs. company/partner share) and cashflow assumptions. Numbers must be plausible for the company's revenue band.`,
+  },
+  compliance_section: {
+    label: 'Compliance & ESG',
+    instructions: `Write a compliance and ESG section covering: CSDDD readiness, GDPR/data protection posture, environmental safeguards aligned to the funder's ESS, gender mainstreaming with specific actions and indicators, human rights due diligence, and sector-specific regulatory items that apply to the idea. Name the standards explicitly.`,
   },
 };
 
-type ProposalDraft = {
-  title: string;
-  executive_summary: string;
-  technical_section: string;
-  financial_section: string;
-  compliance_section: string;
-};
+function sectionTool(section: SectionKey): Anthropic.Tool {
+  return {
+    name: 'emit_section',
+    description: `Emit the ${SECTION_BRIEFS[section].label} section.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description:
+            'Final proposal title. Only include on executive_summary calls — other sections can leave empty.',
+        },
+        content: { type: 'string', description: `The ${SECTION_BRIEFS[section].label} content.` },
+      },
+      required: ['content'],
+    },
+  };
+}
 
-async function draftProposal(
-  specialist: SpecialistKey,
+function buildSpecialistContext(
   idea: Record<string, unknown>,
   company: Record<string, unknown> | null,
-): Promise<ProposalDraft> {
-  const spec = SPECIALISTS[specialist];
-  const system = `${BASE_SPECIALIST_PROMPT}\n\n## Your specialty: ${spec.label}\n${spec.guidance}`;
-
-  const userPrompt = `Draft the proposal.
-
-## Idea from Discovery Engine
+): string {
+  return `## Idea from Discovery Engine
 Title: ${idea.title}
 Tag: ${idea.tag}
 Confidence: ${idea.confidence}
@@ -234,24 +233,76 @@ Capabilities: ${Array.isArray(company?.capabilities) ? (company?.capabilities as
 Certifications: ${Array.isArray(company?.certifications) ? (company?.certifications as string[]).join(', ') : '—'}
 Team size: ${company?.team_size || '—'}
 Typical project size: ${company?.typical_project_size || '—'}
-Consortium posture: ${company?.consortium_posture || '—'}
+Consortium posture: ${company?.consortium_posture || '—'}`;
+}
 
-Tailor the proposal to the company's experience level. If they have no prior EU experience, emphasize technical capabilities and build a consortium narrative that de-risks the bid.`;
+async function draftSection(
+  section: SectionKey,
+  specialist: SpecialistKey,
+  context: string,
+): Promise<{ content: string; title?: string }> {
+  const spec = SPECIALISTS[specialist];
+  const brief = SECTION_BRIEFS[section];
+  const system = `${BASE_SPECIALIST_PROMPT}\n\n## Your specialty: ${spec.label}\n${spec.guidance}\n\n## Your task right now: ${brief.label}\n${brief.instructions}`;
+
+  const tailoring =
+    section === 'executive_summary'
+      ? '\n\nAlso propose a final proposal title (one crisp line, may refine the idea title) and return it in the title field.'
+      : '';
+
+  const userPrompt = `${context}\n\nDraft the ${brief.label} now. Tailor to the company's experience level; if prior EU experience is "No", lean on consortium/partnership framing to de-risk the bid.${tailoring}`;
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 6000,
+    max_tokens: 2500,
     system,
-    tools: [proposalTool],
-    tool_choice: { type: 'tool', name: 'emit_proposal' },
+    tools: [sectionTool(section)],
+    tool_choice: { type: 'tool', name: 'emit_section' },
     messages: [{ role: 'user', content: userPrompt }],
   });
 
   const toolBlock = response.content.find((b) => b.type === 'tool_use');
   if (!toolBlock || toolBlock.type !== 'tool_use') {
-    throw new Error(`Specialist ${specialist} returned no tool use (stop=${response.stop_reason})`);
+    throw new Error(`Section ${section} returned no tool use (stop=${response.stop_reason})`);
   }
-  return toolBlock.input as ProposalDraft;
+  const out = toolBlock.input as { content: string; title?: string };
+  return out;
+}
+
+type ProposalDraft = {
+  title: string;
+  executive_summary: string;
+  technical_section: string;
+  financial_section: string;
+  compliance_section: string;
+};
+
+async function draftProposal(
+  specialist: SpecialistKey,
+  idea: Record<string, unknown>,
+  company: Record<string, unknown> | null,
+): Promise<ProposalDraft> {
+  const context = buildSpecialistContext(idea, company);
+
+  const sections: SectionKey[] = [
+    'executive_summary',
+    'technical_section',
+    'financial_section',
+    'compliance_section',
+  ];
+
+  const t0 = Date.now();
+  const results = await Promise.all(sections.map((s) => draftSection(s, specialist, context)));
+  console.log(`[proposals] 4 parallel sections completed in ${Date.now() - t0}ms`);
+
+  const [exec, tech, fin, comp] = results;
+  return {
+    title: exec.title || (idea.title as string) || 'Proposal',
+    executive_summary: exec.content,
+    technical_section: tech.content,
+    financial_section: fin.content,
+    compliance_section: comp.content,
+  };
 }
 
 // ============================================================================
