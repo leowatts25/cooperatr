@@ -146,7 +146,9 @@ Pick the best specialist to draft this proposal.`;
 
 const BASE_SPECIALIST_PROMPT = `You are a Cooperatr sector specialist drafting one section of a proposal for an Andalusian SME pursuing an idea from the Discovery Engine.
 
-Write a substantive, professional EU/DFI-grade section. No placeholders, no "TBD", no generic filler. Use specific numbers, named standards, and realistic timelines. Reference the specific funder(s) from the idea and their known evaluation criteria where appropriate.`;
+Write a substantive, professional EU/DFI-grade section. No placeholders, no "TBD", no generic filler. Use specific numbers, named standards, and realistic timelines. Reference the specific funder(s) from the idea and their known evaluation criteria where appropriate.
+
+CRITICAL: Target 1500-2500 characters per section. Be dense and concrete, not verbose. Call emit_section immediately with the full content — do not write any preamble, reasoning, or acknowledgement before the tool call.`;
 
 type SectionKey =
   | 'executive_summary'
@@ -157,19 +159,19 @@ type SectionKey =
 const SECTION_BRIEFS: Record<SectionKey, { label: string; instructions: string }> = {
   executive_summary: {
     label: 'Executive Summary',
-    instructions: `Write a 2-3 paragraph executive summary covering: project rationale and problem framing, the proposed approach, the expected impact with 3-4 measurable indicators, and why this specific funder is the right fit. Open with a single punchy sentence that names the outcome.`,
+    instructions: `Write a tight 2-3 paragraph executive summary covering: project rationale, the proposed approach, expected impact with 3-4 measurable indicators, and why this specific funder is the right fit. Open with a single punchy sentence that names the outcome. Target 1500-2200 characters.`,
   },
   technical_section: {
     label: 'Technical Approach',
-    instructions: `Write a detailed technical approach with: (1) specific objectives (SMART), (2) methodology and theory of change, (3) a logframe-style results chain (inputs → activities → outputs → outcomes → impact) with at least 6 indicators and targets, (4) 3-5 work packages with activities, lead partner, and deliverables, and (5) a quarterly timeline for an 18-36 month implementation.`,
+    instructions: `Write a dense technical approach: SMART objectives (3-4), a logframe results chain with 6+ indicators, 3 work packages (activities, lead partner, deliverables), and a quarterly timeline for 18-36 months. Use bullet structure. Target 1800-2500 characters.`,
   },
   financial_section: {
     label: 'Financial Plan',
-    instructions: `Write a budget narrative by work package with concrete EUR line items: personnel (with FTEs and rates), travel, equipment, subcontracting, indirect costs, and contingency. Give per-work-package subtotals and a grand total. Include the co-financing split (donor share vs. company/partner share) and cashflow assumptions. Numbers must be plausible for the company's revenue band.`,
+    instructions: `Write a budget narrative by work package with concrete EUR line items (personnel with FTE+rate, equipment, travel, subcontracting, indirect, contingency). Give per-WP subtotals + grand total + co-financing split. Numbers must be plausible for the company's revenue band. Target 1800-2500 characters.`,
   },
   compliance_section: {
     label: 'Compliance & ESG',
-    instructions: `Write a compliance and ESG section covering: CSDDD readiness, GDPR/data protection posture, environmental safeguards aligned to the funder's ESS, gender mainstreaming with specific actions and indicators, human rights due diligence, and sector-specific regulatory items that apply to the idea. Name the standards explicitly.`,
+    instructions: `Write a compliance and ESG section covering: CSDDD readiness, GDPR posture, environmental safeguards aligned to the funder's ESS, gender mainstreaming with actions and indicators, HRDD, and sector-specific regulatory items. Name the standards explicitly. Target 1500-2200 characters.`,
   },
 };
 
@@ -247,7 +249,7 @@ async function draftSection(
   try {
     response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2000,
+      max_tokens: 2500,
       system,
       tools: [sectionTool(section)],
       tool_choice: { type: 'tool', name: 'emit_section' },
