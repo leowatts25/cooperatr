@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useTranslation } from '@/app/lib/i18n/context';
+import type { TranslationKey } from '@/app/lib/i18n/translations';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -26,6 +27,13 @@ export default function Dashboard() {
     t('landing.missed.2'),
     t('landing.missed.3'),
     t('landing.missed.4'),
+  ];
+
+  const engineSteps: { num: number; label: TranslationKey; desc: TranslationKey }[] = [
+    { num: 1, label: 'landing.engineStep.1.label', desc: 'landing.engineStep.1.desc' },
+    { num: 2, label: 'landing.engineStep.2.label', desc: 'landing.engineStep.2.desc' },
+    { num: 3, label: 'landing.engineStep.3.label', desc: 'landing.engineStep.3.desc' },
+    { num: 4, label: 'landing.engineStep.4.label', desc: 'landing.engineStep.4.desc' },
   ];
 
   const stats = [
@@ -103,6 +111,60 @@ export default function Dashboard() {
             <div style={{ fontSize: '11px', color: '#8A8070', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Engine section */}
+      <div style={{ backgroundColor: '#1A2332', padding: '80px 32px' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+            <p style={{ fontSize: '11px', fontWeight: '700', color: '#C8860A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('landing.engineKicker')}</p>
+            <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#F5F0E8', lineHeight: 1.25, marginBottom: '20px' }}>
+              {t('landing.engineTitle')}
+            </h2>
+            <p style={{ fontSize: '15px', color: 'rgba(245,240,232,0.6)', lineHeight: 1.7, maxWidth: '700px', margin: '0 auto' }}>
+              {t('landing.engineSubtitle')}
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '40px' }}>
+            {engineSteps.map((step) => (
+              <div key={step.num} style={{
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '10px',
+                padding: '28px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                  <div style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    backgroundColor: 'rgba(200,134,10,0.2)',
+                    border: '1px solid rgba(200,134,10,0.4)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '12px', fontWeight: '700', color: '#C8860A',
+                  }}>
+                    {step.num}
+                  </div>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#F5F0E8', margin: 0 }}>
+                    {t(step.label)}
+                  </h3>
+                </div>
+                <p style={{ fontSize: '13px', color: 'rgba(245,240,232,0.55)', lineHeight: 1.65, margin: 0 }}>
+                  {t(step.desc)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{
+            borderTop: '1px solid rgba(200,134,10,0.3)',
+            paddingTop: '24px',
+            textAlign: 'center',
+          }}>
+            <p style={{ fontSize: '15px', color: 'rgba(245,240,232,0.72)', lineHeight: 1.7, maxWidth: '680px', margin: '0 auto', fontStyle: 'italic' }}>
+              {t('landing.engineNote')}
+            </p>
+          </div>
+        </div>
       </div>
 
       <div style={{ backgroundColor: '#fff', padding: '80px 32px' }}>
