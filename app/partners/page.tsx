@@ -31,11 +31,12 @@ const ROLE_LABEL_KEYS: Record<string, TranslationKey> = {
 
 function PartnersContent() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [screening, setScreening] = useState<string | null>(null);
+  const [screenError, setScreenError] = useState<string>('');
   const [form, setForm] = useState({ name: '', country: '', sector: '', role: 'subcontractor', contact_name: '', contact_email: '', website: '' });
 
   useEffect(() => {
@@ -68,16 +69,29 @@ function PartnersContent() {
 
   async function screenPartner(partnerId: string) {
     setScreening(partnerId);
+    setScreenError('');
     try {
-      await fetch('/api/partners/screen', {
+      const res = await fetch('/api/partners/screen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerId }),
-        signal: AbortSignal.timeout(45000),
+        body: JSON.stringify({ partnerId, locale }),
+        signal: AbortSignal.timeout(60000),
       });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error || `Screening failed (HTTP ${res.status})`;
+        console.error('[partner-screen]', msg, data);
+        setScreenError(msg);
+        return;
+      }
       await fetchPartners();
-    } catch (err) { console.error(err); }
-    finally { setScreening(null); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Screening request failed';
+      console.error(err);
+      setScreenError(msg);
+    } finally {
+      setScreening(null);
+    }
   }
 
   const inputStyle = {
@@ -102,6 +116,18 @@ function PartnersContent() {
           {showForm ? t('partner.cancel') : t('partner.addPartner')}
         </button>
       </div>
+
+      {/* Screening error banner */}
+      {screenError && (
+        <div style={{
+          marginBottom: 16, padding: '12px 16px', borderRadius: 8,
+          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+          color: '#EF4444', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+        }}>
+          <span>{screenError}</span>
+          <button onClick={() => setScreenError('')} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>×</button>
+        </div>
+      )}
 
       {/* Add Partner Form */}
       {showForm && (

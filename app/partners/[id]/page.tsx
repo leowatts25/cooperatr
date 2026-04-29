@@ -30,7 +30,8 @@ const FRAMEWORKS: { key: keyof Partner; labelKey: TranslationKey; descKey: Trans
 export default function PartnerDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const [error, setError] = useState<string>('');
   const [partner, setPartner] = useState<Partner | null>(null);
   const [loading, setLoading] = useState(true);
   const [screening, setScreening] = useState(false);
@@ -46,18 +47,31 @@ export default function PartnerDetailPage() {
   async function rescreen() {
     if (!partner) return;
     setScreening(true);
+    setError('');
     try {
-      await fetch('/api/partners/screen', {
+      const screenRes = await fetch('/api/partners/screen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerId: partner.id }),
-        signal: AbortSignal.timeout(45000),
+        body: JSON.stringify({ partnerId: partner.id, locale }),
+        signal: AbortSignal.timeout(60000),
       });
+      const screenData = await screenRes.json();
+      if (!screenRes.ok) {
+        const msg = screenData?.error || `Screening failed (HTTP ${screenRes.status})`;
+        console.error('[partner-screen]', msg, screenData);
+        setError(msg);
+        return;
+      }
       const res = await fetch(`/api/partners?id=${partner.id}`);
       const data = await res.json();
       setPartner(data.partner);
-    } catch (err) { console.error(err); }
-    finally { setScreening(false); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Screening request failed';
+      console.error(err);
+      setError(msg);
+    } finally {
+      setScreening(false);
+    }
   }
 
   if (loading) return (
@@ -76,6 +90,17 @@ export default function PartnerDetailPage() {
   return (
     <div style={{ padding: '32px 24px', maxWidth: 800, margin: '0 auto' }}>
       <button onClick={() => router.push('/partners')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, marginBottom: 8, padding: 0 }}>{t('partner.backArrow')}</button>
+
+      {error && (
+        <div style={{
+          marginBottom: 16, padding: '12px 16px', borderRadius: 8,
+          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+          color: '#EF4444', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+        }}>
+          <span>{error}</span>
+          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>×</button>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
