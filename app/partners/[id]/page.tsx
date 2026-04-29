@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Partner {
   id: string; name: string; country: string; sector: string; role: string;
@@ -12,16 +13,24 @@ interface Partner {
 
 const RISK_COLORS: Record<string, string> = { low: '#22C55E', medium: '#F59E0B', high: '#EF4444', pending: '#7A90A8', cleared: '#22C55E', flagged: '#EF4444', needs_review: '#F59E0B' };
 
-const FRAMEWORKS = [
-  { key: 'sanctions_status', label: 'Sanctions Screening', description: 'EU, UN, OFAC, UK consolidated sanctions lists', icon: '🔒' },
-  { key: 'csddd_status', label: 'CSDDD Compliance', description: 'EU Corporate Sustainability Due Diligence Directive', icon: '📜' },
-  { key: 'gdpr_status', label: 'GDPR Readiness', description: 'EU General Data Protection Regulation', icon: '🔐' },
-  { key: 'hrdd_status', label: 'HRDD Assessment', description: 'UN Guiding Principles on Business & Human Rights', icon: '⚖️' },
-] as const;
+const ROLE_LABEL_KEYS: Record<string, TranslationKey> = {
+  prime: 'partner.role.prime',
+  subcontractor: 'partner.role.subcontractor',
+  local_partner: 'partner.role.local_partner',
+  consortium_member: 'partner.role.consortium_member',
+};
+
+const FRAMEWORKS: { key: keyof Partner; labelKey: TranslationKey; descKey: TranslationKey; icon: string }[] = [
+  { key: 'sanctions_status', labelKey: 'partner.fw.sanctions.label', descKey: 'partner.fw.sanctions.desc', icon: '🔒' },
+  { key: 'csddd_status', labelKey: 'partner.fw.csddd.label', descKey: 'partner.fw.csddd.desc', icon: '📜' },
+  { key: 'gdpr_status', labelKey: 'partner.fw.gdpr.label', descKey: 'partner.fw.gdpr.desc', icon: '🔐' },
+  { key: 'hrdd_status', labelKey: 'partner.fw.hrdd.label', descKey: 'partner.fw.hrdd.desc', icon: '⚖️' },
+];
 
 export default function PartnerDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useTranslation();
   const [partner, setPartner] = useState<Partner | null>(null);
   const [loading, setLoading] = useState(true);
   const [screening, setScreening] = useState(false);
@@ -59,14 +68,14 @@ export default function PartnerDetailPage() {
 
   if (!partner) return (
     <div style={{ padding: 80, textAlign: 'center' }}>
-      <p style={{ color: 'var(--text-muted)' }}>Partner not found</p>
-      <button onClick={() => router.push('/partners')} style={{ marginTop: 16, padding: '10px 24px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Back to Partners</button>
+      <p style={{ color: 'var(--text-muted)' }}>{t('partner.notFound')}</p>
+      <button onClick={() => router.push('/partners')} style={{ marginTop: 16, padding: '10px 24px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>{t('partner.backToPartners')}</button>
     </div>
   );
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 800, margin: '0 auto' }}>
-      <button onClick={() => router.push('/partners')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, marginBottom: 8, padding: 0 }}>← Back to Partners</button>
+      <button onClick={() => router.push('/partners')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, marginBottom: 8, padding: 0 }}>{t('partner.backArrow')}</button>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
@@ -75,12 +84,12 @@ export default function PartnerDetailPage() {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {partner.country && <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{partner.country}</span>}
             {partner.sector && <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 10, background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>{partner.sector}</span>}
-            {partner.role && <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 10, background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>{partner.role.replace('_', ' ')}</span>}
+            {partner.role && ROLE_LABEL_KEYS[partner.role] && <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 10, background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>{t(ROLE_LABEL_KEYS[partner.role])}</span>}
             <span style={{
               fontSize: 11, padding: '3px 10px', borderRadius: 12, fontWeight: 600, textTransform: 'uppercase',
               background: `${RISK_COLORS[partner.overall_risk]}22`, color: RISK_COLORS[partner.overall_risk],
             }}>
-              {partner.overall_risk === 'pending' ? 'Not Screened' : `${partner.overall_risk} Risk`}
+              {partner.overall_risk === 'pending' ? t('partner.notScreened') : t(`partner.risk.${partner.overall_risk}` as TranslationKey)}
             </span>
           </div>
         </div>
@@ -88,36 +97,40 @@ export default function PartnerDetailPage() {
           padding: '10px 20px', background: screening ? 'var(--bg-elevated)' : '#22C55E22', color: screening ? 'var(--text-muted)' : '#22C55E',
           border: '1px solid #22C55E44', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
         }}>
-          {screening ? 'Screening...' : partner.overall_risk === 'pending' ? 'Run Screening' : 'Re-screen'}
+          {screening ? t('partner.screening') : partner.overall_risk === 'pending' ? t('partner.runScreening') : t('partner.rescreen')}
         </button>
       </div>
 
       {/* Contact Info */}
       {(partner.contact_email || partner.website) && (
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)', marginBottom: 24 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>Contact</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>{t('partner.contact')}</h3>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-            {partner.contact_name && <div><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Name: </span><span style={{ fontSize: 14, color: 'var(--text-primary)' }}>{partner.contact_name}</span></div>}
-            {partner.contact_email && <div><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Email: </span><span style={{ fontSize: 14, color: 'var(--text-primary)' }}>{partner.contact_email}</span></div>}
-            {partner.website && <div><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Web: </span><span style={{ fontSize: 14, color: 'var(--accent)' }}>{partner.website}</span></div>}
+            {partner.contact_name && <div><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('partner.contactName')}: </span><span style={{ fontSize: 14, color: 'var(--text-primary)' }}>{partner.contact_name}</span></div>}
+            {partner.contact_email && <div><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('partner.contactEmail')}: </span><span style={{ fontSize: 14, color: 'var(--text-primary)' }}>{partner.contact_email}</span></div>}
+            {partner.website && <div><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('partner.web')}: </span><span style={{ fontSize: 14, color: 'var(--accent)' }}>{partner.website}</span></div>}
           </div>
         </div>
       )}
 
       {/* Compliance Scorecard */}
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 16 }}>Compliance Scorecard</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 16 }}>{t('partner.scorecard')}</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 32 }}>
         {FRAMEWORKS.map(fw => {
-          const status = partner[fw.key as keyof Partner] as string;
+          const status = partner[fw.key] as string;
           const color = RISK_COLORS[status] || '#7A90A8';
+          const statusKey: TranslationKey =
+            status === 'pending' ? 'partner.fwStatus.pending' :
+            status === 'cleared' ? 'partner.fwStatus.cleared' :
+            status === 'flagged' ? 'partner.fwStatus.flagged' : 'partner.fwStatus.needs_review';
           return (
             <div key={fw.key} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: `1px solid ${color}33` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 24 }}>{fw.icon}</span>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{fw.label}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fw.description}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{t(fw.labelKey)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t(fw.descKey)}</div>
                   </div>
                 </div>
               </div>
@@ -125,7 +138,7 @@ export default function PartnerDetailPage() {
                 display: 'inline-block', padding: '4px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
                 background: `${color}22`, color,
               }}>
-                {status === 'pending' ? 'Pending' : status === 'cleared' ? 'Cleared' : status === 'flagged' ? 'Flagged' : 'Needs Review'}
+                {t(statusKey)}
               </span>
             </div>
           );
@@ -135,7 +148,7 @@ export default function PartnerDetailPage() {
       {/* Risk Summary */}
       {partner.risk_summary && (
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
-          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)', marginBottom: 12 }}>Risk Assessment Summary</h3>
+          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)', marginBottom: 12 }}>{t('partner.riskSummary')}</h3>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7 }}>{partner.risk_summary}</p>
         </div>
       )}

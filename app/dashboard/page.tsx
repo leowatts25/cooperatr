@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/app/components/AuthGuard';
+import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Stats {
   opportunities: number;
@@ -38,6 +39,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 function DashboardContent() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [stats, setStats] = useState<Stats>({ opportunities: 0, savedOpportunities: 0, proposals: 0, projects: 0, indicators: 0, partners: 0 });
   const [recentOpps, setRecentOpps] = useState<RecentItem[]>([]);
   const [recentProposals, setRecentProposals] = useState<RecentItem[]>([]);
@@ -92,26 +94,26 @@ function DashboardContent() {
     );
   }
 
-  const statCards = [
-    { label: 'Opportunities Found', value: stats.opportunities, icon: '🔍', color: '#F0A500', link: '/opportunities' },
-    { label: 'Proposals', value: stats.proposals, icon: '📝', color: '#60A5FA', link: '/proposals' },
-    { label: 'Active Projects', value: stats.projects, icon: '📊', color: '#8B5CF6', link: '/projects' },
-    { label: 'Partners Screened', value: stats.partners, icon: '🛡️', color: '#22C55E', link: '/partners' },
+  const statCards: { labelKey: TranslationKey; value: number; icon: string; color: string; link: string }[] = [
+    { labelKey: 'dashboard.opportunitiesFound', value: stats.opportunities, icon: '🔍', color: '#F0A500', link: '/opportunities' },
+    { labelKey: 'dashboard.proposals', value: stats.proposals, icon: '📝', color: '#60A5FA', link: '/proposals' },
+    { labelKey: 'dashboard.activeProjects', value: stats.projects, icon: '📊', color: '#8B5CF6', link: '/projects' },
+    { labelKey: 'dashboard.partnersScreened', value: stats.partners, icon: '🛡️', color: '#22C55E', link: '/partners' },
   ];
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>Dashboard</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>Your development finance pipeline at a glance</p>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>{t('dashboard.title')}</h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>{t('dashboard.subtitle')}</p>
       </div>
 
       {/* Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
         {statCards.map((card) => (
           <div
-            key={card.label}
+            key={card.labelKey}
             onClick={() => router.push(card.link)}
             style={{
               background: 'var(--bg-surface)',
@@ -128,7 +130,7 @@ function DashboardContent() {
               <span style={{ fontSize: 24 }}>{card.icon}</span>
               <span style={{ fontFamily: 'var(--font-serif)', fontSize: 32, color: card.color }}>{card.value}</span>
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{card.label}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t(card.labelKey)}</div>
           </div>
         ))}
       </div>
@@ -146,10 +148,10 @@ function DashboardContent() {
       }}>
         <div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)', marginBottom: 4 }}>
-            Find New Opportunities
+            {t('dashboard.findNew')}
           </div>
           <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-            Search EU and multilateral funding matched to your company profile
+            {t('dashboard.findNewDesc')}
           </div>
         </div>
         <button
@@ -166,7 +168,7 @@ function DashboardContent() {
             whiteSpace: 'nowrap',
           }}
         >
-          Search Opportunities →
+          {t('dashboard.searchOpportunities')}
         </button>
       </div>
 
@@ -175,8 +177,8 @@ function DashboardContent() {
         {/* Recent Opportunities */}
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>Recent Opportunities</h3>
-            <button onClick={() => router.push('/opportunities')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>View all →</button>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>{t('dashboard.recentOpportunities')}</h3>
+            <button onClick={() => router.push('/opportunities')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>{t('dashboard.viewAll')}</button>
           </div>
           {recentOpps.length > 0 ? recentOpps.map((opp) => (
             <div key={opp.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
@@ -190,15 +192,15 @@ function DashboardContent() {
               </div>
             </div>
           )) : (
-            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No opportunities yet</div>
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>{t('dashboard.noOpportunities')}</div>
           )}
         </div>
 
         {/* Recent Proposals */}
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>Recent Proposals</h3>
-            <button onClick={() => router.push('/proposals')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>View all →</button>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>{t('dashboard.recentProposals')}</h3>
+            <button onClick={() => router.push('/proposals')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>{t('dashboard.viewAll')}</button>
           </div>
           {recentProposals.length > 0 ? recentProposals.map((prop) => (
             <div key={prop.id} onClick={() => router.push(`/proposals/${prop.id}`)} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
@@ -208,15 +210,15 @@ function DashboardContent() {
               </span>
             </div>
           )) : (
-            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No proposals yet</div>
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>{t('dashboard.noProposals')}</div>
           )}
         </div>
 
         {/* Recent Projects */}
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>Active Projects</h3>
-            <button onClick={() => router.push('/projects')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>View all →</button>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>{t('dashboard.activeProjectsSection')}</h3>
+            <button onClick={() => router.push('/projects')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>{t('dashboard.viewAll')}</button>
           </div>
           {recentProjects.length > 0 ? recentProjects.map((proj) => (
             <div key={proj.id} onClick={() => router.push(`/projects/${proj.id}`)} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
@@ -226,7 +228,7 @@ function DashboardContent() {
               </span>
             </div>
           )) : (
-            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No projects yet</div>
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>{t('dashboard.noProjects')}</div>
           )}
         </div>
       </div>
@@ -257,14 +259,14 @@ function DashboardContent() {
           </div>
           <div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-primary)' }}>
-              10 AI Agents Active
+              {t('dashboard.aiAgentsActive')}
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              5 platform specialists + 5 sector experts powering your pipeline
+              {t('dashboard.aiAgentsDesc')}
             </div>
           </div>
         </div>
-        <span style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 600 }}>View Agents →</span>
+        <span style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 600 }}>{t('dashboard.viewAgents')}</span>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/app/components/AuthGuard';
+import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Partner {
   id: string;
@@ -21,8 +22,16 @@ interface Partner {
 const RISK_COLORS: Record<string, string> = { low: '#22C55E', medium: '#F59E0B', high: '#EF4444', pending: '#7A90A8' };
 const STATUS_ICONS: Record<string, string> = { cleared: '✓', flagged: '⚠', needs_review: '?', pending: '○' };
 
+const ROLE_LABEL_KEYS: Record<string, TranslationKey> = {
+  prime: 'partner.role.prime',
+  subcontractor: 'partner.role.subcontractor',
+  local_partner: 'partner.role.local_partner',
+  consortium_member: 'partner.role.consortium_member',
+};
+
 function PartnersContent() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -83,54 +92,54 @@ function PartnersContent() {
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>Partner Vetting</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>AI-powered compliance screening across CSDDD, sanctions, GDPR, and HRDD</p>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>{t('partner.title')}</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>{t('partner.subtitle')}</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} style={{
           padding: '10px 20px', background: showForm ? 'var(--bg-elevated)' : 'var(--accent)',
           color: showForm ? 'var(--text-muted)' : '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
         }}>
-          {showForm ? 'Cancel' : '+ Add Partner'}
+          {showForm ? t('partner.cancel') : t('partner.addPartner')}
         </button>
       </div>
 
       {/* Add Partner Form */}
       {showForm && (
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 24, border: '1px solid var(--accent)33', marginBottom: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>Add Partner Organization</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>{t('partner.addForm')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Organization Name *</label>
+              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>{t('partner.orgName')}</label>
               <input style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. MozParks Mozambique" />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Country</label>
+              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>{t('partner.country')}</label>
               <input style={inputStyle} value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} placeholder="e.g. Mozambique" />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Sector</label>
+              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>{t('partner.sector')}</label>
               <input style={inputStyle} value={form.sector} onChange={e => setForm(f => ({ ...f, sector: e.target.value }))} placeholder="e.g. Renewable Energy" />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Role</label>
+              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>{t('partner.role')}</label>
               <select style={inputStyle} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                <option value="prime">Prime Contractor</option>
-                <option value="subcontractor">Subcontractor</option>
-                <option value="local_partner">Local Partner</option>
-                <option value="consortium_member">Consortium Member</option>
+                <option value="prime">{t('partner.role.prime')}</option>
+                <option value="subcontractor">{t('partner.role.subcontractor')}</option>
+                <option value="local_partner">{t('partner.role.local_partner')}</option>
+                <option value="consortium_member">{t('partner.role.consortium_member')}</option>
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Contact Email</label>
+              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>{t('partner.contactEmail')}</label>
               <input style={inputStyle} value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} placeholder="contact@org.com" />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Website</label>
+              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>{t('partner.website')}</label>
               <input style={inputStyle} value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} placeholder="https://..." />
             </div>
           </div>
           <button onClick={addPartner} style={{ marginTop: 16, padding: '10px 24px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-            Add Partner
+            {t('partner.addPartnerSubmit')}
           </button>
         </div>
       )}
@@ -143,8 +152,8 @@ function PartnersContent() {
       ) : partners.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, background: 'var(--bg-surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>No partners added yet</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Add consortium partners and screen them for EU compliance.</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>{t('partner.noPartners')}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>{t('partner.noPartnersDesc')}</div>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
@@ -159,13 +168,13 @@ function PartnersContent() {
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)', marginBottom: 4 }}>{p.name}</div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     {p.country && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.country}</span>}
-                    {p.role && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>{p.role.replace('_', ' ')}</span>}
+                    {p.role && ROLE_LABEL_KEYS[p.role] && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>{t(ROLE_LABEL_KEYS[p.role])}</span>}
                     <span style={{
                       fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600, textTransform: 'uppercase',
                       background: `${RISK_COLORS[p.overall_risk] || '#7A90A8'}22`,
                       color: RISK_COLORS[p.overall_risk] || '#7A90A8',
                     }}>
-                      {p.overall_risk === 'pending' ? 'Not screened' : `${p.overall_risk} risk`}
+                      {p.overall_risk === 'pending' ? t('partner.notScreened') : t(`partner.risk.${p.overall_risk}` as TranslationKey)}
                     </span>
                   </div>
                 </div>
@@ -191,7 +200,7 @@ function PartnersContent() {
                         background: '#22C55E15', color: '#22C55E', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                       }}
                     >
-                      {screening === p.id ? 'Screening...' : 'Screen'}
+                      {screening === p.id ? t('partner.screening') : t('partner.screen')}
                     </button>
                   )}
                 </div>

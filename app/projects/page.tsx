@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/app/components/AuthGuard';
+import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Project {
   id: string;
@@ -27,6 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 function ProjectsContent() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +43,7 @@ function ProjectsContent() {
   if (loading) {
     return (
       <div style={{ padding: '40px 24px', maxWidth: 1100, margin: '0 auto' }}>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 24 }}>Projects</h1>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 24 }}>{t('project.title')}</h1>
         <div style={{ display: 'grid', gap: 16 }}>
           {[1, 2].map(i => (
             <div key={i} style={{ height: 140, background: 'var(--bg-surface)', borderRadius: 12, animation: 'skeleton 1.5s infinite' }} />
@@ -55,18 +57,18 @@ function ProjectsContent() {
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>Projects</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Active and completed project implementations</p>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>{t('project.title')}</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>{t('project.subtitle')}</p>
         </div>
       </div>
 
       {projects.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, background: 'var(--bg-surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>No active projects yet</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>Projects are created when proposals are awarded. Start by finding opportunities.</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>{t('project.noProjects')}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>{t('project.noProjectsDesc')}</div>
           <button onClick={() => router.push('/opportunities')} style={{ padding: '12px 24px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-            Find Opportunities →
+            {t('prop.findOpportunities')}
           </button>
         </div>
       ) : (
@@ -100,14 +102,14 @@ function ProjectsContent() {
                         background: `${STATUS_COLORS[project.status] || '#7A90A8'}22`,
                         color: STATUS_COLORS[project.status] || '#7A90A8',
                       }}>
-                        {project.status}
+                        {t(`project.status.${project.status}` as TranslationKey)}
                       </span>
                       {project.funder && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{project.funder}</span>}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontFamily: 'var(--font-serif)', fontSize: 24, color: '#8B5CF6' }}>{progressPct}%</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{completedMilestones}/{totalMilestones} milestones</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{completedMilestones}/{totalMilestones} {t('project.milestones')}</div>
                   </div>
                 </div>
                 <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-elevated)' }}>

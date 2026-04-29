@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Milestone {
   id: string;
@@ -50,6 +51,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   return (
     <span style={{
       display: 'inline-block',
@@ -62,7 +64,7 @@ function StatusBadge({ status }: { status: string }) {
       background: `${STATUS_COLORS[status] || '#7A90A8'}22`,
       color: STATUS_COLORS[status] || '#7A90A8',
     }}>
-      {status.replace('_', ' ')}
+      {t(`project.status.${status}` as TranslationKey)}
     </span>
   );
 }
@@ -88,6 +90,8 @@ function ProgressBar({ value, max, color = 'var(--accent)' }: { value: number; m
 export default function ProjectWorkspace() {
   const params = useParams();
   const router = useRouter();
+  const { t, locale } = useTranslation();
+  const dateLocale = locale === 'es' ? 'es-ES' : 'en-GB';
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'milestones' | 'monitoring' | 'budget'>('milestones');
@@ -156,9 +160,9 @@ export default function ProjectWorkspace() {
   if (!project) {
     return (
       <div style={{ padding: '80px 24px', textAlign: 'center' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: 18 }}>Project not found</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 18 }}>{t('project.notFound')}</p>
         <button onClick={() => router.push('/projects')} style={{ marginTop: 16, padding: '10px 24px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-          Back to Projects
+          {t('project.backToProjects')}
         </button>
       </div>
     );
@@ -168,11 +172,11 @@ export default function ProjectWorkspace() {
   const totalMilestones = project.milestones?.length || 1;
   const budgetPct = project.budget_total > 0 ? Math.round((project.budget_spent / project.budget_total) * 100) : 0;
 
-  const tabs = [
-    { key: 'milestones', label: 'Milestones', count: totalMilestones },
-    { key: 'monitoring', label: 'Monitoring & Impact', count: project.indicators?.length || 0 },
-    { key: 'budget', label: 'Budget', count: null },
-  ] as const;
+  const tabs: { key: 'milestones' | 'monitoring' | 'budget'; labelKey: TranslationKey; count: number | null }[] = [
+    { key: 'milestones', labelKey: 'project.tab.milestones', count: totalMilestones },
+    { key: 'monitoring', labelKey: 'project.tab.monitoring', count: project.indicators?.length || 0 },
+    { key: 'budget', labelKey: 'project.tab.budget', count: null },
+  ];
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
@@ -180,7 +184,7 @@ export default function ProjectWorkspace() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
         <div>
           <button onClick={() => router.push('/projects')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, marginBottom: 8, padding: 0 }}>
-            ← Back to Projects
+            {t('project.backArrow')}
           </button>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', margin: 0 }}>{project.title}</h1>
           <div style={{ display: 'flex', gap: 12, marginTop: 8, alignItems: 'center' }}>
@@ -192,7 +196,7 @@ export default function ProjectWorkspace() {
         <div style={{ display: 'flex', gap: 8 }}>
           {project.status === 'setup' && (
             <button onClick={() => updateProjectStatus('active')} style={{ padding: '10px 20px', background: '#22C55E', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-              Activate Project
+              {t('project.activate')}
             </button>
           )}
         </div>
@@ -201,24 +205,24 @@ export default function ProjectWorkspace() {
       {/* Overview cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Progress</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>{t('project.progress')}</div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--accent)' }}>{Math.round((completedMilestones / totalMilestones) * 100)}%</div>
           <ProgressBar value={completedMilestones} max={totalMilestones} />
         </div>
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Budget</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>{t('project.budget')}</div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)' }}>€{(project.budget_spent || 0).toLocaleString()}</div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>of €{(project.budget_total || 0).toLocaleString()} ({budgetPct}%)</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('project.ofTotal')} €{(project.budget_total || 0).toLocaleString()} ({budgetPct}%)</div>
         </div>
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Timeline</div>
-          <div style={{ fontSize: 15, color: 'var(--text-primary)' }}>{project.start_date ? new Date(project.start_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : 'TBD'}</div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>to {project.end_date ? new Date(project.end_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : 'TBD'}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>{t('project.timeline')}</div>
+          <div style={{ fontSize: 15, color: 'var(--text-primary)' }}>{project.start_date ? new Date(project.start_date).toLocaleDateString(dateLocale, { month: 'short', year: 'numeric' }) : t('project.tbd')}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('project.to')} {project.end_date ? new Date(project.end_date).toLocaleDateString(dateLocale, { month: 'short', year: 'numeric' }) : t('project.tbd')}</div>
         </div>
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 20, border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Indicators</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>{t('project.indicators')}</div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)' }}>{project.indicators?.length || 0}</div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>tracked</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('project.tracked')}</div>
         </div>
       </div>
 
@@ -240,7 +244,7 @@ export default function ProjectWorkspace() {
               transition: 'all 0.15s',
             }}
           >
-            {tab.label} {tab.count !== null && <span style={{ opacity: 0.6 }}>({tab.count})</span>}
+            {t(tab.labelKey)} {tab.count !== null && <span style={{ opacity: 0.6 }}>({tab.count})</span>}
           </button>
         ))}
       </div>
@@ -271,17 +275,17 @@ export default function ProjectWorkspace() {
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{milestone.title}</div>
                 {milestone.description && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>{milestone.description}</div>}
-                {milestone.due_date && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Due: {new Date(milestone.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>}
+                {milestone.due_date && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{t('project.due')}: {new Date(milestone.due_date).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}</div>}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 {milestone.status === 'pending' && (
                   <button onClick={() => updateMilestoneStatus(milestone.id, 'in_progress')} style={{ padding: '6px 14px', background: '#F0A50022', color: '#F0A500', border: '1px solid #F0A50044', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                    Start
+                    {t('project.milestone.start')}
                   </button>
                 )}
                 {milestone.status === 'in_progress' && (
                   <button onClick={() => updateMilestoneStatus(milestone.id, 'completed')} style={{ padding: '6px 14px', background: '#22C55E22', color: '#22C55E', border: '1px solid #22C55E44', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                    Complete
+                    {t('project.milestone.complete')}
                   </button>
                 )}
                 {milestone.status === 'completed' && (
@@ -292,7 +296,7 @@ export default function ProjectWorkspace() {
           ))}
           {(!project.milestones || project.milestones.length === 0) && (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-              No milestones generated yet
+              {t('project.noMilestones')}
             </div>
           )}
         </div>
@@ -301,13 +305,13 @@ export default function ProjectWorkspace() {
       {/* Monitoring Tab */}
       {activeTab === 'monitoring' && (
         <div>
-          {['output', 'outcome', 'impact'].map(category => {
+          {(['output', 'outcome', 'impact'] as const).map(category => {
             const categoryIndicators = project.indicators?.filter(i => i.category === category) || [];
             if (categoryIndicators.length === 0) return null;
             return (
               <div key={category} style={{ marginBottom: 32 }}>
                 <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)', marginBottom: 16, textTransform: 'capitalize' }}>
-                  {category} Indicators
+                  {t(`project.indicator.${category}` as TranslationKey)}
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                   {categoryIndicators.map(indicator => {
@@ -325,7 +329,7 @@ export default function ProjectWorkspace() {
                           <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{indicator.reporting_period}</span>
                           <input
                             type="number"
-                            placeholder="Update..."
+                            placeholder={t('project.indicator.updatePlaceholder')}
                             style={{
                               width: 80, padding: '4px 8px', background: 'var(--bg-elevated)', border: '1px solid var(--border)',
                               borderRadius: 4, color: 'var(--text-primary)', fontSize: 12, outline: 'none',
@@ -350,7 +354,7 @@ export default function ProjectWorkspace() {
           })}
           {(!project.indicators || project.indicators.length === 0) && (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-              No indicators set up yet
+              {t('project.noIndicators')}
             </div>
           )}
         </div>
@@ -359,20 +363,20 @@ export default function ProjectWorkspace() {
       {/* Budget Tab */}
       {activeTab === 'budget' && (
         <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 32, border: '1px solid var(--border)' }}>
-          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 24 }}>Budget Overview</h3>
+          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 24 }}>{t('project.budgetOverview')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32 }}>
             <div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Total Budget</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>{t('project.totalBudget')}</div>
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 32, color: 'var(--text-primary)' }}>€{(project.budget_total || 0).toLocaleString()}</div>
             </div>
             <div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Spent to Date</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>{t('project.spentToDate')}</div>
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 32, color: budgetPct > 80 ? '#EF4444' : budgetPct > 60 ? '#F59E0B' : '#22C55E' }}>€{(project.budget_spent || 0).toLocaleString()}</div>
             </div>
           </div>
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>Budget utilization</span>
+              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{t('project.budgetUtilization')}</span>
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{budgetPct}%</span>
             </div>
             <div style={{ height: 16, borderRadius: 8, background: 'var(--bg-elevated)' }}>
@@ -380,7 +384,7 @@ export default function ProjectWorkspace() {
             </div>
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 24, fontStyle: 'italic' }}>
-            Remaining: €{((project.budget_total || 0) - (project.budget_spent || 0)).toLocaleString()}
+            {t('project.remaining')}: €{((project.budget_total || 0) - (project.budget_spent || 0)).toLocaleString()}
           </div>
         </div>
       )}
