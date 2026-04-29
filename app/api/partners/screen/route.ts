@@ -132,11 +132,16 @@ Assess across: EU/UN/OFAC/UK sanctions, CSDDD supply chain due diligence, GDPR d
       .from('partners')
       .update({
         sanctions_status: screening.sanctions_status,
+        sanctions_detail: screening.sanctions_detail || null,
         csddd_status: screening.csddd_status,
+        csddd_detail: screening.csddd_detail || null,
         gdpr_status: screening.gdpr_status,
+        gdpr_detail: screening.gdpr_detail || null,
         hrdd_status: screening.hrdd_status,
+        hrdd_detail: screening.hrdd_detail || null,
         overall_risk: screening.overall_risk,
         risk_summary: screening.risk_summary,
+        recommendations: screening.recommendations || [],
         updated_at: new Date().toISOString(),
       })
       .eq('id', partnerId);

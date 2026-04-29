@@ -7,8 +7,13 @@ import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 interface Partner {
   id: string; name: string; country: string; sector: string; role: string;
   contact_name: string; contact_email: string; website: string;
-  sanctions_status: string; csddd_status: string; gdpr_status: string; hrdd_status: string;
-  overall_risk: string; risk_summary: string; created_at: string; updated_at: string;
+  sanctions_status: string; sanctions_detail?: string;
+  csddd_status: string; csddd_detail?: string;
+  gdpr_status: string; gdpr_detail?: string;
+  hrdd_status: string; hrdd_detail?: string;
+  overall_risk: string; risk_summary: string;
+  recommendations?: string[];
+  created_at: string; updated_at: string;
 }
 
 const RISK_COLORS: Record<string, string> = { low: '#22C55E', medium: '#F59E0B', high: '#EF4444', pending: '#7A90A8', cleared: '#22C55E', flagged: '#EF4444', needs_review: '#F59E0B' };
@@ -20,11 +25,11 @@ const ROLE_LABEL_KEYS: Record<string, TranslationKey> = {
   consortium_member: 'partner.role.consortium_member',
 };
 
-const FRAMEWORKS: { key: keyof Partner; labelKey: TranslationKey; descKey: TranslationKey; icon: string }[] = [
-  { key: 'sanctions_status', labelKey: 'partner.fw.sanctions.label', descKey: 'partner.fw.sanctions.desc', icon: '🔒' },
-  { key: 'csddd_status', labelKey: 'partner.fw.csddd.label', descKey: 'partner.fw.csddd.desc', icon: '📜' },
-  { key: 'gdpr_status', labelKey: 'partner.fw.gdpr.label', descKey: 'partner.fw.gdpr.desc', icon: '🔐' },
-  { key: 'hrdd_status', labelKey: 'partner.fw.hrdd.label', descKey: 'partner.fw.hrdd.desc', icon: '⚖️' },
+const FRAMEWORKS: { key: keyof Partner; detailKey: keyof Partner; labelKey: TranslationKey; descKey: TranslationKey; icon: string }[] = [
+  { key: 'sanctions_status', detailKey: 'sanctions_detail', labelKey: 'partner.fw.sanctions.label', descKey: 'partner.fw.sanctions.desc', icon: '🔒' },
+  { key: 'csddd_status', detailKey: 'csddd_detail', labelKey: 'partner.fw.csddd.label', descKey: 'partner.fw.csddd.desc', icon: '📜' },
+  { key: 'gdpr_status', detailKey: 'gdpr_detail', labelKey: 'partner.fw.gdpr.label', descKey: 'partner.fw.gdpr.desc', icon: '🔐' },
+  { key: 'hrdd_status', detailKey: 'hrdd_detail', labelKey: 'partner.fw.hrdd.label', descKey: 'partner.fw.hrdd.desc', icon: '⚖️' },
 ];
 
 export default function PartnerDetailPage() {
@@ -143,6 +148,7 @@ export default function PartnerDetailPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 32 }}>
         {FRAMEWORKS.map(fw => {
           const status = partner[fw.key] as string;
+          const detail = partner[fw.detailKey] as string | undefined;
           const color = RISK_COLORS[status] || '#7A90A8';
           const statusKey: TranslationKey =
             status === 'pending' ? 'partner.fwStatus.pending' :
@@ -165,6 +171,11 @@ export default function PartnerDetailPage() {
               }}>
                 {t(statusKey)}
               </span>
+              {detail && (
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55, marginTop: 12, marginBottom: 0 }}>
+                  {detail}
+                </p>
+              )}
             </div>
           );
         })}
@@ -172,9 +183,32 @@ export default function PartnerDetailPage() {
 
       {/* Risk Summary */}
       {partner.risk_summary && (
-        <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 24, border: '1px solid var(--border)' }}>
+        <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 24, border: '1px solid var(--border)', marginBottom: 24 }}>
           <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)', marginBottom: 12 }}>{t('partner.riskSummary')}</h3>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7 }}>{partner.risk_summary}</p>
+        </div>
+      )}
+
+      {/* Recommendations */}
+      {partner.recommendations && partner.recommendations.length > 0 && (
+        <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: 24, border: '1px solid var(--accent)33' }}>
+          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18 }}>✓</span>
+            {t('partner.recommendations')}
+          </h3>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {partner.recommendations.map((rec, i) => (
+              <li key={i} style={{ display: 'flex', gap: 12, fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.55 }}>
+                <span style={{
+                  flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
+                  background: 'var(--accent-dim)', color: 'var(--accent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 700,
+                }}>{i + 1}</span>
+                <span>{rec}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

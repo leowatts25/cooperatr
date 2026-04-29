@@ -283,6 +283,7 @@ const translations = {
     'partner.web': 'Web',
     'partner.scorecard': 'Compliance Scorecard',
     'partner.riskSummary': 'Risk Assessment Summary',
+    'partner.recommendations': 'Recommended Actions',
     'partner.fw.sanctions.label': 'Sanctions Screening',
     'partner.fw.sanctions.desc': 'EU, UN, OFAC, UK consolidated sanctions lists',
     'partner.fw.csddd.label': 'CSDDD Compliance',
@@ -1080,6 +1081,9 @@ const translations = {
     'agents.sec.minerals.desc': 'Financiamiento de la Ley de Materias Primas Críticas de la UE, minería responsable y gobernanza de la MAPE.',
     'agents.sec.minerals.expertise': 'Financiación CRMA | Cinturón Pirítico Ibérico | Gobernanza ASM | Trazabilidad de la cadena de suministro | Transición verde BERD',
     'agents.responsibleNote': 'Los agentes de Cooperatr se basan en principios de IA responsables: el juicio humano permanece en el circuito en cada punto de decisión. Todos los agentes operan con fuentes de datos transparentes y auditables alineadas con los requisitos de la Ley de IA de la UE.',
+
+    // Auto-translated by i18n-sync
+    'partner.recommendations': 'Acciones recomendadas',
   },
 } as const;
 
