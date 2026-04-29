@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/app/components/AuthGuard';
+import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Proposal {
   id: string;
@@ -15,20 +16,21 @@ interface Proposal {
   sector_specialist?: string | null;
 }
 
-const SPECIALIST_LABELS: Record<string, string> = {
-  agrifood: 'Agrifood',
-  cleantech_energy: 'Cleantech & energy',
-  health_pharma: 'Health & pharma',
-  infra_mobility: 'Infra & mobility',
-  digital_tech: 'Digital & AI',
-  circular_manufacturing: 'Circular economy',
-  generalist: 'Generalist',
+const SPECIALIST_LABEL_KEYS: Record<string, TranslationKey> = {
+  agrifood: 'specialist.agrifood.short',
+  cleantech_energy: 'specialist.cleantech.short',
+  health_pharma: 'specialist.health.short',
+  infra_mobility: 'specialist.infra.short',
+  digital_tech: 'specialist.digital.short',
+  circular_manufacturing: 'specialist.circular.short',
+  generalist: 'specialist.generalist.short',
 };
 
 const STATUS_COLORS: Record<string, string> = { draft: '#7A90A8', in_review: '#F59E0B', submitted: '#22C55E' };
 
 function ProposalsContent() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,11 +46,11 @@ function ProposalsContent() {
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>Proposals</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Proposal drafts generated from your saved ideas</p>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>{t('prop.title')}</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>{t('prop.subtitleIdeas')}</p>
         </div>
         <button onClick={() => router.push('/opportunities')} style={{ padding: '10px 20px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
-          Find Opportunities →
+          {t('prop.findOpportunities')}
         </button>
       </div>
 
@@ -59,10 +61,10 @@ function ProposalsContent() {
       ) : proposals.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, background: 'var(--bg-surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>No proposals yet</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>Generate your first proposal from a saved opportunity.</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>{t('prop.noProposals')}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>{t('prop.noProposalsDesc')}</div>
           <button onClick={() => router.push('/opportunities')} style={{ padding: '12px 24px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-            Find Opportunities →
+            {t('prop.findOpportunities')}
           </button>
         </div>
       ) : (
@@ -76,17 +78,17 @@ function ProposalsContent() {
                 <div>
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--text-primary)', marginBottom: 4 }}>{p.title}</div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600, textTransform: 'uppercase', background: `${STATUS_COLORS[p.status] || '#7A90A8'}22`, color: STATUS_COLORS[p.status] || '#7A90A8' }}>{p.status.replace('_', ' ')}</span>
-                    {p.sector_specialist && (
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600, textTransform: 'uppercase', background: `${STATUS_COLORS[p.status] || '#7A90A8'}22`, color: STATUS_COLORS[p.status] || '#7A90A8' }}>{t(`prop.status.${p.status}` as TranslationKey)}</span>
+                    {p.sector_specialist && SPECIALIST_LABEL_KEYS[p.sector_specialist] && (
                       <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                        {SPECIALIST_LABELS[p.sector_specialist] || p.sector_specialist}
+                        {t(SPECIALIST_LABEL_KEYS[p.sector_specialist])}
                       </span>
                     )}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: '#60A5FA' }}>{p.progress}%</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>complete</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('prop.complete')}</div>
                 </div>
               </div>
               <div style={{ height: 5, borderRadius: 3, background: 'var(--bg-elevated)' }}>

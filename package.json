@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/sync-translations.mjs",
+    "prebuild": "tsx scripts/i18n-sync.ts --check || tsx scripts/i18n-sync.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "i18n:sync": "node scripts/sync-translations.mjs"
+    "i18n:sync": "tsx scripts/i18n-sync.ts",
+    "i18n:check": "tsx scripts/i18n-sync.ts --check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.86.1",
@@ -27,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

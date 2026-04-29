@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import translations, { type TranslationKey } from './translations';
 import { detectLocale, setLocale as persistLocale, type Locale } from './detect';
 
+export type { TranslationKey };
+
 interface I18nContextType {
   locale: Locale;
   setLocale: (locale: Locale) => void;

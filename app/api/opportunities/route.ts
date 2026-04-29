@@ -27,6 +27,15 @@ Output exactly ONE idea via emit_ideas. The idea MUST include:
 
 BE TERSE. Short phrases, not sentences. Title 6-12 words. Summary 1-2 short sentences. Each sub-field under 15 words.`;
 
+type Locale = 'en' | 'es';
+
+function languageDirective(locale: Locale): string {
+  if (locale === 'es') {
+    return `LANGUAGE: Write all idea titles, summaries, rationale, partner descriptions, and step text in clear, formal European Spanish (Castellano). Keep proper nouns, funder names, and standard acronyms (CSDDD, GDPR, AECID, NDICI, EFSD+, etc.) in their official form. Currency in EUR.`;
+  }
+  return `LANGUAGE: Write in clear, professional English. Currency in EUR.`;
+}
+
 // Each batch produces ONE idea in ~15-25s. We run 10 of them in parallel to
 // hit 10 ideas under the 60s function budget. Different angles per batch keep
 // variety across the concrete/creative/hybrid mix and avoid empty tool_use
@@ -242,6 +251,7 @@ type CriticOutput = {
 async function runCritic(
   rawIdeas: IdeaFromModel[],
   profile: Record<string, unknown>,
+  locale: Locale,
 ): Promise<{ ideas: IdeaFromModel[]; insight: string }> {
   if (rawIdeas.length === 0) return { ideas: [], insight: '' };
 
@@ -276,7 +286,7 @@ Curate this brainstorm. Drop duplicates and weak ideas, merge complementary ones
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 2500,
-      system: CRITIC_PROMPT,
+      system: `${CRITIC_PROMPT}\n\n${languageDirective(locale)}`,
       tools: [criticTool],
       tool_choice: { type: 'tool', name: 'emit_curation' },
       messages: [{ role: 'user', content: userPrompt }],
@@ -351,9 +361,9 @@ Curate this brainstorm. Drop duplicates and weak ideas, merge complementary ones
   }
 }
 
-async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaFromModel[]> {
+async function generateBatch(batch: BatchKey, userPrompt: string, locale: Locale): Promise<IdeaFromModel[]> {
   const { tag, instructions } = BATCH_INSTRUCTIONS[batch];
-  const system = `${BASE_PROMPT}\n\n## This batch: ${instructions}`;
+  const system = `${BASE_PROMPT}\n\n${languageDirective(locale)}\n\n## This batch: ${instructions}`;
 
   const t0 = Date.now();
   console.log(`[discovery:${batch}] calling Anthropic...`);
@@ -412,6 +422,7 @@ async function generateBatch(batch: BatchKey, userPrompt: string): Promise<IdeaF
 export async function POST(req: NextRequest) {
   try {
     const profile = await req.json();
+    const locale: Locale = profile.locale === 'es' ? 'es' : 'en';
     const supabase = createServerClient();
 
     // 1. Upsert company
@@ -479,7 +490,7 @@ export async function POST(req: NextRequest) {
       'hybrid_consortium',
       'hybrid_offtake',
     ];
-    const results = await Promise.all(batches.map((b) => generateBatch(b, userPrompt)));
+    const results = await Promise.all(batches.map((b) => generateBatch(b, userPrompt, locale)));
     const batchCounts = batches.map((b, i) => `${b}=${results[i].length}`).join(', ');
     console.log(`[discovery] all 10 batches completed in ${Date.now() - t0}ms — ${batchCounts}`);
 
@@ -498,7 +509,7 @@ export async function POST(req: NextRequest) {
       .sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
 
     // 3b. Critic agent — curate, merge, re-rank, and emit cross-cutting insight
-    const { ideas: curatedIdeas, insight } = await runCritic(rawIdeas, profile);
+    const { ideas: curatedIdeas, insight } = await runCritic(rawIdeas, profile, locale);
 
     // 4. Persist to DB — cleanly map dbId back via insertion order
     let persistedIdeas: IdeaFromModel[] = curatedIdeas;

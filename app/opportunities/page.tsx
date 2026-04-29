@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import AuthGuard from '@/app/components/AuthGuard';
-import { useTranslation } from '@/app/lib/i18n/context';
+import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 const SECTORS = ['Agri-food', 'Renewable Energy', 'Water Technology', 'Digital & ICT', 'Health Services', 'Infrastructure', 'Other'];
 const GEOGRAPHIES = ['West Africa', 'North Africa', 'Latin America', 'Southeast Asia', 'Eastern Europe', 'Middle East & North Africa'];
@@ -66,10 +66,10 @@ function formatValue(min?: number, max?: number, currency = 'EUR') {
   return fmt(min || max || 0);
 }
 
-const TAG_META: Record<string, { label: string; color: string; bg: string }> = {
-  concrete: { label: 'Concrete',  color: '#22C55E', bg: 'rgba(34,197,94,0.12)' },
-  creative: { label: 'Creative',  color: '#A855F7', bg: 'rgba(168,85,247,0.12)' },
-  hybrid:   { label: 'Hybrid',    color: '#F0A500', bg: 'rgba(240,165,0,0.12)' },
+const TAG_META: Record<string, { labelKey: TranslationKey; color: string; bg: string }> = {
+  concrete: { labelKey: 'ideacard.tag.concrete', color: '#22C55E', bg: 'rgba(34,197,94,0.12)' },
+  creative: { labelKey: 'ideacard.tag.creative', color: '#A855F7', bg: 'rgba(168,85,247,0.12)' },
+  hybrid:   { labelKey: 'ideacard.tag.hybrid',   color: '#F0A500', bg: 'rgba(240,165,0,0.12)' },
 };
 
 // ============================================================================
@@ -77,11 +77,12 @@ const TAG_META: Record<string, { label: string; color: string; bg: string }> = {
 // ============================================================================
 
 function ConfidenceRing({ score }: { score: number }) {
+  const { t } = useTranslation();
   const color = score >= 80 ? '#22C55E' : score >= 60 ? '#F0A500' : '#94A3B8';
   return (
     <div style={{ textAlign: 'center', minWidth: 54 }}>
       <div style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'DM Serif Display, serif' }}>{score}</div>
-      <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Confidence</div>
+      <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('ideacard.confidence')}</div>
     </div>
   );
 }
@@ -112,6 +113,7 @@ function Section({ title, count, children }: { title: string; count?: number; ch
 }
 
 function VerifiedBadge({ verified }: { verified?: boolean }) {
+  const { t } = useTranslation();
   if (verified === undefined) return null;
   return (
     <span style={{
@@ -121,7 +123,7 @@ function VerifiedBadge({ verified }: { verified?: boolean }) {
       border: `1px solid ${verified ? 'rgba(34,197,94,0.3)' : 'rgba(148,163,184,0.3)'}`,
       textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600,
     }}>
-      {verified ? 'Verified' : 'Heuristic'}
+      {verified ? t('ideacard.verified') : t('ideacard.heuristic')}
     </span>
   );
 }
@@ -143,6 +145,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
   onDismiss?: (id: string) => void;
   saving?: string | null;
 }) {
+  const { t } = useTranslation();
   const tagMeta = TAG_META[idea.tag] || TAG_META.concrete;
   const id = idea.dbId || idea.id || '';
   return (
@@ -164,7 +167,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
               fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 4,
               backgroundColor: tagMeta.bg, color: tagMeta.color, textTransform: 'uppercase', letterSpacing: 0.5,
             }}>
-              {tagMeta.label}
+              {t(tagMeta.labelKey)}
             </span>
             {idea.proposal_ready && (
               <span style={{
@@ -172,7 +175,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
                 backgroundColor: 'rgba(240,165,0,0.12)', color: '#F0A500',
                 textTransform: 'uppercase', letterSpacing: 0.5,
               }}>
-                Proposal-Ready
+                {t('ideacard.proposalReady')}
               </span>
             )}
           </div>
@@ -193,7 +196,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
         </span>
         {idea.estimated_timeline_months && (
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            ⏱ ~{idea.estimated_timeline_months} months
+            ⏱ ~{idea.estimated_timeline_months} {t('ideacard.months')}
           </span>
         )}
         {idea.confidence_rationale && (
@@ -205,7 +208,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
 
       {/* Expandable sections */}
       {idea.funding_paths && idea.funding_paths.length > 0 && (
-        <Section title="Funding paths" count={idea.funding_paths.length}>
+        <Section title={t('ideacard.section.fundingPaths')} count={idea.funding_paths.length}>
           {idea.funding_paths.map((p, i) => (
             <EntryRow
               key={i}
@@ -218,7 +221,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
       )}
 
       {idea.partners && idea.partners.length > 0 && (
-        <Section title="Potential partners" count={idea.partners.length}>
+        <Section title={t('ideacard.section.partners')} count={idea.partners.length}>
           {idea.partners.map((p, i) => (
             <div key={i} style={{ padding: '10px 0', borderBottom: '1px dashed var(--border)' }}>
               <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
@@ -235,7 +238,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
       )}
 
       {idea.buyers && idea.buyers.length > 0 && (
-        <Section title="Buyers / markets" count={idea.buyers.length}>
+        <Section title={t('ideacard.section.buyers')} count={idea.buyers.length}>
           {idea.buyers.map((b, i) => (
             <div key={i} style={{ padding: '10px 0', borderBottom: '1px dashed var(--border)' }}>
               <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
@@ -252,7 +255,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
       )}
 
       {idea.investors && idea.investors.length > 0 && (
-        <Section title="Impact investors" count={idea.investors.length}>
+        <Section title={t('ideacard.section.investors')} count={idea.investors.length}>
           {idea.investors.map((inv, i) => (
             <div key={i} style={{ padding: '10px 0', borderBottom: '1px dashed var(--border)' }}>
               <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
@@ -269,7 +272,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
       )}
 
       {idea.next_steps && idea.next_steps.length > 0 && (
-        <Section title="Next steps" count={idea.next_steps.length}>
+        <Section title={t('ideacard.section.nextSteps')} count={idea.next_steps.length}>
           {idea.next_steps.map((s, i) => (
             <EntryRow
               key={i}
@@ -283,12 +286,12 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
       {((idea.regulatory_requirements && idea.regulatory_requirements.length > 0) ||
         (idea.risks && idea.risks.length > 0)) && (
         <Section
-          title="Compliance & risk"
+          title={t('ideacard.section.complianceRisk')}
           count={(idea.regulatory_requirements?.length || 0) + (idea.risks?.length || 0)}
         >
           {idea.regulatory_requirements && idea.regulatory_requirements.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Regulatory</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{t('ideacard.section.regulatory')}</div>
               {idea.regulatory_requirements.map((r, i) => (
                 <div key={i} style={{ fontSize: 12, color: 'var(--text-muted)', padding: '3px 0' }}>• {r}</div>
               ))}
@@ -296,7 +299,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
           )}
           {idea.risks && idea.risks.length > 0 && (
             <div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Risks</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{t('ideacard.section.risks')}</div>
               {idea.risks.map((r, i) => (
                 <div key={i} style={{ fontSize: 12, color: 'var(--text-muted)', padding: '3px 0' }}>• {r}</div>
               ))}
@@ -306,9 +309,9 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
       )}
 
       {idea.missing_data && idea.missing_data.length > 0 && (
-        <Section title="Sharpen this idea" count={idea.missing_data.length}>
+        <Section title={t('ideacard.section.sharpen')} count={idea.missing_data.length}>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
-            Provide this information to raise confidence and unlock deeper recommendations:
+            {t('ideacard.section.sharpenDesc')}
           </div>
           {idea.missing_data.map((m, i) => (
             <div key={i} style={{ fontSize: 12, color: 'var(--text-muted)', padding: '3px 0' }}>• {m}</div>
@@ -317,7 +320,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
       )}
 
       {idea.data_provenance && idea.data_provenance.length > 0 && (
-        <Section title="Provenance" count={idea.data_provenance.length}>
+        <Section title={t('ideacard.section.provenance')} count={idea.data_provenance.length}>
           {idea.data_provenance.map((p, i) => (
             <EntryRow key={i} title={p.claim} meta={p.source_type} />
           ))}
@@ -331,7 +334,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
             padding: '9px 18px', borderRadius: 8, border: '1px solid #22C55E44',
             backgroundColor: '#22C55E15', color: '#22C55E', fontSize: 13, cursor: 'pointer', fontWeight: 600,
           }}>
-            Save
+            {t('ideacard.action.save')}
           </button>
         )}
         {onDismiss && (
@@ -339,7 +342,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
             padding: '9px 14px', borderRadius: 8, border: '1px solid var(--border)',
             backgroundColor: 'transparent', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
           }}>
-            Dismiss
+            {t('ideacard.action.dismiss')}
           </button>
         )}
         <Link href={`/proposals/new?ideaId=${id}`} style={{ flex: 1, textDecoration: 'none' }}>
@@ -347,7 +350,7 @@ function IdeaCard({ idea, rank, onSave, onDismiss, saving }: {
             width: '100%', padding: '9px', borderRadius: 8, border: 'none',
             backgroundColor: 'var(--accent)', color: '#0F1623', fontSize: 13, cursor: 'pointer', fontWeight: 700,
           }}>
-            Start Proposal →
+            {t('ideacard.action.startProposal')}
           </button>
         </Link>
       </div>
@@ -387,6 +390,7 @@ function DeepenDrawer({ profile, onClose, onComplete }: {
   onClose: () => void;
   onComplete: (patch: Record<string, unknown>) => void;
 }) {
+  const { t, locale } = useTranslation();
   const [messages, setMessages] = useState<DeepenMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -398,7 +402,7 @@ function DeepenDrawer({ profile, onClose, onComplete }: {
       const res = await fetch('/api/profile/deepen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile, messages: newMessages }),
+        body: JSON.stringify({ profile, messages: newMessages, locale }),
       });
       const data: DeepenResponse = await res.json();
       setMessages([...newMessages, { role: 'assistant', content: data.message }]);
@@ -408,11 +412,11 @@ function DeepenDrawer({ profile, onClose, onComplete }: {
       }
     } catch (err) {
       console.error(err);
-      setMessages([...newMessages, { role: 'assistant', content: 'Something went wrong. Try again or skip.' }]);
+      setMessages([...newMessages, { role: 'assistant', content: t('deepen.error') }]);
     } finally {
       setLoading(false);
     }
-  }, [profile, onComplete]);
+  }, [profile, onComplete, t, locale]);
 
   // Kick off the first question on mount
   useEffect(() => {
@@ -439,13 +443,13 @@ function DeepenDrawer({ profile, onClose, onComplete }: {
       }} onClick={e => e.stopPropagation()}>
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
-            Stage 2 · Deepen profile
+            {t('deepen.kicker')}
           </div>
           <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 22, color: 'var(--text-primary)' }}>
-            A few strategic questions
+            {t('deepen.title')}
           </h2>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
-            Answer 4–6 quick questions to unlock sharper, more specific ideas. Skip anytime.
+            {t('deepen.subtitle')}
           </p>
         </div>
 
@@ -464,7 +468,7 @@ function DeepenDrawer({ profile, onClose, onComplete }: {
           ))}
           {loading && (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', padding: '6px 14px' }}>
-              Thinking…
+              {t('deepen.thinking')}
             </div>
           )}
         </div>
@@ -477,7 +481,7 @@ function DeepenDrawer({ profile, onClose, onComplete }: {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              placeholder="Type your answer, or say 'done'..."
+              placeholder={t('deepen.placeholder')}
               disabled={loading}
               style={{
                 flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)',
@@ -489,7 +493,7 @@ function DeepenDrawer({ profile, onClose, onComplete }: {
               backgroundColor: 'var(--accent)', color: '#0F1623', fontSize: 13, fontWeight: 600,
               cursor: loading || !input.trim() ? 'not-allowed' : 'pointer', opacity: loading || !input.trim() ? 0.5 : 1,
             }}>
-              Send
+              {t('deepen.send')}
             </button>
           </div>
         )}
@@ -499,7 +503,7 @@ function DeepenDrawer({ profile, onClose, onComplete }: {
             padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)',
             backgroundColor: 'transparent', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer',
           }}>
-            {done ? 'Close' : 'Skip & generate ideas'}
+            {done ? t('deepen.close') : t('deepen.skip')}
           </button>
         </div>
       </div>
@@ -512,7 +516,7 @@ function DeepenDrawer({ profile, onClose, onComplete }: {
 // ============================================================================
 
 function OpportunitiesContent() {
-  useTranslation(); // reserved for when translation keys are wired in
+  const { t, locale } = useTranslation();
   const [form, setForm] = useState({
     companyName: '',
     sector: '',
@@ -575,7 +579,7 @@ function OpportunitiesContent() {
     setIdeas(null);
     setInsight('');
     try {
-      const payload = { ...form, ...extendedProfile, ...(overrideProfile || {}), companyId };
+      const payload = { ...form, ...extendedProfile, ...(overrideProfile || {}), companyId, locale };
       const res = await fetch('/api/opportunities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -591,7 +595,7 @@ function OpportunitiesContent() {
         localStorage.setItem('cooperatr_companyId', data.companyId);
       }
     } catch (err) {
-      setError('Failed to generate ideas. Check your API key and try again.');
+      setError(t('disc.errorGenerate'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -600,7 +604,7 @@ function OpportunitiesContent() {
 
   const handleStage1 = () => {
     if (!form.companyName || !form.sector || !form.organizationType) {
-      setError('Please fill in Company Name, Sector, and Organization Type.');
+      setError(t('disc.form.errorRequired'));
       return;
     }
     setError('');
@@ -674,10 +678,10 @@ function OpportunitiesContent() {
   };
   const labelStyle = { fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 6, display: 'block', fontWeight: 600 };
 
-  const tabs = [
-    { key: 'search' as const, label: 'New search', count: null as number | null },
-    { key: 'saved' as const, label: 'Saved', count: savedIdeas.length || null },
-    { key: 'history' as const, label: 'History', count: allIdeas.length || null },
+  const tabs: { key: 'search' | 'saved' | 'history'; labelKey: TranslationKey; count: number | null }[] = [
+    { key: 'search', labelKey: 'disc.tab.search', count: null },
+    { key: 'saved', labelKey: 'disc.tab.saved', count: savedIdeas.length || null },
+    { key: 'history', labelKey: 'disc.tab.history', count: allIdeas.length || null },
   ];
 
   return (
@@ -691,11 +695,11 @@ function OpportunitiesContent() {
       )}
 
       <div style={{ marginBottom: 24 }}>
-        <Link href="/dashboard" style={{ fontSize: 13, color: 'var(--text-muted)', textDecoration: 'none' }}>← Dashboard</Link>
+        <Link href="/dashboard" style={{ fontSize: 13, color: 'var(--text-muted)', textDecoration: 'none' }}>{t('common.backDashboard')}</Link>
         <div style={{ borderLeft: '4px solid var(--accent)', paddingLeft: 16, marginTop: 16 }}>
-          <h1 className="font-serif" style={{ fontSize: 32, color: 'var(--text-primary)' }}>Discovery Engine</h1>
+          <h1 className="font-serif" style={{ fontSize: 32, color: 'var(--text-primary)' }}>{t('disc.title')}</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
-            Uncover non-obvious paths to funding, partners, buyers, and impact investors.
+            {t('disc.subtitle')}
           </p>
         </div>
       </div>
@@ -713,7 +717,7 @@ function OpportunitiesContent() {
               cursor: 'pointer', fontSize: 14, fontWeight: 600, transition: 'all 0.15s',
             }}
           >
-            {tab.label} {tab.count !== null && <span style={{ opacity: 0.6 }}>({tab.count})</span>}
+            {t(tab.labelKey)} {tab.count !== null && <span style={{ opacity: 0.6 }}>({tab.count})</span>}
           </button>
         ))}
       </div>
@@ -722,22 +726,22 @@ function OpportunitiesContent() {
       {activeTab === 'search' && (
         <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 24, alignItems: 'start' }}>
           <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 20 }}>Company profile</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 20 }}>{t('disc.form.profile')}</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={labelStyle}>Company name *</label>
-                <input style={inputStyle} placeholder="e.g. Andalucia Solar S.L." value={form.companyName}
+                <label style={labelStyle}>{t('disc.form.companyName')}</label>
+                <input style={inputStyle} placeholder={t('disc.form.companyNamePlaceholder')} value={form.companyName}
                   onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} />
               </div>
               <div>
-                <label style={labelStyle}>Sector *</label>
+                <label style={labelStyle}>{t('disc.form.sector')}</label>
                 <select style={inputStyle} value={form.sector} onChange={e => setForm(f => ({ ...f, sector: e.target.value }))}>
-                  <option value="">Select sector...</option>
+                  <option value="">{t('disc.form.selectSector')}</option>
                   {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Geography focus</label>
+                <label style={labelStyle}>{t('disc.form.geography')}</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {GEOGRAPHIES.map(g => (
                     <button key={g} onClick={() => toggleGeo(g)} style={{
@@ -750,36 +754,39 @@ function OpportunitiesContent() {
                 </div>
               </div>
               <div>
-                <label style={labelStyle}>Organization type *</label>
+                <label style={labelStyle}>{t('disc.form.orgType')}</label>
                 <select style={inputStyle} value={form.organizationType} onChange={e => setForm(f => ({ ...f, organizationType: e.target.value }))}>
-                  <option value="">Select type...</option>
-                  {ORG_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="">{t('disc.form.selectType')}</option>
+                  {ORG_TYPES.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Annual revenue</label>
+                <label style={labelStyle}>{t('disc.form.revenue')}</label>
                 <select style={inputStyle} value={form.revenueRange} onChange={e => setForm(f => ({ ...f, revenueRange: e.target.value }))}>
-                  <option value="">Select range...</option>
+                  <option value="">{t('disc.form.selectRevenue')}</option>
                   {REVENUE_RANGES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Prior EU contracting experience</label>
+                <label style={labelStyle}>{t('disc.form.priorEU')}</label>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {['Yes', 'No'].map(v => (
-                    <button key={v} onClick={() => setForm(f => ({ ...f, priorEUExperience: v === 'Yes' }))} style={{
+                  {[
+                    { v: true, label: t('disc.form.yes') },
+                    { v: false, label: t('disc.form.no') },
+                  ].map(opt => (
+                    <button key={String(opt.v)} onClick={() => setForm(f => ({ ...f, priorEUExperience: opt.v }))} style={{
                       flex: 1, padding: 8, borderRadius: 8, fontSize: 13, cursor: 'pointer',
-                      border: `1px solid ${(form.priorEUExperience && v === 'Yes') || (!form.priorEUExperience && v === 'No') ? 'var(--accent)' : 'var(--border)'}`,
-                      backgroundColor: (form.priorEUExperience && v === 'Yes') || (!form.priorEUExperience && v === 'No') ? 'var(--accent-dim)' : 'var(--bg-elevated)',
-                      color: (form.priorEUExperience && v === 'Yes') || (!form.priorEUExperience && v === 'No') ? 'var(--accent)' : 'var(--text-muted)',
-                    }}>{v}</button>
+                      border: `1px solid ${form.priorEUExperience === opt.v ? 'var(--accent)' : 'var(--border)'}`,
+                      backgroundColor: form.priorEUExperience === opt.v ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+                      color: form.priorEUExperience === opt.v ? 'var(--accent)' : 'var(--text-muted)',
+                    }}>{opt.label}</button>
                   ))}
                 </div>
               </div>
               <div>
-                <label style={labelStyle}>Brief description</label>
+                <label style={labelStyle}>{t('disc.form.description')}</label>
                 <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 80, fontFamily: 'DM Sans, sans-serif' }}
-                  placeholder="Core competency and international experience (max 300 chars)" maxLength={300}
+                  placeholder={t('disc.form.descriptionPlaceholder')} maxLength={300}
                   value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', marginTop: 4 }}>{form.description.length}/300</div>
               </div>
@@ -790,10 +797,10 @@ function OpportunitiesContent() {
                 color: loading ? 'var(--text-muted)' : '#0F1623',
                 fontSize: 14, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
               }}>
-                {loading ? 'Generating ideas...' : 'Discover ideas →'}
+                {loading ? t('disc.form.generating') : t('disc.form.discover')}
               </button>
               <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, textAlign: 'center' }}>
-                You&apos;ll get a chance to deepen your profile for sharper ideas before results are generated.
+                {t('disc.form.deepenHint')}
               </p>
             </div>
           </div>
@@ -804,19 +811,22 @@ function OpportunitiesContent() {
               <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px dashed var(--border)', borderRadius: 12, padding: '60px 32px', textAlign: 'center' }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>💡</div>
                 <p style={{ color: 'var(--text-muted)', fontSize: 15, lineHeight: 1.6 }}>
-                  Describe your company to uncover<br />ranked, actionable ideas.
+                  {t('disc.empty.title')}
                 </p>
                 <p style={{ color: 'var(--text-muted)', fontSize: 12, lineHeight: 1.6, marginTop: 10, maxWidth: 400, margin: '10px auto 0' }}>
-                  Each idea is tagged as <strong style={{ color: '#22C55E' }}>concrete</strong>,{' '}
-                  <strong style={{ color: '#A855F7' }}>creative</strong>, or{' '}
-                  <strong style={{ color: '#F0A500' }}>hybrid</strong>, and expands into funding paths, partners, buyers, investors, and next steps.
+                  {t('disc.empty.legendPrefix')}{' '}
+                  <strong style={{ color: '#22C55E' }}>{t('ideacard.tag.concrete').toLowerCase()}</strong>,{' '}
+                  <strong style={{ color: '#A855F7' }}>{t('ideacard.tag.creative').toLowerCase()}</strong>
+                  {t('disc.empty.legendMid')}{' '}
+                  <strong style={{ color: '#F0A500' }}>{t('ideacard.tag.hybrid').toLowerCase()}</strong>
+                  {t('disc.empty.legendSuffix')}
                 </p>
               </div>
             )}
             {loading && (
               <div>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12, fontStyle: 'italic' }}>
-                  Scanning EU instruments, Global Gateway pipelines, impact-investor theses, and corporate off-take patterns across concrete, creative, and hybrid angles...
+                  {t('disc.loading.scanning')}
                 </p>
                 {[1, 2, 3, 4, 5, 6].map(i => <IdeaSkeleton key={i} />)}
               </div>
@@ -826,10 +836,10 @@ function OpportunitiesContent() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
                   <div>
                     <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {ideas.length} ideas ranked
+                      {ideas.length} {t('disc.results.ranked')}
                     </h2>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                      Tailored for {form.companyName}. Click any section to expand.
+                      {t('disc.results.tailoredFor')} {form.companyName}. {t('disc.results.expand')}
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -843,7 +853,7 @@ function OpportunitiesContent() {
                         fontSize: 12, fontWeight: 600, cursor: 'pointer',
                       }}
                     >
-                      ↑ Strengthen profile
+                      {t('disc.results.strengthen')}
                     </button>
                     <button
                       onClick={() => submitForIdeas()}
@@ -855,13 +865,13 @@ function OpportunitiesContent() {
                         fontSize: 12, fontWeight: 600, cursor: 'pointer',
                       }}
                     >
-                      ↻ Regenerate
+                      {t('disc.results.regenerate')}
                     </button>
                     <button
                       onClick={() => setIdeas(null)}
                       style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
                     >
-                      Clear
+                      {t('disc.results.clear')}
                     </button>
                   </div>
                 </div>
@@ -889,7 +899,7 @@ function OpportunitiesContent() {
                         paddingTop: 2,
                       }}
                     >
-                      Advisor note
+                      {t('disc.results.advisorNote')}
                     </div>
                     <p
                       style={{
@@ -925,12 +935,12 @@ function OpportunitiesContent() {
           {savedIdeas.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 60, background: 'var(--bg-surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>No saved ideas</div>
-              <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Generate ideas and save the ones that interest you.</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>{t('disc.savedEmpty.title')}</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>{t('disc.savedEmpty.desc')}</div>
             </div>
           ) : (
             <div style={{ maxWidth: 800 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>{savedIdeas.length} saved ideas</h2>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>{savedIdeas.length} {t('disc.saved.count')}</h2>
               {savedIdeas.map((idea, i) => (
                 <IdeaCard key={idea.id || i} idea={idea} rank={i + 1} onDismiss={handleDismiss} saving={saving} />
               ))}
@@ -945,12 +955,12 @@ function OpportunitiesContent() {
           {allIdeas.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 60, background: 'var(--bg-surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>📜</div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>No history yet</div>
-              <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Generate your first set of ideas to see them here.</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>{t('disc.historyEmpty.title')}</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>{t('disc.historyEmpty.desc')}</div>
             </div>
           ) : (
             <div style={{ maxWidth: 800 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>{allIdeas.length} past ideas</h2>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>{allIdeas.length} {t('disc.history.count')}</h2>
               {allIdeas.map((idea, i) => (
                 <IdeaCard key={idea.id || i} idea={idea} rank={i + 1} onSave={handleSave} onDismiss={handleDismiss} saving={saving} />
               ))}

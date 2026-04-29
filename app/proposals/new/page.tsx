@@ -2,9 +2,11 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 function NewProposalContent() {
   const router = useRouter();
+  const { t, locale } = useTranslation();
   const searchParams = useSearchParams();
   const ideaId = searchParams.get('ideaId') || searchParams.get('opportunityId');
   const companyId =
@@ -22,40 +24,46 @@ function NewProposalContent() {
 
   async function handleGenerate() {
     if (!ideaId) {
-      setError('Missing idea reference. Go back and pick a saved idea.');
+      setError(t('propnew.errorMissing'));
       return;
     }
     setGenerating(true);
     setError('');
-    setStatus('Routing to the best sector specialist…');
+    setStatus(t('propnew.statusRouting'));
     try {
       const res = await fetch('/api/proposals/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ideaId, companyId }),
+        body: JSON.stringify({ ideaId, companyId, locale }),
         signal: AbortSignal.timeout(90000),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setStatus(`${data.specialistLabel || 'Specialist'} drafted the proposal. Opening…`);
+      setStatus(`${data.specialistLabel || 'Specialist'} ${t('propnew.statusDrafted')}`);
       router.push(`/proposals/${data.proposalId}`);
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : 'Failed to generate proposal. Please try again.');
+      setError(err instanceof Error ? err.message : t('propnew.errorFailed'));
       setGenerating(false);
       setStatus('');
     }
   }
 
+  const sections: { labelKey: TranslationKey; hintKey: TranslationKey }[] = [
+    { labelKey: 'propnew.section.exec.label', hintKey: 'propnew.section.exec.hint' },
+    { labelKey: 'propnew.section.tech.label', hintKey: 'propnew.section.tech.hint' },
+    { labelKey: 'propnew.section.fin.label', hintKey: 'propnew.section.fin.hint' },
+    { labelKey: 'propnew.section.compliance.label', hintKey: 'propnew.section.compliance.hint' },
+  ];
+
   return (
     <div style={{ padding: '40px 24px', maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
       <div style={{ fontSize: 56, marginBottom: 20 }}>📝</div>
       <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 12 }}>
-        Generate Proposal
+        {t('propnew.title')}
       </h1>
       <p style={{ color: 'var(--text-muted)', fontSize: 15, lineHeight: 1.6, marginBottom: 28 }}>
-        A sector specialist will draft a complete proposal tailored to your idea:
-        Executive Summary, Technical Approach, Financial Plan, and Compliance &amp; ESG.
+        {t('propnew.description')}
       </p>
 
       <div
@@ -67,14 +75,9 @@ function NewProposalContent() {
           textAlign: 'left',
         }}
       >
-        {[
-          { label: 'Executive Summary', hint: 'Rationale + impact' },
-          { label: 'Technical Approach', hint: 'Logframe + workplan' },
-          { label: 'Financial Plan', hint: 'Budget + co-financing' },
-          { label: 'Compliance & ESG', hint: 'CSDDD, safeguards, gender' },
-        ].map((section) => (
+        {sections.map((section) => (
           <div
-            key={section.label}
+            key={section.labelKey}
             style={{
               background: 'var(--bg-surface)',
               borderRadius: 10,
@@ -83,10 +86,10 @@ function NewProposalContent() {
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-              {section.label}
+              {t(section.labelKey)}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              {section.hint}
+              {t(section.hintKey)}
             </div>
           </div>
         ))}
@@ -104,9 +107,8 @@ function NewProposalContent() {
           textAlign: 'left',
         }}
       >
-        <div style={{ fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>How it works</div>
-        A router picks the best specialist (agrifood, cleantech, health, infra, digital, circular, or generalist) based on
-        the idea&apos;s real center of gravity. The specialist then drafts the full proposal using their domain knowledge.
+        <div style={{ fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>{t('propnew.howItWorks.title')}</div>
+        {t('propnew.howItWorks.body')}
       </div>
 
       {error && (
@@ -140,25 +142,26 @@ function NewProposalContent() {
           maxWidth: 320,
         }}
       >
-        {generating ? 'Drafting proposal…' : 'Generate Proposal →'}
+        {generating ? t('propnew.buttonGenerating') : t('propnew.button')}
       </button>
 
       {generating && (
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 16, fontStyle: 'italic' }}>
-          {status || 'This may take 30–60 seconds.'}
+          {status || t('propnew.taking')}
         </p>
       )}
     </div>
   );
 }
 
+function LoadingFallback() {
+  // Suspense fallback can't use hooks before mount; static EN ok
+  return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading…</div>;
+}
+
 export default function NewProposalPage() {
   return (
-    <Suspense
-      fallback={
-        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading…</div>
-      }
-    >
+    <Suspense fallback={<LoadingFallback />}>
       <NewProposalContent />
     </Suspense>
   );

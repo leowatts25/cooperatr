@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getCurrentUser, getUserProfile, signOut } from '@/app/lib/supabase-auth';
+import { useTranslation } from '@/app/lib/i18n/context';
 
 export default function PendingPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [checking, setChecking] = useState(true);
 
@@ -28,7 +30,7 @@ export default function PendingPage() {
 
   if (checking) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: 'var(--text-muted)' }}>Checking status...</div>
+      <div style={{ color: 'var(--text-muted)' }}>{t('pending.checking')}</div>
     </div>
   );
 
@@ -41,13 +43,12 @@ export default function PendingPage() {
 
         <div style={{ background: 'var(--bg-surface)', borderRadius: 16, padding: 40, border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--text-primary)', marginBottom: 12 }}>Account Pending Approval</h2>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, color: 'var(--text-primary)', marginBottom: 12 }}>{t('pending.title')}</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
-            Your account <strong style={{ color: 'var(--text-primary)' }}>{email}</strong> has been registered.
+            {t('pending.accountPrefix')} <strong style={{ color: 'var(--text-primary)' }}>{email}</strong> {t('pending.desc')}
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-            An administrator will review and approve your access shortly.
-            You will be able to use all platform features once approved.
+            {t('pending.wait')}
           </p>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
@@ -55,13 +56,13 @@ export default function PendingPage() {
               onClick={() => window.location.reload()}
               style={{ padding: '10px 20px', background: 'var(--accent)', color: '#0F1623', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
             >
-              Check Again
+              {t('pending.checkAgain')}
             </button>
             <button
               onClick={signOut}
               style={{ padding: '10px 20px', background: 'none', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}
             >
-              Sign Out
+              {t('pending.signOut')}
             </button>
           </div>
         </div>

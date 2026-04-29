@@ -150,6 +150,15 @@ Write a substantive, professional EU/DFI-grade section. No placeholders, no "TBD
 
 CRITICAL: Target 1500-2500 characters per section. Be dense and concrete, not verbose. Call emit_section immediately with the full content — do not write any preamble, reasoning, or acknowledgement before the tool call.`;
 
+type Locale = 'en' | 'es';
+
+function languageDirective(locale: Locale): string {
+  if (locale === 'es') {
+    return `LANGUAGE: Write the entire section in clear, formal European Spanish (Castellano). Use the technical vocabulary expected in EU and AECID development finance proposals. Keep proper nouns, funder names, and standard acronyms (CSDDD, GDPR, EFSD+, AECID, NDICI, etc.) in their official form. Currency in EUR.`;
+  }
+  return `LANGUAGE: Write the entire section in clear, professional English suitable for EU and DFI proposal evaluation. Currency in EUR.`;
+}
+
 type SectionKey =
   | 'executive_summary'
   | 'technical_section'
@@ -237,10 +246,11 @@ async function draftSection(
   section: SectionKey,
   specialist: SpecialistKey,
   context: string,
+  locale: Locale,
 ): Promise<{ content: string }> {
   const spec = SPECIALISTS[specialist];
   const brief = SECTION_BRIEFS[section];
-  const system = `${BASE_SPECIALIST_PROMPT}\n\n## Your specialty: ${spec.label}\n${spec.guidance}\n\n## Your task right now: ${brief.label}\n${brief.instructions}`;
+  const system = `${BASE_SPECIALIST_PROMPT}\n\n${languageDirective(locale)}\n\n## Your specialty: ${spec.label}\n${spec.guidance}\n\n## Your task right now: ${brief.label}\n${brief.instructions}`;
 
   const userPrompt = `${context}\n\nDraft the ${brief.label} now. Tailor to the company's experience level; if prior EU experience is "No", lean on consortium/partnership framing to de-risk the bid.`;
 
@@ -296,6 +306,7 @@ async function draftProposal(
   specialist: SpecialistKey,
   idea: Record<string, unknown>,
   company: Record<string, unknown> | null,
+  locale: Locale,
 ): Promise<ProposalDraft> {
   const context = buildSpecialistContext(idea, company);
 
@@ -307,7 +318,7 @@ async function draftProposal(
   ];
 
   const t0 = Date.now();
-  const results = await Promise.all(sections.map((s) => draftSection(s, specialist, context)));
+  const results = await Promise.all(sections.map((s) => draftSection(s, specialist, context, locale)));
   console.log(`[proposals] 4 parallel sections completed in ${Date.now() - t0}ms`);
 
   const [exec, tech, fin, comp] = results;
@@ -326,7 +337,8 @@ async function draftProposal(
 
 export async function POST(req: NextRequest) {
   try {
-    const { ideaId, companyId } = await req.json();
+    const { ideaId, companyId, locale: rawLocale } = await req.json();
+    const locale: Locale = rawLocale === 'es' ? 'es' : 'en';
 
     if (!ideaId) {
       return NextResponse.json({ error: 'ideaId is required' }, { status: 400 });
@@ -357,7 +369,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Specialist drafts the full proposal
     const tDraft = Date.now();
-    const draft = await draftProposal(specialist, idea, company);
+    const draft = await draftProposal(specialist, idea, company, locale);
     console.log(`[proposals] ${specialist} drafted proposal in ${Date.now() - tDraft}ms`);
 
     // 3. Persist

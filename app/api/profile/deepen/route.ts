@@ -69,13 +69,23 @@ When you have enough (or user says done):
 Only include patch fields you actually learned. Set profileCompleteness between 30 and 95 based on how much you gathered.`;
 
 type Message = { role: 'user' | 'assistant'; content: string };
+type Locale = 'en' | 'es';
+
+function languageDirective(locale: Locale): string {
+  if (locale === 'es') {
+    return `LANGUAGE: Conduct the entire conversation in clear, formal European Spanish (Castellano). Use tú (informal) but professional tone. Translate all messages, questions, and the final closing line into Spanish. Patch field values can stay in their natural form (e.g. proper nouns, certifications).`;
+  }
+  return `LANGUAGE: Conduct the conversation in clear, professional English.`;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { profile, messages } = (await req.json()) as {
+    const { profile, messages, locale: rawLocale } = (await req.json()) as {
       profile: Record<string, unknown>;
       messages: Message[];
+      locale?: string;
     };
+    const locale: Locale = rawLocale === 'es' ? 'es' : 'en';
 
     // Seed the first turn with a system-side framing of the known profile,
     // including Stage 2 fields already learned so the model skips them.
@@ -113,7 +123,7 @@ Description: ${profile.description || 'Not provided'}${stage2Lines.length ? '\n\
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
-      system: SYSTEM_PROMPT,
+      system: `${SYSTEM_PROMPT}\n\n${languageDirective(locale)}`,
       messages: conversationMessages,
     });
 

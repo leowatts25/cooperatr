@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Proposal {
   id: string;
@@ -21,14 +22,14 @@ interface Proposal {
   specialist_rationale: string | null;
 }
 
-const SPECIALIST_LABELS: Record<string, string> = {
-  agrifood: 'Agrifood & rural value chains',
-  cleantech_energy: 'Cleantech, energy & climate',
-  health_pharma: 'Health, pharma & diagnostics',
-  infra_mobility: 'Infrastructure & mobility',
-  digital_tech: 'Digital, data & AI',
-  circular_manufacturing: 'Circular economy & manufacturing',
-  generalist: 'Cross-sector generalist',
+const SPECIALIST_LABEL_KEYS: Record<string, TranslationKey> = {
+  agrifood: 'specialist.agrifood.long',
+  cleantech_energy: 'specialist.cleantech.long',
+  health_pharma: 'specialist.health.long',
+  infra_mobility: 'specialist.infra.long',
+  digital_tech: 'specialist.digital.long',
+  circular_manufacturing: 'specialist.circular.long',
+  generalist: 'specialist.generalist.long',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -37,16 +38,18 @@ const STATUS_COLORS: Record<string, string> = {
   submitted: '#22C55E',
 };
 
-const SECTIONS = [
-  { key: 'executive_summary', label: 'Executive Summary', icon: '📋' },
-  { key: 'technical_section', label: 'Technical Approach', icon: '🔧' },
-  { key: 'financial_section', label: 'Financial Plan', icon: '💰' },
-  { key: 'compliance_section', label: 'Compliance & ESG', icon: '🛡️' },
-] as const;
+type SectionKey = 'executive_summary' | 'technical_section' | 'financial_section' | 'compliance_section';
+const SECTIONS: { key: SectionKey; labelKey: TranslationKey; icon: string }[] = [
+  { key: 'executive_summary', labelKey: 'propws.section.executive', icon: '📋' },
+  { key: 'technical_section', labelKey: 'propws.section.technical', icon: '🔧' },
+  { key: 'financial_section', labelKey: 'propws.section.financial', icon: '💰' },
+  { key: 'compliance_section', labelKey: 'propws.section.compliance', icon: '🛡️' },
+];
 
 export default function ProposalWorkspace() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useTranslation();
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>('executive_summary');
@@ -109,23 +112,23 @@ export default function ProposalWorkspace() {
   if (!proposal) {
     return (
       <div style={{ padding: 80, textAlign: 'center' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: 18 }}>Proposal not found</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 18 }}>{t('propws.notFound')}</p>
         <button onClick={() => router.push('/proposals')} style={{ marginTop: 16, padding: '10px 24px', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-          Back to Proposals
+          {t('propws.backToProposals')}
         </button>
       </div>
     );
   }
 
-  const specialistLabel = proposal.sector_specialist
-    ? SPECIALIST_LABELS[proposal.sector_specialist] || proposal.sector_specialist
-    : null;
+  const specialistLabel = proposal.sector_specialist && SPECIALIST_LABEL_KEYS[proposal.sector_specialist]
+    ? t(SPECIALIST_LABEL_KEYS[proposal.sector_specialist])
+    : proposal.sector_specialist;
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 900, margin: '0 auto' }}>
       {/* Header */}
       <button onClick={() => router.push('/proposals')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, marginBottom: 8, padding: 0 }}>
-        ← Back to Proposals
+        {t('propws.backArrow')}
       </button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -137,11 +140,11 @@ export default function ProposalWorkspace() {
               background: `${STATUS_COLORS[proposal.status] || '#7A90A8'}22`,
               color: STATUS_COLORS[proposal.status] || '#7A90A8',
             }}>
-              {proposal.status}
+              {t(`prop.status.${proposal.status}` as TranslationKey)}
             </span>
             {specialistLabel && (
               <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                Drafted by {specialistLabel}
+                {t('propws.draftedBy')} {specialistLabel}
               </span>
             )}
           </div>
@@ -152,7 +155,7 @@ export default function ProposalWorkspace() {
               padding: '10px 20px', background: '#F59E0B22', color: '#F59E0B', border: '1px solid #F59E0B44',
               borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
             }}>
-              Mark as In Review
+              {t('propws.markInReview')}
             </button>
           )}
           {proposal.status === 'in_review' && (
@@ -160,7 +163,7 @@ export default function ProposalWorkspace() {
               padding: '10px 20px', background: '#22C55E22', color: '#22C55E', border: '1px solid #22C55E44',
               borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
             }}>
-              Mark as Submitted
+              {t('propws.markSubmitted')}
             </button>
           )}
           {proposal.status === 'submitted' && (
@@ -168,7 +171,7 @@ export default function ProposalWorkspace() {
               padding: '10px 20px', background: 'var(--accent)', color: '#000', border: 'none',
               borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
             }}>
-              {saving ? 'Creating project...' : 'Award Project →'}
+              {saving ? t('propws.creatingProject') : t('propws.awardProject')}
             </button>
           )}
         </div>
@@ -199,7 +202,7 @@ export default function ProposalWorkspace() {
               paddingTop: 2,
             }}
           >
-            Routing
+            {t('propws.routing')}
           </div>
           <p style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--text-primary)', margin: 0 }}>
             {proposal.specialist_rationale}
@@ -210,7 +213,7 @@ export default function ProposalWorkspace() {
       {/* Progress */}
       <div style={{ background: 'var(--bg-surface)', borderRadius: 8, padding: 16, border: '1px solid var(--border)', marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Proposal completeness</span>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('propws.completeness')}</span>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>{proposal.progress}%</span>
         </div>
         <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-elevated)' }}>
@@ -234,13 +237,13 @@ export default function ProposalWorkspace() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{ fontSize: 20 }}>{section.icon}</span>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{section.label}</span>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{t(section.labelKey)}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {content ? (
-                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#22C55E22', color: '#22C55E', fontWeight: 600 }}>Generated</span>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#22C55E22', color: '#22C55E', fontWeight: 600 }}>{t('propws.generated')}</span>
                   ) : (
-                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#7A90A822', color: '#7A90A8', fontWeight: 600 }}>Pending</span>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#7A90A822', color: '#7A90A8', fontWeight: 600 }}>{t('propws.pending')}</span>
                   )}
                   <span style={{ color: 'var(--text-muted)', fontSize: 18, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
                 </div>
