@@ -1,20 +1,27 @@
 import { LogoMark } from './LogoMark';
 
 /**
- * Cooperatr full lockup — mark on the left, "cooperatr" wordmark on the right.
+ * Cooperatr full wordmark — reverse-engineered from the official PNG
+ * (cooperatr_logo_on_white.png in the GRAPHIC LOGO NEW folder).
  *
- * Reverse-engineered from the official logo_lockup.svg in the brand asset
- * folder. The wordmark is a single solid bold (700) lowercase string with
- * tight negative letter-spacing; the mark sits to its left at ~1.5x the
- * font-size, scaled to match the visual height of the type.
+ * Reads "co<bar-mark>op<bar-mark>ratr" — wait, no:
+ * The wordmark is "co" (800 / extra-bold) + "op" (200 / thin) +
+ * [3-bar mark replacing the lowercase "e"] + "ratr" (200 / thin),
+ * all lowercase, mixed-weight Inter, very tight letter-spacing.
  *
- * Text inherits its color from the parent (currentColor) so the wordmark
- * adapts to dark/light surfaces. The 3-bar mark stays sky-blue (#4a9eff)
- * across both modes — that's the brand constant.
+ * The mark sits INLINE between "op" and "ratr", sized so its visual
+ * height (the bars area, which is 18 in the 22-viewBox) matches the
+ * lowercase x-height of the surrounding letters. mark element ≈ 65%
+ * of font-size yields a visual height ≈ 53% of font-size, which is
+ * about right for Inter's x-height.
+ *
+ * Wordmark text inherits its color from the parent (currentColor) so
+ * it adapts to dark/light surfaces. The 3-bar mark stays sky-blue
+ * (#4a9eff) across both modes — that's the brand constant.
  *
  * Inter is loaded once at the layout level via next/font/google with
- * weights 200 + 700 and exposed as --font-inter-brand on <html>; .font-brand
- * references it.
+ * weights 200 + 800 and exposed as --font-inter-brand on <html>;
+ * .font-brand references it.
  */
 
 type LogoSize = 'sm' | 'md' | 'lg';
@@ -25,40 +32,51 @@ interface LogoProps {
   style?: React.CSSProperties;
 }
 
-// font is the wordmark size; mark is the SVG height/width.
-// Mark : font ratio ≈ 1.45–1.5x to match the official lockup's proportions.
-const SIZES: Record<LogoSize, { font: number; mark: number; gap: number }> = {
-  sm: { font: 16, mark: 24, gap: 8 },
-  md: { font: 22, mark: 32, gap: 10 },
-  lg: { font: 36, mark: 52, gap: 14 },
+// font is the wordmark size; mark is the SVG element size.
+// mark : font ratio ≈ 0.65 so the visual content (18 of the 22 viewBox)
+// matches the lowercase x-height of the surrounding letters.
+const SIZES: Record<LogoSize, { font: number; mark: number }> = {
+  sm: { font: 18, mark: 12 },
+  md: { font: 28, mark: 18 },
+  lg: { font: 44, mark: 28 },
 };
 
 export function Logo({ size = 'md', className = '', style }: LogoProps) {
-  const { font, mark, gap } = SIZES[size];
+  const { font, mark } = SIZES[size];
   return (
     <span
       className={`font-brand ${className}`}
       style={{
         display: 'inline-flex',
-        alignItems: 'center',
-        gap,
+        alignItems: 'baseline',
         userSelect: 'none',
+        fontSize: font,
+        letterSpacing: '-0.02em',
         lineHeight: 1,
         ...style,
       }}
       role="img"
       aria-label="Cooperatr"
     >
-      <LogoMark size={mark} />
+      <span style={{ fontWeight: 800 }}>co</span>
+      <span style={{ fontWeight: 200 }}>op</span>
+      {/* Use vertical-align middle on the mark so it visually sits at the
+          x-height baseline of the surrounding lowercase letters. The
+          inline-flex with align-items: baseline puts the mark on the
+          same baseline as the text — the negative margin nudges it up
+          slightly to optically center against the x-height. */}
       <span
         style={{
-          fontWeight: 700,
-          fontSize: font,
-          letterSpacing: '-0.02em',
+          display: 'inline-flex',
+          alignSelf: 'center',
+          // shift slightly up so the mark optically aligns with the
+          // x-height rather than the baseline
+          transform: `translateY(${-font * 0.18}px)`,
         }}
       >
-        cooperatr
+        <LogoMark size={mark} />
       </span>
+      <span style={{ fontWeight: 200 }}>ratr</span>
     </span>
   );
 }

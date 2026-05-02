@@ -6,7 +6,9 @@ import { I18nProvider } from './lib/i18n/context';
 
 const interBrand = Inter({
   subsets: ['latin'],
-  weight: ['200', '700'],
+  // 200 = thin (op, ratr); 800 = extra-bold black (co) — matches the
+  // designed wordmark in cooperatr_logo_on_white.png.
+  weight: ['200', '800'],
   variable: '--font-inter-brand',
   display: 'swap',
 });
