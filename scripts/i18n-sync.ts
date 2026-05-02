@@ -101,12 +101,20 @@ async function translateMyMemory(text: string, source: string, target: string): 
   const translated = data?.responseData?.translatedText;
   if (!translated) throw new Error(`MyMemory returned no translation for "${text}"`);
   // MyMemory sometimes echoes back with HTML entities in unexpected places — decode lightly
-  return translated
+  let out = translated
     .replace(/&#39;/g, "'")
     .replace(/&quot;/g, '"')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>');
+  // MyMemory's translation memory leaks XLIFF-style placeholder tags (<g id="N">…</g>,
+  // <x id="N"/>, <bpt/>, <ept/>, <ph/>, etc.) that should never appear in user-facing
+  // copy. Strip them and collapse the resulting whitespace.
+  out = out
+    .replace(/<\/?(?:g|x|bx|ex|bpt|ept|ph|it|mrk)\b[^>]*\/?>/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return out;
 }
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }

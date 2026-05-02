@@ -979,7 +979,7 @@ const translations = {
     'partner.fw.sanctions.label': 'Investigación de sanciones',
     'partner.fw.sanctions.desc': 'Listas consolidadas de sanciones de la UE, la ONU, la OFAC y el Reino Unido',
     'partner.fw.csddd.label': 'Cumplimiento de CSDDD',
-    'partner.fw.csddd.desc': '<g id="1">La Directiva sobre diligencia debida de las empresas en materia de sostenibilidad:</g> ',
+    'partner.fw.csddd.desc': 'Directiva de la UE sobre Diligencia Debida en Materia de Sostenibilidad Corporativa', // @manual
     'partner.fw.gdpr.label': '\\"preparación, disposición\\"',
     'partner.fw.gdpr.desc': 'LOPD',
     'partner.fw.hrdd.label': 'Evaluación HRDD',
@@ -1030,7 +1030,7 @@ const translations = {
     'report.fw.csrd.name': 'CSRD/ESRS de la UE',
     'report.fw.csrd.desc': 'Directiva de Informes de Sostenibilidad Corporativa (CSRD)',
     'report.fw.sdg.name': 'Indicadores de ODS:',
-    'report.fw.sdg.desc': '<g id="1">Concordancia de los Objetivos de Desarrollo Sostenible.</g>. ',
+    'report.fw.sdg.desc': 'Alineación con los Objetivos de Desarrollo Sostenible de la ONU', // @manual
     'report.fw.efrag.name': 'Guía EFRAG',
     'report.fw.efrag.desc': 'Grupo Consultivo Europeo de Información Financiera',
     'report.projectReports': '1720 Economía y finanzas',
@@ -1052,12 +1052,12 @@ const translations = {
     'agents.mod.compliance.role': 'Especialista en cumplimiento normativo de la UE',
     'agents.mod.compliance.desc': 'Automatiza la diligencia debida de los socios en los marcos de evaluación de sanciones, CSDDD, GDPR y diligencia debida en materia de derechos humanos.',
     'agents.mod.compliance.expertise': 'CSDDD de la UE | Listas de sanciones (UE, ONU, OFAC, Reino Unido) | Cumplimiento del RGPD | Principios rectores de la ONU | Taxonomía de la UE | Cribado ALD',
-    'agents.mod.project.name': '<g id="1">Asesor de proyectos</g>:',
+    'agents.mod.project.name': 'Asesor de Proyectos', // @manual
     'agents.mod.project.role': 'Especialista en PM de Desarrollo Internacional',
     'agents.mod.project.desc': 'Genera estructuras de proyectos a partir de propuestas adjudicadas: hitos, desglose del trabajo y cronogramas de informes de donantes.',
     'agents.mod.project.expertise': 'Gestión del ciclo del proyecto de la UE | Planificación de hitos | Registros de riesgos | Ciclos de informes de donantes | Cumplimiento de las adquisiciones | Gestión de las partes interesadas',
     'agents.mod.mel.name': 'Analista MEL',
-    'agents.mod.mel.role': '<x id="1"/>Supervisión, evaluación y aprendizaje',
+    'agents.mod.mel.role': 'Especialista en Seguimiento, Evaluación y Aprendizaje', // @manual
     'agents.mod.mel.desc': 'Diseña marcos de indicadores, realiza un seguimiento de los datos de implementación y genera informes de impacto que cumplen con los donantes.',
     'agents.mod.mel.expertise': 'Estándares GRI | CSRD/ESRS de la UE | Indicadores de los ODS | Guía EFRAG | Medición del impacto | Aseguramiento de la calidad de los datos',
     'agents.sec.agrifood.name': 'Agroalimentario y agrotecnológico',
