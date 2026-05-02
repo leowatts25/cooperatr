@@ -1,18 +1,20 @@
 import { LogoMark } from './LogoMark';
 
 /**
- * Cooperatr full wordmark.
+ * Cooperatr full lockup — mark on the left, "cooperatr" wordmark on the right.
  *
- * Reads "co<bar-mark>op<bar-mark>ratr" — wait, no:
- * The wordmark is "co" (700) + "op" (200) + [3-bar mark replacing the "e"] +
- * "ratr" (200), all lowercase, mixed-weight Inter.
+ * Reverse-engineered from the official logo_lockup.svg in the brand asset
+ * folder. The wordmark is a single solid bold (700) lowercase string with
+ * tight negative letter-spacing; the mark sits to its left at ~1.5x the
+ * font-size, scaled to match the visual height of the type.
  *
- * The text inherits its color from the parent (currentColor) so the wordmark
+ * Text inherits its color from the parent (currentColor) so the wordmark
  * adapts to dark/light surfaces. The 3-bar mark stays sky-blue (#4a9eff)
  * across both modes — that's the brand constant.
  *
- * Inter font is loaded once at the layout level via next/font/google with
- * weights 200 + 700, so this component just references the CSS variable.
+ * Inter is loaded once at the layout level via next/font/google with
+ * weights 200 + 700 and exposed as --font-inter-brand on <html>; .font-brand
+ * references it.
  */
 
 type LogoSize = 'sm' | 'md' | 'lg';
@@ -23,33 +25,40 @@ interface LogoProps {
   style?: React.CSSProperties;
 }
 
-const SIZES: Record<LogoSize, { font: number; bar: number }> = {
-  sm: { font: 18, bar: 14 },
-  md: { font: 28, bar: 22 },
-  lg: { font: 40, bar: 32 },
+// font is the wordmark size; mark is the SVG height/width.
+// Mark : font ratio ≈ 1.45–1.5x to match the official lockup's proportions.
+const SIZES: Record<LogoSize, { font: number; mark: number; gap: number }> = {
+  sm: { font: 16, mark: 24, gap: 8 },
+  md: { font: 22, mark: 32, gap: 10 },
+  lg: { font: 36, mark: 52, gap: 14 },
 };
 
 export function Logo({ size = 'md', className = '', style }: LogoProps) {
-  const { font, bar } = SIZES[size];
+  const { font, mark, gap } = SIZES[size];
   return (
     <span
       className={`font-brand ${className}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
+        gap,
         userSelect: 'none',
-        fontSize: font,
-        letterSpacing: '0.01em',
         lineHeight: 1,
         ...style,
       }}
       role="img"
       aria-label="Cooperatr"
     >
-      <span style={{ fontWeight: 700 }}>co</span>
-      <span style={{ fontWeight: 200 }}>op</span>
-      <LogoMark size={bar} style={{ margin: '0 2px' }} />
-      <span style={{ fontWeight: 200 }}>ratr</span>
+      <LogoMark size={mark} />
+      <span
+        style={{
+          fontWeight: 700,
+          fontSize: font,
+          letterSpacing: '-0.02em',
+        }}
+      >
+        cooperatr
+      </span>
     </span>
   );
 }
