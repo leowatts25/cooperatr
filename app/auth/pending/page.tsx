@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getCurrentUser, getUserProfile, signOut } from '@/app/lib/supabase-auth';
 import { useTranslation } from '@/app/lib/i18n/context';
-import CooperatrMark from '@/app/components/CooperatrMark';
+import { Logo } from '@/app/components/brand';
 
 export default function PendingPage() {
   const router = useRouter();
@@ -38,9 +38,8 @@ export default function PendingPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ maxWidth: 460, width: '100%', textAlign: 'center' }}>
-        <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 12, color: 'var(--accent)', marginBottom: 32 }}>
-          <CooperatrMark size={30} />
-          <span className="font-serif" style={{ fontSize: 32 }}>Cooperatr</span>
+        <Link href="/" aria-label="Cooperatr home" style={{ textDecoration: 'none', color: 'var(--text-primary)', display: 'inline-block', marginBottom: 32 }}>
+          <Logo size="lg" />
         </Link>
 
         <div style={{ background: 'var(--bg-surface)', borderRadius: 16, padding: 40, border: '1px solid var(--border)' }}>

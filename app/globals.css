@@ -11,8 +11,9 @@
   --border: #2A3A52;
   --text-primary: #E8EDF5;
   --text-muted: #7A90A8;
-  --accent: #F0A500;
-  --accent-dim: #3A2800;
+  /* Brand accent — sky blue, matches the 3-bar mark in the cooperatr logo. */
+  --accent: #4a9eff;
+  --accent-dim: #0d2840;
   --success: #22C55E;
   --warning: #F59E0B;
   --error: #EF4444;
@@ -28,6 +29,7 @@ body {
 }
 
 .font-serif { font-family: 'DM Serif Display', serif; }
+.font-brand { font-family: var(--font-inter-brand), 'Inter', system-ui, -apple-system, sans-serif; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }

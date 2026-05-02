@@ -65,7 +65,7 @@ export default function Dashboard() {
           </p>
           <h1 className="font-serif" style={{ fontSize: 'clamp(38px, 6vw, 72px)', color: '#F5F0E8', lineHeight: 1.1, marginBottom: '28px', letterSpacing: '-1px' }}>
             {t('landing.heroPrefix')}{' '}
-            <span style={{ borderBottom: '3px solid #F0A500', paddingBottom: '2px' }}>{t('landing.heroHighlight')}</span>
+            <span style={{ borderBottom: '3px solid #4a9eff', paddingBottom: '2px' }}>{t('landing.heroHighlight')}</span>
             {' '}{t('landing.heroSuffix')}
           </h1>
           <p style={{ fontSize: 'clamp(16px, 2vw, 19px)', color: 'rgba(245,240,232,0.72)', lineHeight: 1.7, maxWidth: '640px', margin: '0 auto 40px' }}>
@@ -89,14 +89,14 @@ export default function Dashboard() {
 
       <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: '12px', fontWeight: '700', color: '#8B6914', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('landing.marketLabel')}</p>
+          <p style={{ fontSize: '12px', fontWeight: '700', color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('landing.marketLabel')}</p>
           <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '48px' }}>
             {t('landing.marketTitle')}
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
             {missed.map((text, i) => (
               <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '8px', padding: '20px 24px' }}>
-                <span style={{ color: '#C8860A', fontSize: '18px', flexShrink: 0 }}>→</span>
+                <span style={{ color: '#1f6cc5', fontSize: '18px', flexShrink: 0 }}>→</span>
                 <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.65, margin: 0 }}>{text}</p>
               </div>
             ))}
@@ -107,7 +107,7 @@ export default function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', backgroundColor: '#D4CFC6' }}>
         {stats.map(s => (
           <div key={s.label} style={{ backgroundColor: '#F7F5F0', padding: '32px', textAlign: 'center' }}>
-            <div className="font-serif" style={{ fontSize: '32px', color: '#C8860A', marginBottom: '4px' }}>{s.value}</div>
+            <div className="font-serif" style={{ fontSize: '32px', color: '#1f6cc5', marginBottom: '4px' }}>{s.value}</div>
             <div style={{ fontSize: '11px', color: '#8A8070', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</div>
           </div>
         ))}
@@ -117,7 +117,7 @@ export default function Dashboard() {
       <div style={{ backgroundColor: '#1A2332', padding: '80px 32px' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '56px' }}>
-            <p style={{ fontSize: '11px', fontWeight: '700', color: '#C8860A', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('landing.engineKicker')}</p>
+            <p style={{ fontSize: '11px', fontWeight: '700', color: '#1f6cc5', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('landing.engineKicker')}</p>
             <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#F5F0E8', lineHeight: 1.25, marginBottom: '20px' }}>
               {t('landing.engineTitle')}
             </h2>
@@ -137,10 +137,10 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
                   <div style={{
                     width: '28px', height: '28px', borderRadius: '50%',
-                    backgroundColor: 'rgba(200,134,10,0.2)',
-                    border: '1px solid rgba(200,134,10,0.4)',
+                    backgroundColor: 'rgba(31,108,197,0.2)',
+                    border: '1px solid rgba(31,108,197,0.4)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '12px', fontWeight: '700', color: '#C8860A',
+                    fontSize: '12px', fontWeight: '700', color: '#1f6cc5',
                   }}>
                     {step.num}
                   </div>
@@ -156,7 +156,7 @@ export default function Dashboard() {
           </div>
 
           <div style={{
-            borderTop: '1px solid rgba(200,134,10,0.3)',
+            borderTop: '1px solid rgba(31,108,197,0.3)',
             paddingTop: '24px',
             textAlign: 'center',
           }}>
@@ -170,7 +170,7 @@ export default function Dashboard() {
       <div style={{ backgroundColor: '#fff', padding: '80px 32px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '56px' }}>
-            <p style={{ fontSize: '12px', fontWeight: '700', color: '#8B6914', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>{t('landing.modulesKicker')}</p>
+            <p style={{ fontSize: '12px', fontWeight: '700', color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>{t('landing.modulesKicker')}</p>
             <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', marginBottom: '16px' }}>{t('landing.modulesTitle')}</h2>
             <p style={{ color: '#718096', fontSize: '16px', maxWidth: '520px', margin: '0 auto', lineHeight: 1.7 }}>{t('landing.modulesSubtitle')}</p>
           </div>
@@ -198,7 +198,7 @@ export default function Dashboard() {
       <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
         <div style={{ maxWidth: '860px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <p style={{ fontSize: '12px', fontWeight: '700', color: '#8B6914', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>{t('landing.faqLabel')}</p>
+            <p style={{ fontSize: '12px', fontWeight: '700', color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>{t('landing.faqLabel')}</p>
             <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3vw, 38px)', color: '#1A2332' }}>{t('landing.faqTitle')}</h2>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -216,7 +216,7 @@ export default function Dashboard() {
         <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 48px)', color: '#F5F0E8', marginBottom: '16px', lineHeight: 1.2 }}>{t('landing.bottomCta')}</h2>
         <p style={{ color: 'rgba(245,240,232,0.6)', fontSize: '17px', maxWidth: '460px', margin: '0 auto 36px', lineHeight: 1.7 }}>{t('landing.bottomCtaDesc')}</p>
         <Link href="/opportunities">
-          <button style={{ backgroundColor: '#F0A500', color: '#1A2332', fontWeight: '700', fontSize: '17px', padding: '18px 44px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>
+          <button style={{ backgroundColor: '#4a9eff', color: '#1A2332', fontWeight: '700', fontSize: '17px', padding: '18px 44px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>
             {t('landing.bottomCtaButton')}
           </button>
         </Link>
