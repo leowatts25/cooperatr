@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getCurrentUser, signOut, ADMIN_EMAIL } from '@/app/lib/supabase-auth';
 import { useTranslation } from '@/app/lib/i18n/context';
+import CooperatrMark from './CooperatrMark';
 
 const modules = [
   { href: '/dashboard', key: 'nav.dashboard' as const },
@@ -43,8 +44,9 @@ export default function Nav() {
       top: 0,
       zIndex: 50,
     }}>
-      <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
-        <span className="font-serif" style={{ fontSize: '22px', color: 'var(--accent)', letterSpacing: '-0.3px' }}>
+      <Link href="/" style={{ textDecoration: 'none', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 10, color: 'var(--accent)' }}>
+        <CooperatrMark size={22} />
+        <span className="font-serif" style={{ fontSize: '22px', letterSpacing: '-0.3px' }}>
           Cooperatr
         </span>
       </Link>

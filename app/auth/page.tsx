@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signInWithMagicLink, signUpWithPassword, signInWithPassword } from '@/app/lib/supabase-auth';
 import { useTranslation } from '@/app/lib/i18n/context';
+import CooperatrMark from '@/app/components/CooperatrMark';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -57,8 +58,9 @@ export default function AuthPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ maxWidth: 420, width: '100%', textAlign: 'center' }}>
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          <span className="font-serif" style={{ fontSize: 32, color: 'var(--accent)', display: 'block', marginBottom: 24 }}>Cooperatr</span>
+        <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 12, color: 'var(--accent)', marginBottom: 24 }}>
+          <CooperatrMark size={30} />
+          <span className="font-serif" style={{ fontSize: 32 }}>Cooperatr</span>
         </Link>
 
         {/* Language toggle */}
