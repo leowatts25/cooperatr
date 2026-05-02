@@ -29,7 +29,6 @@ body {
 }
 
 .font-serif { font-family: 'DM Serif Display', serif; }
-.font-brand { font-family: var(--font-inter-brand), 'Inter', system-ui, -apple-system, sans-serif; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }

@@ -1,17 +1,7 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import Nav from './components/Nav';
 import { I18nProvider } from './lib/i18n/context';
-
-const interBrand = Inter({
-  subsets: ['latin'],
-  // 200 = thin (op, ratr); 800 = extra-bold black (co) — matches the
-  // designed wordmark in cooperatr_logo_on_white.png.
-  weight: ['200', '800'],
-  variable: '--font-inter-brand',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: {
@@ -38,7 +28,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={interBrand.variable}>
+    <html lang="en" suppressHydrationWarning>
       <body>
         <I18nProvider>
           <Nav />

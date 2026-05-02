@@ -44,8 +44,8 @@ export default function Nav() {
       top: 0,
       zIndex: 50,
     }}>
-      <Link href="/" aria-label="Cooperatr home" style={{ textDecoration: 'none', flexShrink: 0, color: 'var(--text-primary)' }}>
-        <Logo size="md" />
+      <Link href="/" aria-label="Cooperatr home" style={{ textDecoration: 'none', flexShrink: 0 }}>
+        <Logo size="md" priority />
       </Link>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>

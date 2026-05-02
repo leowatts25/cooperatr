@@ -1,83 +1,70 @@
-import { LogoMark } from './LogoMark';
+import Image from 'next/image';
 
 /**
- * Cooperatr full wordmark — reverse-engineered from the official PNG
- * (cooperatr_logo_on_white.png in the GRAPHIC LOGO NEW folder).
+ * Cooperatr full wordmark — renders the official designed PNG asset.
  *
- * Reads "co<bar-mark>op<bar-mark>ratr" — wait, no:
- * The wordmark is "co" (800 / extra-bold) + "op" (200 / thin) +
- * [3-bar mark replacing the lowercase "e"] + "ratr" (200 / thin),
- * all lowercase, mixed-weight Inter, very tight letter-spacing.
+ * The actual artwork lives in /public:
+ *   - cooperatr-logo-lighttext.png — white wordmark (use on dark surfaces)
+ *   - cooperatr-logo-darktext.png  — black wordmark (use on light surfaces)
  *
- * The mark sits INLINE between "op" and "ratr", sized so its visual
- * height (the bars area, which is 18 in the 22-viewBox) matches the
- * lowercase x-height of the surrounding letters. mark element ≈ 65%
- * of font-size yields a visual height ≈ 53% of font-size, which is
- * about right for Inter's x-height.
+ * Both PNGs are 2072×704 (aspect ratio ~2.94 : 1) with the 3-bar mark
+ * inline replacing the "e" in "cooperatr".
  *
- * Wordmark text inherits its color from the parent (currentColor) so
- * it adapts to dark/light surfaces. The 3-bar mark stays sky-blue
- * (#4a9eff) across both modes — that's the brand constant.
- *
- * Inter is loaded once at the layout level via next/font/google with
- * weights 200 + 800 and exposed as --font-inter-brand on <html>;
- * .font-brand references it.
+ * We render via next/image so Next.js optimizes the asset (correct
+ * dimensions for the device, lazy-load by default, blur placeholder).
  */
 
 type LogoSize = 'sm' | 'md' | 'lg';
+type LogoVariant = 'light' | 'dark';
 
 interface LogoProps {
+  /** Visual size — sm (footer), md (nav, default), lg (auth/hero). */
   size?: LogoSize;
+  /**
+   * Which artwork to render.
+   *  - 'light' (default): white wordmark, for use on dark surfaces.
+   *  - 'dark': black wordmark, for use on light surfaces.
+   */
+  variant?: LogoVariant;
   className?: string;
   style?: React.CSSProperties;
+  /** Render eagerly without lazy-loading. Use for above-the-fold logos. */
+  priority?: boolean;
 }
 
-// font is the wordmark size; mark is the SVG element size.
-// mark : font ratio ≈ 0.65 so the visual content (18 of the 22 viewBox)
-// matches the lowercase x-height of the surrounding letters.
-const SIZES: Record<LogoSize, { font: number; mark: number }> = {
-  sm: { font: 18, mark: 12 },
-  md: { font: 28, mark: 18 },
-  lg: { font: 44, mark: 28 },
+// Source PNG aspect ratio — 2072×704 ≈ 2.94 : 1.
+const ASPECT = 2072 / 704;
+
+const HEIGHTS: Record<LogoSize, number> = {
+  sm: 24,
+  md: 36,
+  lg: 56,
 };
 
-export function Logo({ size = 'md', className = '', style }: LogoProps) {
-  const { font, mark } = SIZES[size];
+export function Logo({
+  size = 'md',
+  variant = 'light',
+  className,
+  style,
+  priority = false,
+}: LogoProps) {
+  const height = HEIGHTS[size];
+  const width = Math.round(height * ASPECT);
+  const src =
+    variant === 'dark'
+      ? '/cooperatr-logo-darktext.png'
+      : '/cooperatr-logo-lighttext.png';
+
   return (
-    <span
-      className={`font-brand ${className}`}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'baseline',
-        userSelect: 'none',
-        fontSize: font,
-        letterSpacing: '-0.02em',
-        lineHeight: 1,
-        ...style,
-      }}
-      role="img"
-      aria-label="Cooperatr"
-    >
-      <span style={{ fontWeight: 800 }}>co</span>
-      <span style={{ fontWeight: 200 }}>op</span>
-      {/* Use vertical-align middle on the mark so it visually sits at the
-          x-height baseline of the surrounding lowercase letters. The
-          inline-flex with align-items: baseline puts the mark on the
-          same baseline as the text — the negative margin nudges it up
-          slightly to optically center against the x-height. */}
-      <span
-        style={{
-          display: 'inline-flex',
-          alignSelf: 'center',
-          // shift slightly up so the mark optically aligns with the
-          // x-height rather than the baseline
-          transform: `translateY(${-font * 0.18}px)`,
-        }}
-      >
-        <LogoMark size={mark} />
-      </span>
-      <span style={{ fontWeight: 200 }}>ratr</span>
-    </span>
+    <Image
+      src={src}
+      alt="Cooperatr"
+      width={width}
+      height={height}
+      className={className}
+      style={{ display: 'inline-block', height, width: 'auto', ...style }}
+      priority={priority}
+    />
   );
 }
 
