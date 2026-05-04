@@ -425,38 +425,47 @@ export async function POST(req: NextRequest) {
     const locale: Locale = profile.locale === 'es' ? 'es' : 'en';
     const supabase = createServerClient();
 
-    // 1. Upsert company
+    // 1. Upsert company. CRITICAL: if this fails, persisting ideas later
+    //    will be skipped, ideas come back without a `dbId`, and Save / Start
+    //    Proposal silently break. Surface every failure to the client so
+    //    we don't repeat that diagnostic dead-end.
     let companyId: string = profile.companyId || '';
-    try {
-      const companyRow = {
-        name: profile.companyName,
-        sector: profile.sector,
-        organization_type: profile.organizationType,
-        revenue_range: profile.revenueRange || null,
-        prior_eu_experience: profile.priorEUExperience ?? null,
-        description: profile.description || null,
-        website: profile.website || null,
-        linkedin_url: profile.linkedinUrl || null,
-        geographies: profile.geographies || [],
-        capabilities: profile.capabilities || [],
-        certifications: profile.certifications || [],
-        team_size: profile.teamSize || null,
-        existing_partners: profile.existingPartners || [],
-        key_customers: profile.keyCustomers || [],
-        typical_project_size: profile.typicalProjectSize || null,
-        three_year_vision: profile.threeYearVision || null,
-        cash_runway: profile.cashRunway || null,
-        consortium_posture: profile.consortiumPosture || null,
-        international_contacts: profile.internationalContacts || [],
-        profile_completeness: profile.profileCompleteness || 30,
-      };
+    const companyRow = {
+      name: profile.companyName,
+      sector: profile.sector,
+      organization_type: profile.organizationType,
+      revenue_range: profile.revenueRange || null,
+      prior_eu_experience: profile.priorEUExperience ?? null,
+      description: profile.description || null,
+      website: profile.website || null,
+      linkedin_url: profile.linkedinUrl || null,
+      geographies: profile.geographies || [],
+      capabilities: profile.capabilities || [],
+      certifications: profile.certifications || [],
+      team_size: profile.teamSize || null,
+      existing_partners: profile.existingPartners || [],
+      key_customers: profile.keyCustomers || [],
+      typical_project_size: profile.typicalProjectSize || null,
+      three_year_vision: profile.threeYearVision || null,
+      cash_runway: profile.cashRunway || null,
+      consortium_posture: profile.consortiumPosture || null,
+      international_contacts: profile.internationalContacts || [],
+      profile_completeness: profile.profileCompleteness || 30,
+    };
 
+    try {
       if (companyId) {
         const { error: updateError } = await supabase
           .from('companies')
           .update(companyRow)
           .eq('id', companyId);
-        if (updateError) console.error('Company update error:', updateError);
+        if (updateError) {
+          console.error('[discovery] company update error:', updateError);
+          return NextResponse.json(
+            { error: `Failed to update company profile: ${updateError.message}` },
+            { status: 500 },
+          );
+        }
       } else {
         const { data: inserted, error: insertError } = await supabase
           .from('companies')
@@ -464,13 +473,21 @@ export async function POST(req: NextRequest) {
           .select('id')
           .single();
         if (insertError) {
-          console.error('Company insert error:', insertError);
-        } else {
-          companyId = inserted.id;
+          console.error('[discovery] company insert error:', insertError);
+          return NextResponse.json(
+            { error: `Failed to save company profile: ${insertError.message}` },
+            { status: 500 },
+          );
         }
+        companyId = inserted.id;
       }
     } catch (dbErr) {
-      console.error('Company DB error:', dbErr);
+      const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+      console.error('[discovery] company DB error:', msg);
+      return NextResponse.json(
+        { error: `Database connection error while saving company: ${msg}` },
+        { status: 500 },
+      );
     }
 
     // 2. Build user prompt
@@ -687,12 +704,39 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
     }
 
-    const { error } = await supabase.from('ideas').update({ status }).eq('id', id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Validate UUID shape — silently failing on a bad id was the historical
+    // pain point: the LLM-generated idea ids look like UUIDs but were not the
+    // DB primary key, so PATCH would either error out or update zero rows.
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      return NextResponse.json(
+        { error: `Invalid idea id "${id}" — not a UUID. The idea was probably never persisted to the database; try regenerating ideas.` },
+        { status: 400 },
+      );
+    }
 
-    return NextResponse.json({ success: true });
+    const { data, error } = await supabase
+      .from('ideas')
+      .update({ status })
+      .eq('id', id)
+      .select('id');
+
+    if (error) {
+      console.error('[opportunities:PATCH] update error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!data || data.length === 0) {
+      return NextResponse.json(
+        { error: `No idea found with id ${id}. It may have been dismissed or never persisted.` },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ success: true, updated: data.length });
   } catch (error) {
-    console.error('Update idea error:', error);
-    return NextResponse.json({ error: 'Failed to update idea' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Failed to update idea';
+    console.error('[opportunities:PATCH] error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
