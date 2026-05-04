@@ -590,8 +590,12 @@ export async function POST(req: NextRequest) {
       if (ideasError) {
         console.error('Ideas insert error:', ideasError);
       } else if (savedIdeas) {
-        // Map dbId by insertion order — PG returns in insert order
-        persistedIdeas = rawIdeas.map((idea, i) => ({
+        // Map dbId by insertion order — PG returns in insert order.
+        // Must map onto curatedIdeas (what we actually inserted), not rawIdeas:
+        // when the critic drops/merges, rawIdeas.length > savedIdeas.length and
+        // the dbIds end up assigned to the wrong ideas (or undefined), which
+        // silently breaks Save and Start Proposal in the UI.
+        persistedIdeas = curatedIdeas.map((idea, i) => ({
           ...idea,
           dbId: savedIdeas[i]?.id,
         }));
