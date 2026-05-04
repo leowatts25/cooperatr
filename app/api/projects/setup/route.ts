@@ -83,7 +83,28 @@ Generate realistic milestones for an 18-24 month implementation period starting 
     });
 
     const text = response.content[0].type === 'text' ? response.content[0].text : '{}';
-    const setup = JSON.parse(text);
+    // Sonnet sometimes wraps JSON in ```json fences despite the no-preamble
+    // instruction. Extract the outermost {...} so JSON.parse doesn't choke
+    // on fences/preamble — same defensive pattern as profile/deepen.
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start === -1 || end === -1 || end < start) {
+      console.error('[projects:setup] could not find JSON object in model response:', text.slice(0, 200));
+      return NextResponse.json(
+        { error: 'Project setup model returned non-JSON output. Please retry.' },
+        { status: 502 },
+      );
+    }
+    let setup: Record<string, unknown>;
+    try {
+      setup = JSON.parse(text.slice(start, end + 1));
+    } catch (parseErr) {
+      console.error('[projects:setup] JSON.parse failed:', parseErr, 'raw:', text.slice(0, 200));
+      return NextResponse.json(
+        { error: 'Project setup model returned malformed JSON. Please retry.' },
+        { status: 502 },
+      );
+    }
 
     // Create project
     const { data: project, error: projectError } = await supabase
@@ -107,9 +128,11 @@ Generate realistic milestones for an 18-24 month implementation period starting 
       return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
     }
 
-    // Insert milestones
-    if (setup.milestones?.length > 0) {
-      const milestoneRows = setup.milestones.map((m: Record<string, unknown>, i: number) => ({
+    // Insert milestones — surface failures so the user doesn't end up with
+    // a project that has no milestones and no error indicating why.
+    const milestones = Array.isArray(setup.milestones) ? (setup.milestones as Record<string, unknown>[]) : [];
+    if (milestones.length > 0) {
+      const milestoneRows = milestones.map((m, i) => ({
         project_id: project.id,
         title: m.title,
         description: m.description,
@@ -118,12 +141,24 @@ Generate realistic milestones for an 18-24 month implementation period starting 
         sort_order: m.sort_order ?? i,
       }));
 
-      await supabase.from('milestones').insert(milestoneRows);
+      const { error: milestonesError } = await supabase.from('milestones').insert(milestoneRows);
+      if (milestonesError) {
+        console.error('[projects:setup] milestones insert error:', milestonesError);
+        return NextResponse.json(
+          {
+            error: 'Project created, but failed to save milestones',
+            detail: milestonesError.message,
+            projectId: project.id,
+          },
+          { status: 500 },
+        );
+      }
     }
 
-    // Insert indicators
-    if (setup.suggested_indicators?.length > 0) {
-      const indicatorRows = setup.suggested_indicators.map((ind: Record<string, unknown>) => ({
+    // Insert indicators — same surfacing pattern as milestones above.
+    const indicators = Array.isArray(setup.suggested_indicators) ? (setup.suggested_indicators as Record<string, unknown>[]) : [];
+    if (indicators.length > 0) {
+      const indicatorRows = indicators.map((ind) => ({
         project_id: project.id,
         name: ind.name,
         category: ind.category,
@@ -133,14 +168,31 @@ Generate realistic milestones for an 18-24 month implementation period starting 
         reporting_period: ind.reporting_period,
       }));
 
-      await supabase.from('indicators').insert(indicatorRows);
+      const { error: indicatorsError } = await supabase.from('indicators').insert(indicatorRows);
+      if (indicatorsError) {
+        console.error('[projects:setup] indicators insert error:', indicatorsError);
+        return NextResponse.json(
+          {
+            error: 'Project created, but failed to save indicators',
+            detail: indicatorsError.message,
+            projectId: project.id,
+          },
+          { status: 500 },
+        );
+      }
     }
 
-    // Update proposal status
-    await supabase
+    // Update proposal status — log if the proposal id was stale (0 rows).
+    const { data: proposalUpdate, error: proposalUpdateError } = await supabase
       .from('proposals')
       .update({ status: 'submitted' })
-      .eq('id', proposalId);
+      .eq('id', proposalId)
+      .select('id');
+    if (proposalUpdateError) {
+      console.error('[projects:setup] proposal status update error:', proposalUpdateError);
+    } else if (!proposalUpdate || proposalUpdate.length === 0) {
+      console.warn(`[projects:setup] proposal ${proposalId} not found when marking submitted`);
+    }
 
     return NextResponse.json({
       projectId: project.id,

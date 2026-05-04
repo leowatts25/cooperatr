@@ -617,7 +617,20 @@ export async function POST(req: NextRequest) {
         .select('id');
 
       if (ideasError) {
+        // Surface to the client. Returning ideas without dbIds (the prior
+        // behaviour) silently breaks the Save and Start Proposal buttons in
+        // the UI because the IdeaCard's `id && onSave(id)` guard turns into
+        // a no-op. Surfacing here means the user sees an error toast and
+        // can act on it (or report it) instead of clicking Save into a void.
         console.error('Ideas insert error:', ideasError);
+        return NextResponse.json(
+          {
+            error: `Failed to persist generated ideas: ${ideasError.message}`,
+            detail: ideasError.details || ideasError.hint || null,
+            code: ideasError.code || null,
+          },
+          { status: 500 },
+        );
       } else if (savedIdeas) {
         // Map dbId by insertion order — PG returns in insert order.
         // Must map onto curatedIdeas (what we actually inserted), not rawIdeas:
