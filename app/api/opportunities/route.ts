@@ -463,18 +463,48 @@ export async function POST(req: NextRequest) {
       return rest;
     };
 
+    // Helper: insert a fresh company row and return its new id. Used both for
+    // the no-companyId path AND as a recovery path when the client sent a
+    // companyId that no longer exists in the DB (stale localStorage after a
+    // DB reset/cleanup) — in that case the UPDATE silently affects 0 rows
+    // and the subsequent ideas insert fails with a FK violation.
+    const insertCompany = async (): Promise<{ id: string } | { error: string }> => {
+      let { data: inserted, error: insertError } = await supabase
+        .from('companies')
+        .insert(companyRow)
+        .select('id')
+        .single();
+      if (insertError && isSchemaCacheError(insertError.message)) {
+        console.warn('[discovery] schema cache lag on insert, retrying without optional fields:', insertError.message);
+        ({ data: inserted, error: insertError } = await supabase
+          .from('companies')
+          .insert(stripOptional(companyRow))
+          .select('id')
+          .single());
+      }
+      if (insertError) {
+        console.error('[discovery] company insert error:', insertError);
+        return { error: `Failed to save company profile: ${insertError.message}` };
+      }
+      return { id: inserted!.id };
+    };
+
     try {
       if (companyId) {
-        let { error: updateError } = await supabase
+        // Use .select('id') so we can detect 0-row updates (stale companyId
+        // from localStorage pointing at a row that no longer exists).
+        let { data: updatedRows, error: updateError } = await supabase
           .from('companies')
           .update(companyRow)
-          .eq('id', companyId);
+          .eq('id', companyId)
+          .select('id');
         if (updateError && isSchemaCacheError(updateError.message)) {
           console.warn('[discovery] schema cache lag on update, retrying without optional fields:', updateError.message);
-          ({ error: updateError } = await supabase
+          ({ data: updatedRows, error: updateError } = await supabase
             .from('companies')
             .update(stripOptional(companyRow))
-            .eq('id', companyId));
+            .eq('id', companyId)
+            .select('id'));
         }
         if (updateError) {
           console.error('[discovery] company update error:', updateError);
@@ -483,28 +513,27 @@ export async function POST(req: NextRequest) {
             { status: 500 },
           );
         }
-      } else {
-        let { data: inserted, error: insertError } = await supabase
-          .from('companies')
-          .insert(companyRow)
-          .select('id')
-          .single();
-        if (insertError && isSchemaCacheError(insertError.message)) {
-          console.warn('[discovery] schema cache lag on insert, retrying without optional fields:', insertError.message);
-          ({ data: inserted, error: insertError } = await supabase
-            .from('companies')
-            .insert(stripOptional(companyRow))
-            .select('id')
-            .single());
-        }
-        if (insertError) {
-          console.error('[discovery] company insert error:', insertError);
-          return NextResponse.json(
-            { error: `Failed to save company profile: ${insertError.message}` },
-            { status: 500 },
+        if (!updatedRows || updatedRows.length === 0) {
+          // Stale companyId — the row no longer exists. Fall through to
+          // insert a new company and return its id so the client can
+          // refresh its localStorage. Without this the subsequent ideas
+          // insert fails with FK violation, dbIds never get assigned, and
+          // Save / Start Proposal silently break in the UI.
+          console.warn(
+            `[discovery] companyId ${companyId} not found in companies table; creating new row.`,
           );
+          const result = await insertCompany();
+          if ('error' in result) {
+            return NextResponse.json({ error: result.error }, { status: 500 });
+          }
+          companyId = result.id;
         }
-        companyId = inserted!.id;
+      } else {
+        const result = await insertCompany();
+        if ('error' in result) {
+          return NextResponse.json({ error: result.error }, { status: 500 });
+        }
+        companyId = result.id;
       }
     } catch (dbErr) {
       const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
