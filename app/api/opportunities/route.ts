@@ -453,12 +453,29 @@ export async function POST(req: NextRequest) {
       profile_completeness: profile.profileCompleteness || 30,
     };
 
+    // PostgREST schema cache can lag behind newly-added columns. If we get a
+    // "Could not find the 'X' column" error, strip optional/recently-added
+    // fields and retry so the core save still succeeds.
+    const isSchemaCacheError = (msg: string) =>
+      /Could not find the '.*' column|schema cache/i.test(msg);
+    const stripOptional = (row: Record<string, unknown>) => {
+      const { website: _w, linkedin_url: _l, ...rest } = row;
+      return rest;
+    };
+
     try {
       if (companyId) {
-        const { error: updateError } = await supabase
+        let { error: updateError } = await supabase
           .from('companies')
           .update(companyRow)
           .eq('id', companyId);
+        if (updateError && isSchemaCacheError(updateError.message)) {
+          console.warn('[discovery] schema cache lag on update, retrying without optional fields:', updateError.message);
+          ({ error: updateError } = await supabase
+            .from('companies')
+            .update(stripOptional(companyRow))
+            .eq('id', companyId));
+        }
         if (updateError) {
           console.error('[discovery] company update error:', updateError);
           return NextResponse.json(
@@ -467,11 +484,19 @@ export async function POST(req: NextRequest) {
           );
         }
       } else {
-        const { data: inserted, error: insertError } = await supabase
+        let { data: inserted, error: insertError } = await supabase
           .from('companies')
           .insert(companyRow)
           .select('id')
           .single();
+        if (insertError && isSchemaCacheError(insertError.message)) {
+          console.warn('[discovery] schema cache lag on insert, retrying without optional fields:', insertError.message);
+          ({ data: inserted, error: insertError } = await supabase
+            .from('companies')
+            .insert(stripOptional(companyRow))
+            .select('id')
+            .single());
+        }
         if (insertError) {
           console.error('[discovery] company insert error:', insertError);
           return NextResponse.json(
@@ -479,7 +504,7 @@ export async function POST(req: NextRequest) {
             { status: 500 },
           );
         }
-        companyId = inserted.id;
+        companyId = inserted!.id;
       }
     } catch (dbErr) {
       const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
