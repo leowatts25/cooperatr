@@ -523,8 +523,10 @@ function OpportunitiesContent() {
     geographies: [] as string[],
     organizationType: '',
     revenueRange: '',
-    priorEUExperience: false,
+    priorEUExperience: null as boolean | null,
     description: '',
+    website: '',
+    linkedinUrl: '',
   });
   const [extendedProfile, setExtendedProfile] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
@@ -627,10 +629,11 @@ function OpportunitiesContent() {
 
   const handleSave = async (id: string) => {
     if (!id) {
-      console.warn('handleSave called with empty id — dbId missing from idea');
+      setError('Could not save: this idea has no database id (try regenerating).');
       return;
     }
     setSaving(id);
+    setError('');
     try {
       const res = await fetch('/api/opportunities', {
         method: 'PATCH',
@@ -638,11 +641,18 @@ function OpportunitiesContent() {
         body: JSON.stringify({ id, status: 'saved' }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (!res.ok || data.error) {
+        const msg = data?.error || `Save failed (HTTP ${res.status})`;
+        console.error('[opportunities:save]', msg, data);
+        setError(msg);
+        return;
+      }
       setIdeas(prev => prev ? prev.map(i => (i.dbId === id || i.id === id) ? { ...i, status: 'saved' } : i) : prev);
       setSavedIdeas(prev => prev.map(i => (i.dbId === id || i.id === id) ? { ...i, status: 'saved' } : i));
     } catch (err) {
-      console.error('Save failed:', err);
+      const msg = err instanceof Error ? err.message : 'Save request failed';
+      console.error(err);
+      setError(msg);
     } finally {
       setSaving(null);
     }
@@ -650,10 +660,11 @@ function OpportunitiesContent() {
 
   const handleDismiss = async (id: string) => {
     if (!id) {
-      console.warn('handleDismiss called with empty id');
+      setError('Could not dismiss: this idea has no database id.');
       return;
     }
     setSaving(id);
+    setError('');
     try {
       const res = await fetch('/api/opportunities', {
         method: 'PATCH',
@@ -661,11 +672,18 @@ function OpportunitiesContent() {
         body: JSON.stringify({ id, status: 'dismissed' }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (!res.ok || data.error) {
+        const msg = data?.error || `Dismiss failed (HTTP ${res.status})`;
+        console.error('[opportunities:dismiss]', msg, data);
+        setError(msg);
+        return;
+      }
       setIdeas(prev => prev ? prev.filter(i => i.dbId !== id && i.id !== id) : prev);
       setSavedIdeas(prev => prev.filter(i => i.dbId !== id && i.id !== id));
     } catch (err) {
-      console.error('Dismiss failed:', err);
+      const msg = err instanceof Error ? err.message : 'Dismiss request failed';
+      console.error(err);
+      setError(msg);
     } finally {
       setSaving(null);
     }
@@ -692,6 +710,19 @@ function OpportunitiesContent() {
           onClose={handleDeepenClose}
           onComplete={handleDeepenComplete}
         />
+      )}
+
+      {/* Top-level error banner — surfaces save/dismiss/network failures
+          that previously only logged to the console. */}
+      {error && (
+        <div style={{
+          marginBottom: 16, padding: '12px 16px', borderRadius: 8,
+          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+          color: '#EF4444', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+        }}>
+          <span>{error}</span>
+          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 18, padding: 0, lineHeight: 1 }}>×</button>
+        </div>
       )}
 
       <div style={{ marginBottom: 24 }}>
@@ -768,13 +799,23 @@ function OpportunitiesContent() {
                 </select>
               </div>
               <div>
+                <label style={labelStyle}>{t('disc.form.website')}</label>
+                <input type="url" style={inputStyle} placeholder="https://yourcompany.com"
+                  value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>{t('disc.form.linkedin')}</label>
+                <input type="url" style={inputStyle} placeholder="https://linkedin.com/company/..."
+                  value={form.linkedinUrl} onChange={e => setForm(f => ({ ...f, linkedinUrl: e.target.value }))} />
+              </div>
+              <div>
                 <label style={labelStyle}>{t('disc.form.priorEU')}</label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {[
                     { v: true, label: t('disc.form.yes') },
                     { v: false, label: t('disc.form.no') },
                   ].map(opt => (
-                    <button key={String(opt.v)} onClick={() => setForm(f => ({ ...f, priorEUExperience: opt.v }))} style={{
+                    <button key={String(opt.v)} onClick={() => setForm(f => ({ ...f, priorEUExperience: f.priorEUExperience === opt.v ? null : opt.v }))} style={{
                       flex: 1, padding: 8, borderRadius: 8, fontSize: 13, cursor: 'pointer',
                       border: `1px solid ${form.priorEUExperience === opt.v ? 'var(--accent)' : 'var(--border)'}`,
                       backgroundColor: form.priorEUExperience === opt.v ? 'var(--accent-dim)' : 'var(--bg-elevated)',
@@ -785,10 +826,10 @@ function OpportunitiesContent() {
               </div>
               <div>
                 <label style={labelStyle}>{t('disc.form.description')}</label>
-                <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 80, fontFamily: 'DM Sans, sans-serif' }}
-                  placeholder={t('disc.form.descriptionPlaceholder')} maxLength={300}
+                <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 110, fontFamily: 'DM Sans, sans-serif' }}
+                  placeholder={t('disc.form.descriptionPlaceholder')} maxLength={1000}
                   value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', marginTop: 4 }}>{form.description.length}/300</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', marginTop: 4 }}>{form.description.length}/1000</div>
               </div>
               {error && <p style={{ fontSize: 13, color: 'var(--error)', padding: '8px 12px', backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)' }}>{error}</p>}
               <button onClick={handleStage1} disabled={loading} style={{

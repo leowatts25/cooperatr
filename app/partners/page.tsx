@@ -54,17 +54,29 @@ function PartnersContent() {
 
   async function addPartner() {
     if (!form.name) return;
+    setScreenError('');
     try {
       const companyId = localStorage.getItem('cooperatr_companyId');
-      await fetch('/api/partners', {
+      const res = await fetch('/api/partners', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, company_id: companyId }),
       });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        const msg = data?.error || `Add partner failed (HTTP ${res.status})`;
+        console.error('[partners:add]', msg, data);
+        setScreenError(msg);
+        return;
+      }
       setForm({ name: '', country: '', sector: '', role: 'subcontractor', contact_name: '', contact_email: '', website: '' });
       setShowForm(false);
       await fetchPartners();
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Add partner request failed';
+      console.error(err);
+      setScreenError(msg);
+    }
   }
 
   async function screenPartner(partnerId: string) {

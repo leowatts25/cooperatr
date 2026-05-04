@@ -433,8 +433,10 @@ export async function POST(req: NextRequest) {
         sector: profile.sector,
         organization_type: profile.organizationType,
         revenue_range: profile.revenueRange || null,
-        prior_eu_experience: profile.priorEUExperience || false,
+        prior_eu_experience: profile.priorEUExperience ?? null,
         description: profile.description || null,
+        website: profile.website || null,
+        linkedin_url: profile.linkedinUrl || null,
         geographies: profile.geographies || [],
         capabilities: profile.capabilities || [],
         certifications: profile.certifications || [],
@@ -579,8 +581,24 @@ function buildUserPrompt(profile: Record<string, unknown>): string {
   lines.push(
     `Geographies of interest: ${Array.isArray(profile.geographies) && profile.geographies.length ? (profile.geographies as string[]).join(', ') : 'Not specified'}`,
   );
-  lines.push(`Prior EU contracting experience: ${profile.priorEUExperience ? 'Yes' : 'No'}`);
+  lines.push(
+    `Prior EU contracting experience: ${
+      profile.priorEUExperience === true
+        ? 'Yes'
+        : profile.priorEUExperience === false
+          ? 'No'
+          : 'Not specified'
+    }`,
+  );
+  if (profile.website) lines.push(`Website: ${profile.website}`);
+  if (profile.linkedinUrl) lines.push(`LinkedIn: ${profile.linkedinUrl}`);
   lines.push(`Description: ${profile.description || 'Not provided'}`);
+  if (profile.website || profile.linkedinUrl) {
+    lines.push('');
+    lines.push(
+      'NOTE: A website and/or LinkedIn URL was provided. Use what you reasonably know about this organisation from public information to enrich the ideas — capabilities, sector positioning, geographic footprint, recent news. Do not fabricate specifics; if uncertain, infer at the level the public profile would suggest.',
+    );
+  }
 
   const hasStage2 =
     profile.capabilities ||

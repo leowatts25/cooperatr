@@ -185,9 +185,9 @@ const translations = {
     'landing.comingSoon': 'COMING SOON',
 
     // Landing — hero highlight + ctaNoCommit
-    'landing.heroHighlight': 'new markets worldwide',
-    'landing.heroPrefix': 'We connect your company to',
-    'landing.heroSuffix': 'and the funding to get there.',
+    'landing.heroHighlight': 'EU and post-USAID development finance',
+    'landing.heroPrefix': 'We design and win',
+    'landing.heroSuffix': 'projects — for companies entering the market.',
     'landing.bottomCtaDesc': 'Enter your company profile and get a strategic preview of cooperation projects designed for your capabilities — in under two minutes.',
     'landing.bottomCtaSub': 'No upfront cost. No commitment. You pay only when you win.',
 
@@ -201,10 +201,10 @@ const translations = {
     // Landing — market context
     'landing.marketLabel': 'The market is moving quickly',
     'landing.marketTitle': 'There is more opportunity here than most companies realise.',
-    'landing.missed.1': 'A Global Gateway tender for your sector closes this month — and most Andalusian companies will never know it existed.',
-    'landing.missed.2': 'AECID\u2019s budget more than doubled since 2021 to €592M in 2024, funding projects in West Africa and Latin America where Andalusian companies have a direct advantage.',
+    'landing.missed.1': 'A Global Gateway tender for your sector closes this month — and most European SMEs will never know it existed.',
+    'landing.missed.2': 'AECID\u2019s budget more than doubled since 2021 to €592M in 2024, funding projects in West Africa and Latin America where European exporters have a direct advantage.',
     'landing.missed.3': 'Development finance organisations that previously worked with USAID are actively seeking new European implementing partners.',
-    'landing.missed.4': 'The next CDTI deadline is in 6 weeks. Applications take 4. It helps to start early.',
+    'landing.missed.4': 'Spain launched FEDES in January 2026 — a new instrument mobilising private capital alongside the World Bank, IDB, and IFAD. Most Spanish SMEs have never heard of it.',
 
     // Landing — stats
     'landing.statsLabel.1': 'EU Global Gateway target by 2027 (€300B already committed)',
@@ -233,13 +233,13 @@ const translations = {
     'landing.module.1.name': 'Discovery Engine',
     'landing.module.1.desc': 'Crosses public finance pipelines with private market dynamics, trade flows, and political cooperation agendas. Ten parallel agents design project concepts; a senior-partner layer curates them into a ranked strategic portfolio.',
     'landing.module.2.name': 'Proposal Development',
-    'landing.module.2.desc': 'Routes each project to a sector specialist — agrifood, cleantech, health, infra, digital, or circular — who drafts a full proposal with domain-specific regulation, named instruments, and realistic co-financing structures.',
+    'landing.module.2.desc': 'Routes each project to one of seven sector specialists — agrifood, cleantech, health, infrastructure, digital, circular, or generalist — who drafts a full proposal with domain-specific regulation, named instruments, and realistic co-financing structures.',
     'landing.module.3.name': 'Partner Vetting & Compliance',
-    'landing.module.3.desc': 'Designed to screen every consortium partner against EU sanctions lists, CSDDD supply-chain obligations, GDPR data handling, and human rights due diligence — the same checks that kill bids when missed. Partner vetting module in development; planned for Q2 rollout.',
+    'landing.module.3.desc': 'Designed to screen every consortium partner against EU sanctions lists, CSDDD supply-chain obligations, GDPR data handling, and human rights due diligence — the same checks that kill bids when missed. Partner vetting module in development; planned for Q2 2026 rollout.',
     'landing.module.4.name': 'Project Execution',
     'landing.module.4.desc': 'Milestone tracking, disbursement schedules, and M&E indicators tied directly to your proposal logframe. The system flags slippage before your donor does.',
     'landing.module.5.name': 'Impact Reporting',
-    'landing.module.5.desc': 'Generates donor-compliant impact reports mapped to GRI, CSRD, and SDG indicators from live project data. Built for the reporting cadence EU and DFI funders actually require — quarterly narratives, annual results frameworks, final evaluations.',
+    'landing.module.5.desc': 'Generates donor-compliant impact reports mapped to GRI, CSRD, EFRAG sector guidance, HRDD, and SDG indicators from live project data. Built for the reporting cadence EU and DFI funders actually require — quarterly narratives, annual results frameworks, final evaluations.',
 
     // Landing — FAQ
     'landing.faqLabel': 'Common questions',
@@ -249,7 +249,7 @@ const translations = {
     'landing.faq.2.q': 'We do not know how to find international contracts',
     'landing.faq.2.a': 'That is exactly what the Opportunity Engine is for. It scans EU, bilateral, multilateral, and foundation pipelines daily and surfaces relevant matches automatically.',
     'landing.faq.3.q': 'We have never worked with EU funders before',
-    'landing.faq.3.a': 'Most Andalusian SMEs have not. We include entry-level pathways — subcontracting roles, technical assistance contracts — designed for companies entering the market for the first time.',
+    'landing.faq.3.a': 'Most European SMEs have not. We include entry-level pathways — subcontracting roles, technical assistance contracts — designed for companies entering the market for the first time.',
     'landing.faq.4.q': 'We do not have capacity to manage complex projects',
     'landing.faq.4.a': 'Our Project Management and Reporting modules handle the compliance burden — milestone tracking, M&E, donor reports — so your team can focus on delivery.',
 
@@ -493,11 +493,13 @@ const translations = {
     'disc.form.selectType': 'Select type...',
     'disc.form.revenue': 'Annual revenue',
     'disc.form.selectRevenue': 'Select range...',
-    'disc.form.priorEU': 'Prior EU contracting experience',
+    'disc.form.website': 'Website (optional)',
+    'disc.form.linkedin': 'LinkedIn URL (optional)',
+    'disc.form.priorEU': 'Prior EU contracting experience (optional)',
     'disc.form.yes': 'Yes',
     'disc.form.no': 'No',
     'disc.form.description': 'Brief description',
-    'disc.form.descriptionPlaceholder': 'Core competency and international experience (max 300 chars)',
+    'disc.form.descriptionPlaceholder': 'Core competencies, international experience, anything else relevant (max 1000 chars). The engine will also pull from your website and LinkedIn if provided.',
     'disc.form.errorRequired': 'Please fill in Company Name, Sector, and Organization Type.',
     'disc.form.discover': 'Discover ideas →',
     'disc.form.generating': 'Generating ideas...',
@@ -556,6 +558,34 @@ const translations = {
     'deepen.close': 'Close',
     'deepen.skip': 'Skip & generate ideas',
     'deepen.error': 'Something went wrong. Try again or skip.',
+
+    // Landing — windows (EU + post-USAID US)
+    'landing.windows.kicker': 'Two windows, one platform',
+    'landing.windows.title': 'EU funding and post-USAID US instruments — both indexed.',
+    'landing.windows.eu.label': 'EU window',
+    'landing.windows.eu.list': 'Global Gateway · NDICI–Global Europe · EFSD+ · AECID · GIZ / KfW · AFD · FCDO',
+    'landing.windows.us.label': 'US window — post-USAID',
+    'landing.windows.us.list': 'DFC · MCC · Prosper Africa · State Department bilaterals',
+    'landing.windows.note': 'Most platforms cover one. We index both — and route you to the side where you are actually eligible.',
+
+    // Landing — segments (who we serve)
+    'landing.segments.kicker': 'Who we serve',
+    'landing.segments.title': 'Five doors into the same platform.',
+    'landing.segments.1.title': 'Spanish & European SMEs',
+    'landing.segments.1.desc': 'Renewable energy, agri-food, water tech, circular economy, and critical minerals firms entering EU and bilateral development contracting for the first time.',
+    'landing.segments.2.title': 'NGOs in transition from USAID',
+    'landing.segments.2.desc': 'Implementing organisations rebuilding pipelines around NDICI, AECID, GIZ, and EU Global Gateway after the USAID dissolution.',
+    'landing.segments.3.title': 'US primes pivoting to EU funding',
+    'landing.segments.3.desc': 'Established US implementers seeking consortium positioning in EU-eligible bids, plus parallel access to DFC, MCC, and Prosper Africa.',
+    'landing.segments.4.title': 'EU primes & consortium leads',
+    'landing.segments.4.desc': 'Large prime contractors managing multi-year Global Gateway and NDICI programs that need partner vetting at scale and CSDDD-grade compliance documentation.',
+    'landing.segments.5.title': 'Corporate ESG & sustainability teams',
+    'landing.segments.5.desc': 'CSDDD-obligated companies and their supplier networks needing structured supply-chain due diligence and EU Taxonomy-aligned reporting.',
+
+    // Footer + legal pages
+    'footer.tagline': 'Cooperatr by Paradise Street Capital, S.L.U. — Seville, Andalusia — Built for the European development finance market.',
+    'footer.privacy': 'Privacy',
+    'footer.legal': 'Legal notice',
   },
   es: {
     // Nav
@@ -742,9 +772,9 @@ const translations = {
     'landing.live': 'ACTIVO',
     'landing.comingSoon': 'PRÓXIMAMENTE',
 
-    'landing.heroHighlight': 'nuevos mercados en todo el mundo',
-    'landing.heroPrefix': 'Conectamos tu empresa con',
-    'landing.heroSuffix': 'y la financiación para llegar.',
+    'landing.heroHighlight': 'financiación al desarrollo UE y post-USAID',
+    'landing.heroPrefix': 'Diseñamos y ganamos proyectos de',
+    'landing.heroSuffix': '— para empresas que entran al mercado.',
     'landing.bottomCtaDesc': 'Introduce el perfil de tu empresa y obtén una vista previa estratégica de proyectos de cooperación diseñados para tus capacidades — en menos de dos minutos.',
     'landing.bottomCtaSub': 'Sin coste inicial. Sin compromiso. Solo pagas cuando ganas.',
 
@@ -756,10 +786,10 @@ const translations = {
 
     'landing.marketLabel': 'El mercado se mueve rápido',
     'landing.marketTitle': 'Hay más oportunidades aquí de las que la mayoría de empresas imaginan.',
-    'landing.missed.1': 'Este mes cierra una licitación de Global Gateway en tu sector — y la mayoría de empresas andaluzas ni se enterarán.',
-    'landing.missed.2': 'El presupuesto de AECID se ha más que duplicado desde 2021 hasta 592M€ en 2024, financiando proyectos en África Occidental y América Latina donde las empresas andaluzas tienen ventaja directa.',
+    'landing.missed.1': 'Este mes cierra una licitación de Global Gateway en tu sector — y la mayoría de pymes europeas ni se enterarán.',
+    'landing.missed.2': 'El presupuesto de AECID se ha más que duplicado desde 2021 hasta 592M€ en 2024, financiando proyectos en África Occidental y América Latina donde los exportadores europeos tienen ventaja directa.',
     'landing.missed.3': 'Organismos de financiación al desarrollo que antes trabajaban con USAID están buscando activamente nuevos socios europeos para implementar.',
-    'landing.missed.4': 'El próximo plazo del CDTI es en 6 semanas. Preparar la solicitud lleva 4. Merece la pena empezar pronto.',
+    'landing.missed.4': 'España lanzó FEDES en enero de 2026 — un nuevo instrumento que moviliza capital privado junto al Banco Mundial, BID y FIDA. La mayoría de pymes españolas no lo conocen.',
 
     'landing.statsLabel.1': 'Objetivo EU Global Gateway para 2027 (300.000M€ ya comprometidos)',
     'landing.statsLabel.2': 'Antigua programación anual de USAID buscando nuevos socios',
@@ -786,13 +816,13 @@ const translations = {
     'landing.module.1.name': 'Motor de Descubrimiento',
     'landing.module.1.desc': 'Cruza los flujos de financiación pública con la dinámica del mercado privado, los flujos comerciales y las agendas de cooperación política. Diez agentes en paralelo diseñan conceptos de proyecto; una capa de socio senior los curan en un portafolio estratégico ordenado.',
     'landing.module.2.name': 'Desarrollo de Propuestas',
-    'landing.module.2.desc': 'Enruta cada proyecto a un especialista sectorial — agroalimentación, cleantech, salud, infraestructura, digital o circular — que redacta una propuesta completa con regulación de dominio, instrumentos nombrados y estructuras realistas de cofinanciación.',
+    'landing.module.2.desc': 'Enruta cada proyecto a uno de siete especialistas sectoriales — agroalimentación, cleantech, salud, infraestructura, digital, economía circular o generalista — que redacta una propuesta completa con regulación de dominio, instrumentos nombrados y estructuras realistas de cofinanciación.',
     'landing.module.3.name': 'Evaluación de Socios y Cumplimiento',
-    'landing.module.3.desc': 'Diseñado para evaluar a cada socio del consorcio contra listas de sanciones UE, obligaciones de cadena de suministro CSDDD, tratamiento de datos RGPD y debida diligencia en derechos humanos — los mismos controles que hunden licitaciones cuando se omiten. Módulo de evaluación de socios en desarrollo; lanzamiento previsto para Q2.',
+    'landing.module.3.desc': 'Diseñado para evaluar a cada socio del consorcio contra listas de sanciones UE, obligaciones de cadena de suministro CSDDD, tratamiento de datos RGPD y debida diligencia en derechos humanos — los mismos controles que hunden licitaciones cuando se omiten. Módulo de evaluación de socios en desarrollo; lanzamiento previsto para T2 de 2026.',
     'landing.module.4.name': 'Ejecución de Proyectos',
     'landing.module.4.desc': 'Seguimiento de hitos, calendarios de desembolso e indicadores M&E vinculados directamente al marco lógico de tu propuesta. El sistema señala desviaciones antes de que lo haga tu financiador.',
     'landing.module.5.name': 'Informes de Impacto',
-    'landing.module.5.desc': 'Genera informes de impacto conformes al financiador mapeados a indicadores GRI, CSRD y ODS desde datos de proyecto en vivo. Construido para la cadencia de reporting que realmente exigen los financiadores UE y DFI — narrativas trimestrales, marcos de resultados anuales, evaluaciones finales.',
+    'landing.module.5.desc': 'Genera informes de impacto conformes al financiador mapeados a indicadores GRI, CSRD, orientación sectorial EFRAG, HRDD y ODS desde datos de proyecto en vivo. Construido para la cadencia de reporting que realmente exigen los financiadores UE y DFI — narrativas trimestrales, marcos de resultados anuales, evaluaciones finales.',
 
     'landing.faqLabel': 'Preguntas frecuentes',
     'landing.faqTitle': 'Preguntas que escuchamos a menudo.',
@@ -801,7 +831,7 @@ const translations = {
     'landing.faq.2.q': 'No sabemos cómo encontrar contratos internacionales',
     'landing.faq.2.a': 'Para eso está el Motor de Oportunidades. Escanea a diario los flujos europeos, bilaterales, multilaterales y de fundaciones, y muestra las oportunidades relevantes automáticamente.',
     'landing.faq.3.q': 'Nunca hemos trabajado con financiadores europeos',
-    'landing.faq.3.a': 'La mayoría de las pymes andaluzas tampoco. Incluimos vías de entrada — subcontratación, contratos de asistencia técnica — diseñadas para empresas que acceden al mercado por primera vez.',
+    'landing.faq.3.a': 'La mayoría de las pymes europeas tampoco. Incluimos vías de entrada — subcontratación, contratos de asistencia técnica — diseñadas para empresas que acceden al mercado por primera vez.',
     'landing.faq.4.q': 'No tenemos capacidad para gestionar proyectos complejos',
     'landing.faq.4.a': 'Nuestros módulos de Gestión de Proyectos e Informes absorben la carga de cumplimiento — hitos, monitoreo, informes al financiador — para que tu equipo se centre en la ejecución.',
 
@@ -1082,8 +1112,40 @@ const translations = {
     'agents.sec.minerals.expertise': 'Financiación CRMA | Cinturón Pirítico Ibérico | Gobernanza ASM | Trazabilidad de la cadena de suministro | Transición verde BERD',
     'agents.responsibleNote': 'Los agentes de Cooperatr se basan en principios de IA responsables: el juicio humano permanece en el circuito en cada punto de decisión. Todos los agentes operan con fuentes de datos transparentes y auditables alineadas con los requisitos de la Ley de IA de la UE.',
 
+    // Landing — ventanas (UE + EE. UU. post-USAID)
+    'landing.windows.kicker': 'Dos ventanas, una plataforma',
+    'landing.windows.title': 'Financiación europea e instrumentos estadounidenses post-USAID — ambos indexados.',
+    'landing.windows.eu.label': 'Ventana europea',
+    'landing.windows.eu.list': 'Global Gateway · NDICI-Europa Global · EFSD+ · AECID · GIZ / KfW · AFD · FCDO',
+    'landing.windows.us.label': 'Ventana estadounidense — post-USAID',
+    'landing.windows.us.list': 'DFC · MCC · Prosper Africa · Programas bilaterales del Departamento de Estado',
+    'landing.windows.note': 'La mayoría de plataformas cubren una. Nosotros indexamos las dos — y te dirigimos al lado donde realmente eres elegible.',
+
+    // Landing — segmentos (a quién servimos)
+    'landing.segments.kicker': 'A quién servimos',
+    'landing.segments.title': 'Cinco puertas a la misma plataforma.',
+    'landing.segments.1.title': 'Pymes españolas y europeas',
+    'landing.segments.1.desc': 'Empresas de energía renovable, agroalimentación, tecnología del agua, economía circular y minerales críticos que acceden por primera vez a la contratación UE y bilateral de cooperación al desarrollo.',
+    'landing.segments.2.title': 'ONG en transición desde USAID',
+    'landing.segments.2.desc': 'Organizaciones implementadoras reconstruyendo cartera en torno a NDICI, AECID, GIZ y Global Gateway tras la disolución de USAID.',
+    'landing.segments.3.title': 'Contratistas principales de EE. UU. pivotando a financiación UE',
+    'landing.segments.3.desc': 'Implementadores estadounidenses consolidados buscando posicionamiento en consorcios elegibles UE, más acceso paralelo a DFC, MCC y Prosper Africa.',
+    'landing.segments.4.title': 'Contratistas principales y líderes de consorcio UE',
+    'landing.segments.4.desc': 'Grandes contratistas que gestionan programas plurianuales de Global Gateway y NDICI con necesidades de verificación masiva de socios y documentación de cumplimiento de grado CSDDD.',
+    'landing.segments.5.title': 'Equipos corporativos de ESG y sostenibilidad',
+    'landing.segments.5.desc': 'Empresas obligadas por la CSDDD y sus redes de proveedores que necesitan diligencia debida estructurada de la cadena de suministro e informes alineados con la Taxonomía de la UE.',
+
+    // Pie de página + páginas legales
+    'footer.tagline': 'Cooperatr by Paradise Street Capital, S.L.U. — Sevilla, Andalucía — Construido para el mercado europeo de financiación al desarrollo.',
+    'footer.privacy': 'Privacidad',
+    'footer.legal': 'Aviso legal',
+
     // Auto-translated by i18n-sync
     'partner.recommendations': 'Acciones recomendadas',
+
+    // Auto-translated by i18n-sync
+    'disc.form.website': 'Sitio Web (opcional)',
+    'disc.form.linkedin': 'URL de LinkedIn (opcional)',
   },
 } as const;
 

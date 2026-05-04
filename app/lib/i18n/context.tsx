@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import translations, { type TranslationKey } from './translations';
-import { detectLocale, setLocale as persistLocale, type Locale } from './detect';
+import { setLocale as persistLocale, type Locale } from './detect';
 
 export type { TranslationKey };
 
@@ -18,14 +18,25 @@ const I18nContext = createContext<I18nContextType>({
   t: (key) => key,
 });
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('en');
-  const [mounted, setMounted] = useState(false);
+export function I18nProvider({
+  children,
+  initialLocale = 'en',
+}: {
+  children: React.ReactNode;
+  initialLocale?: Locale;
+}) {
+  const [locale, setLocaleState] = useState<Locale>(initialLocale);
 
+  // After mount, prefer the user's persisted choice if it differs from the
+  // server-detected initial locale. We can't read localStorage during render
+  // because it would mismatch the server-rendered HTML.
   useEffect(() => {
-    setLocaleState(detectLocale());
-    setMounted(true);
-  }, []);
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem('cooperatr_locale');
+    if ((stored === 'en' || stored === 'es') && stored !== locale) {
+      setLocaleState(stored);
+    }
+  }, [locale]);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
@@ -35,15 +46,6 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const t = useCallback((key: TranslationKey): string => {
     return translations[locale]?.[key] || translations.en[key] || key;
   }, [locale]);
-
-  // Prevent hydration mismatch — render in English until client mounts
-  if (!mounted) {
-    return (
-      <I18nContext.Provider value={{ locale: 'en', setLocale, t: (key) => translations.en[key] || key }}>
-        {children}
-      </I18nContext.Provider>
-    );
-  }
 
   return (
     <I18nContext.Provider value={{ locale, setLocale, t }}>

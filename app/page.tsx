@@ -50,6 +50,14 @@ export default function Dashboard() {
     { q: t('landing.faq.4.q'), a: t('landing.faq.4.a') },
   ];
 
+  const segments: { title: TranslationKey; desc: TranslationKey; icon: string }[] = [
+    { title: 'landing.segments.1.title', desc: 'landing.segments.1.desc', icon: '🏭' },
+    { title: 'landing.segments.2.title', desc: 'landing.segments.2.desc', icon: '🌍' },
+    { title: 'landing.segments.3.title', desc: 'landing.segments.3.desc', icon: '🤝' },
+    { title: 'landing.segments.4.title', desc: 'landing.segments.4.desc', icon: '🏛️' },
+    { title: 'landing.segments.5.title', desc: 'landing.segments.5.desc', icon: '📑' },
+  ];
+
   return (
     <div style={{ fontFamily: "DM Sans, sans-serif" }}>
 
@@ -111,6 +119,70 @@ export default function Dashboard() {
             <div style={{ fontSize: '11px', color: '#8A8070', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Windows section — EU + post-USAID US */}
+      <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E8E2D8' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              {t('landing.windows.kicker')}
+            </p>
+            <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '16px' }}>
+              {t('landing.windows.title')}
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+            <div style={{ backgroundColor: '#F7F5F0', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '32px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '22px' }}>🇪🇺</span>
+                <h3 className="font-serif" style={{ fontSize: '20px', color: '#1A2332', margin: 0 }}>{t('landing.windows.eu.label')}</h3>
+              </div>
+              <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.7, margin: 0 }}>
+                {t('landing.windows.eu.list')}
+              </p>
+            </div>
+            <div style={{ backgroundColor: '#F7F5F0', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '32px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '22px' }}>🇺🇸</span>
+                <h3 className="font-serif" style={{ fontSize: '20px', color: '#1A2332', margin: 0 }}>{t('landing.windows.us.label')}</h3>
+              </div>
+              <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.7, margin: 0 }}>
+                {t('landing.windows.us.list')}
+              </p>
+            </div>
+          </div>
+          <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.7, textAlign: 'center', maxWidth: '720px', margin: '0 auto', fontStyle: 'italic' }}>
+            {t('landing.windows.note')}
+          </p>
+        </div>
+      </div>
+
+      {/* Segments — who we serve */}
+      <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              {t('landing.segments.kicker')}
+            </p>
+            <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25 }}>
+              {t('landing.segments.title')}
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            {segments.map((s) => (
+              <div key={s.title} style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '8px', padding: '28px' }}>
+                <div style={{ fontSize: '24px', marginBottom: '14px' }}>{s.icon}</div>
+                <h3 className="font-serif" style={{ fontSize: '17px', color: '#1A2332', marginBottom: '10px', lineHeight: 1.3 }}>
+                  {t(s.title)}
+                </h3>
+                <p style={{ fontSize: '13px', color: '#4A5568', lineHeight: 1.65, margin: 0 }}>
+                  {t(s.desc)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Engine section */}
