@@ -172,7 +172,12 @@ const SECTION_BRIEFS: Record<SectionKey, { label: string; instructions: string }
   },
   technical_section: {
     label: 'Technical Approach',
-    instructions: `Write a dense technical approach: SMART objectives (3-4), a logframe results chain with 6+ indicators, 3 work packages (activities, lead partner, deliverables), and a quarterly timeline for 18-36 months. Use bullet structure. Target 1800-2500 characters.`,
+    // Trimmed: the prior version asked for 4 separate structures (SMART
+    // objectives + 6+ logframe indicators + 3 work packages + quarterly
+    // timeline) which in Spanish reliably exceeded max_tokens=4000 and
+    // truncated the tool_use into empty content. Indicators now live inside
+    // the work-package deliverables.
+    instructions: `Write a dense technical approach with: 3 SMART objectives, 3 work packages (each with activities, lead partner, 2-3 measurable deliverables), and a quarterly milestone timeline for 18-36 months. Use bullet structure. Be concise — every bullet under 25 words. Target 1800-2500 characters.`,
   },
   financial_section: {
     label: 'Financial Plan',
@@ -255,11 +260,15 @@ async function draftSection(
   const userPrompt = `${context}\n\nDraft the ${brief.label} now. Tailor to the company's experience level; if prior EU experience is "No", lean on consortium/partnership framing to de-risk the bid.`;
 
   const t0 = Date.now();
+  // 5000 gives a small headroom over the previous 4000 cap; in Spanish the
+  // technical section reliably ran 3500-4500 tokens which truncated the
+  // tool_use into empty content.
+  const MAX_TOKENS = 5000;
   let response;
   try {
     response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
+      max_tokens: MAX_TOKENS,
       system,
       tools: [sectionTool(section)],
       tool_choice: { type: 'tool', name: 'emit_section' },
@@ -271,7 +280,7 @@ async function draftSection(
       await new Promise((r) => setTimeout(r, 2000));
       response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
+        max_tokens: MAX_TOKENS,
         system,
         tools: [sectionTool(section)],
         tool_choice: { type: 'tool', name: 'emit_section' },
@@ -290,8 +299,16 @@ async function draftSection(
   if (!toolBlock || toolBlock.type !== 'tool_use') {
     throw new Error(`Section ${section} returned no tool use (stop=${response.stop_reason})`);
   }
-  const out = toolBlock.input as { content: string };
-  return out;
+  const out = toolBlock.input as { content?: string };
+  // Guard against silent truncation: when stop_reason=max_tokens, the model
+  // didn't get to close the JSON, so input.content arrives empty or undefined
+  // and the proposal would persist with a blank section.
+  if (!out.content || out.content.trim().length < 50) {
+    throw new Error(
+      `Section ${section} came back empty (stop=${response.stop_reason}, out_tokens=${response.usage?.output_tokens}). The model likely hit max_tokens before closing the tool call.`,
+    );
+  }
+  return { content: out.content };
 }
 
 type ProposalDraft = {
@@ -399,8 +416,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Mark idea as in_progress so the user sees the transition
-    await supabase.from('ideas').update({ status: 'in_progress' }).eq('id', ideaId);
+    // The idea stays at status='saved' — the link to the proposal lives in
+    // the `proposals.idea_id` column. Flipping status to 'in_progress' here
+    // used to drop the idea out of the Saved tab (which filters status=saved),
+    // making it look like Start Proposal had deleted the opportunity.
 
     return NextResponse.json({
       proposalId: proposal.id,
