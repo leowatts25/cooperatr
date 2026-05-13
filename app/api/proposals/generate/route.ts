@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerClient } from '@/app/lib/supabase';
+import {
+  getRelevantPatterns,
+  profileToRetrievalOptions,
+  type PatternContext,
+} from '@/app/lib/corpus';
 
 const client = new Anthropic();
 
@@ -252,12 +257,39 @@ async function draftSection(
   specialist: SpecialistKey,
   context: string,
   locale: Locale,
+  corpusContext: PatternContext | null,
 ): Promise<{ content: string }> {
   const spec = SPECIALISTS[specialist];
   const brief = SECTION_BRIEFS[section];
-  const system = `${BASE_SPECIALIST_PROMPT}\n\n${languageDirective(locale)}\n\n## Your specialty: ${spec.label}\n${spec.guidance}\n\n## Your task right now: ${brief.label}\n${brief.instructions}`;
 
-  const userPrompt = `${context}\n\nDraft the ${brief.label} now. Tailor to the company's experience level; if prior EU experience is "No", lean on consortium/partnership framing to de-risk the bid.`;
+  // Structured system: stable specialty block (BASE + locale + specialty +
+  // optional corpus scaffolds) is identical across all 4 parallel section
+  // drafts in this request, so prompt-cache it. The per-section instruction
+  // stays uncached because it differs per call.
+  const stableBlock = `${BASE_SPECIALIST_PROMPT}\n\n${languageDirective(locale)}\n\n## Your specialty: ${spec.label}\n${spec.guidance}${
+    corpusContext && corpusContext.formatted ? '\n\n' + corpusContext.formatted : ''
+  }`;
+  const system: Array<{
+    type: 'text';
+    text: string;
+    cache_control?: { type: 'ephemeral' };
+  }> = [
+    {
+      type: 'text',
+      text: stableBlock,
+      cache_control: { type: 'ephemeral' },
+    },
+    {
+      type: 'text',
+      text: `## Your task right now: ${brief.label}\n${brief.instructions}`,
+    },
+  ];
+
+  const userPrompt = `${context}\n\nDraft the ${brief.label} now. Tailor to the company's experience level; if prior EU experience is "No", lean on consortium/partnership framing to de-risk the bid.${
+    corpusContext && corpusContext.formatted
+      ? ' If reference patterns are provided above, mirror their structural shape, signaling phrases, and compliance scaffolds — but adapt every detail to THIS company and this opportunity. Never copy reference prose verbatim.'
+      : ''
+  }`;
 
   const t0 = Date.now();
   // 5000 gives a small headroom over the previous 4000 cap; in Spanish the
@@ -269,7 +301,7 @@ async function draftSection(
     response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: MAX_TOKENS,
-      system,
+      system: system as Anthropic.Messages.MessageCreateParams['system'],
       tools: [sectionTool(section)],
       tool_choice: { type: 'tool', name: 'emit_section' },
       messages: [{ role: 'user', content: userPrompt }],
@@ -281,7 +313,7 @@ async function draftSection(
       response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: MAX_TOKENS,
-        system,
+        system: system as Anthropic.Messages.MessageCreateParams['system'],
         tools: [sectionTool(section)],
         tool_choice: { type: 'tool', name: 'emit_section' },
         messages: [{ role: 'user', content: userPrompt }],
@@ -324,6 +356,7 @@ async function draftProposal(
   idea: Record<string, unknown>,
   company: Record<string, unknown> | null,
   locale: Locale,
+  corpusContext: PatternContext | null,
 ): Promise<ProposalDraft> {
   const context = buildSpecialistContext(idea, company);
 
@@ -335,7 +368,9 @@ async function draftProposal(
   ];
 
   const t0 = Date.now();
-  const results = await Promise.all(sections.map((s) => draftSection(s, specialist, context, locale)));
+  const results = await Promise.all(
+    sections.map((s) => draftSection(s, specialist, context, locale, corpusContext)),
+  );
   console.log(`[proposals] 4 parallel sections completed in ${Date.now() - t0}ms`);
 
   const [exec, tech, fin, comp] = results;
@@ -384,9 +419,59 @@ export async function POST(req: NextRequest) {
       `[proposals] routed to ${specialist} in ${Date.now() - tRoute}ms — ${rationale}`,
     );
 
+    // 1b. Retrieve corpus patterns ONCE per proposal. Same retrieval scaffolds
+    //     all 4 parallel section drafts (exec / tech / fin / compliance) — the
+    //     stable system block is prompt-cached so sections 2-4 read from cache.
+    //     Match on the routed sector (more accurate than the company sector
+    //     when the idea pulls the project into a different domain) plus the
+    //     company geography. Donor focus is pulled best-effort from the idea's
+    //     funding paths so retrieval can prefer matching-funder patterns.
+    let corpusContext: PatternContext | null = null;
+    try {
+      const fundingPaths = Array.isArray(idea.funding_paths)
+        ? (idea.funding_paths as Array<Record<string, unknown>>)
+        : [];
+      // Pull donor tokens from funding-path names ('AECID', 'GCF', 'USAID' etc.)
+      const donorFocus = Array.from(
+        new Set(
+          fundingPaths
+            .map((fp) => String(fp?.name || ''))
+            .flatMap((n) =>
+              n
+                .toUpperCase()
+                .match(/\b(USAID|AECID|EU-NDICI|NDICI|GCF|GEF|EIB|EBRD|EFSD|AFD|GIZ|KFW|WORLD BANK|IDB|AFDB|IFAD|UNDP|UNICEF|UNOPS|WFP|COFIDES|FEDES|DFC|MCC)\b/g) || [],
+            )
+            .map((s) => s.replace(/\s+/g, '-')),
+        ),
+      );
+
+      const retrievalOpts = profileToRetrievalOptions({
+        sector: specialist, // routed specialist > raw company sector
+        geographies: Array.isArray(company?.geographies)
+          ? (company?.geographies as string[])
+          : undefined,
+        donor_focus: donorFocus.length > 0 ? donorFocus : undefined,
+        locale,
+      });
+      corpusContext = await getRelevantPatterns({
+        ...retrievalOpts,
+        side: 'bidder', // M2 wants bidder-side scaffolds to draft from
+      });
+      console.log(
+        `[corpus] retrieved ${corpusContext.total_retrieved} patterns via ${corpusContext.retrieval_strategy}; donor_focus=[${donorFocus.join(',')}]; ids=${corpusContext.pattern_ids.join(',')}`,
+      );
+      if (corpusContext.total_retrieved === 0) corpusContext = null;
+    } catch (err) {
+      console.warn(
+        '[corpus] retrieval failed, drafting without scaffolds:',
+        err instanceof Error ? err.message : err,
+      );
+      corpusContext = null;
+    }
+
     // 2. Specialist drafts the full proposal
     const tDraft = Date.now();
-    const draft = await draftProposal(specialist, idea, company, locale);
+    const draft = await draftProposal(specialist, idea, company, locale, corpusContext);
     console.log(`[proposals] ${specialist} drafted proposal in ${Date.now() - tDraft}ms`);
 
     // 3. Persist

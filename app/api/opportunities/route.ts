@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerClient } from '@/app/lib/supabase';
+import {
+  getRelevantPatterns,
+  profileToRetrievalOptions,
+  type PatternContext,
+} from '@/app/lib/corpus';
 
 const client = new Anthropic();
 
@@ -169,11 +174,26 @@ const ideasTool: Anthropic.Tool = {
 // Generate a batch of ideas for one tag (concrete/creative/hybrid)
 // ============================================================================
 
-async function callHaiku(batch: BatchKey, system: string, userPrompt: string) {
+// System block can be a plain string (legacy) or a structured array where the
+// first block is corpus-cached (stable across the 10 parallel batches in a
+// single request) and the second block is the per-batch instruction.
+type StructuredSystem =
+  | string
+  | Array<{
+      type: 'text';
+      text: string;
+      cache_control?: { type: 'ephemeral' };
+    }>;
+
+async function callHaiku(
+  batch: BatchKey,
+  system: StructuredSystem,
+  userPrompt: string,
+) {
   return client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 3000,
-    system,
+    system: system as Anthropic.Messages.MessageCreateParams['system'],
     tools: [ideasTool],
     tool_choice: { type: 'tool', name: 'emit_ideas' },
     messages: [{ role: 'user', content: userPrompt }],
@@ -252,6 +272,7 @@ async function runCritic(
   rawIdeas: IdeaFromModel[],
   profile: Record<string, unknown>,
   locale: Locale,
+  corpusContext: PatternContext | null,
 ): Promise<{ ideas: IdeaFromModel[]; insight: string }> {
   if (rawIdeas.length === 0) return { ideas: [], insight: '' };
 
@@ -282,11 +303,32 @@ Curate this brainstorm. Drop duplicates and weak ideas, merge complementary ones
   const t0 = Date.now();
   console.log('[critic] calling Sonnet...');
 
+  // Build structured system with optional corpus context.
+  // Corpus block is cached because the same patterns are reused across
+  // the parallel batch generation in this request.
+  const systemBlocks: Array<{
+    type: 'text';
+    text: string;
+    cache_control?: { type: 'ephemeral' };
+  }> = [
+    {
+      type: 'text',
+      text: `${CRITIC_PROMPT}\n\n${languageDirective(locale)}`,
+    },
+  ];
+  if (corpusContext && corpusContext.formatted) {
+    systemBlocks.push({
+      type: 'text',
+      text: corpusContext.formatted,
+      cache_control: { type: 'ephemeral' },
+    });
+  }
+
   try {
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 2500,
-      system: `${CRITIC_PROMPT}\n\n${languageDirective(locale)}`,
+      system: systemBlocks as Anthropic.Messages.MessageCreateParams['system'],
       tools: [criticTool],
       tool_choice: { type: 'tool', name: 'emit_curation' },
       messages: [{ role: 'user', content: userPrompt }],
@@ -361,9 +403,33 @@ Curate this brainstorm. Drop duplicates and weak ideas, merge complementary ones
   }
 }
 
-async function generateBatch(batch: BatchKey, userPrompt: string, locale: Locale): Promise<IdeaFromModel[]> {
+async function generateBatch(
+  batch: BatchKey,
+  userPrompt: string,
+  locale: Locale,
+  corpusContext: PatternContext | null,
+): Promise<IdeaFromModel[]> {
   const { tag, instructions } = BATCH_INSTRUCTIONS[batch];
-  const system = `${BASE_PROMPT}\n\n${languageDirective(locale)}\n\n## This batch: ${instructions}`;
+
+  // Structured system blocks. The stable block (BASE_PROMPT + language
+  // directive + corpus context) is identical across the 10 parallel batches
+  // in this request, so cache_control: ephemeral lets the second-onward
+  // batches read from prompt cache. The per-batch instruction stays
+  // uncached because it differs per batch.
+  const stableBlock = `${BASE_PROMPT}\n\n${languageDirective(locale)}${
+    corpusContext && corpusContext.formatted ? '\n\n' + corpusContext.formatted : ''
+  }`;
+  const system: StructuredSystem = [
+    {
+      type: 'text',
+      text: stableBlock,
+      cache_control: { type: 'ephemeral' },
+    },
+    {
+      type: 'text',
+      text: `## This batch: ${instructions}`,
+    },
+  ];
 
   const t0 = Date.now();
   console.log(`[discovery:${batch}] calling Anthropic...`);
@@ -563,7 +629,35 @@ export async function POST(req: NextRequest) {
       'hybrid_consortium',
       'hybrid_offtake',
     ];
-    const results = await Promise.all(batches.map((b) => generateBatch(b, userPrompt, locale)));
+    // 3a. Retrieve relevant prior-proposal patterns from the corpus once.
+    //     The same retrieval is used across all 10 parallel batches and the
+    //     critic agent; prompt caching makes this cheap after the first call.
+    //     Graceful fallback: if no patterns match or the query errors, we
+    //     pass null and the engine runs exactly as it did before the corpus
+    //     was added.
+    let corpusContext: PatternContext | null = null;
+    try {
+      const retrievalOpts = profileToRetrievalOptions({
+        sector: profile.sector,
+        geographies: Array.isArray(profile.geographies)
+          ? (profile.geographies as string[])
+          : undefined,
+        locale,
+      });
+      corpusContext = await getRelevantPatterns(retrievalOpts);
+      console.log(
+        `[corpus] retrieved ${corpusContext.total_retrieved} patterns via ${corpusContext.retrieval_strategy}; ids=${corpusContext.pattern_ids.join(',')}`,
+      );
+      // No-op if zero patterns retrieved
+      if (corpusContext.total_retrieved === 0) corpusContext = null;
+    } catch (err) {
+      console.warn('[corpus] retrieval failed, proceeding without context:', err instanceof Error ? err.message : err);
+      corpusContext = null;
+    }
+
+    const results = await Promise.all(
+      batches.map((b) => generateBatch(b, userPrompt, locale, corpusContext)),
+    );
     const batchCounts = batches.map((b, i) => `${b}=${results[i].length}`).join(', ');
     console.log(`[discovery] all 10 batches completed in ${Date.now() - t0}ms — ${batchCounts}`);
 
@@ -581,8 +675,10 @@ export async function POST(req: NextRequest) {
       })
       .sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
 
-    // 3b. Critic agent — curate, merge, re-rank, and emit cross-cutting insight
-    const { ideas: curatedIdeas, insight } = await runCritic(rawIdeas, profile, locale);
+    // 3b. Critic agent — curate, merge, re-rank, and emit cross-cutting insight.
+    //     Critic gets the same corpus context so its judgment is informed by
+    //     the same prior-proposal patterns.
+    const { ideas: curatedIdeas, insight } = await runCritic(rawIdeas, profile, locale, corpusContext);
 
     // 4. Persist to DB — cleanly map dbId back via insertion order
     let persistedIdeas: IdeaFromModel[] = curatedIdeas;
