@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import Nav from './components/Nav';
 import { I18nProvider } from './lib/i18n/context';
@@ -42,6 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </main>
           <SiteFooter />
         </I18nProvider>
+        <Analytics />
       </body>
     </html>
   );
