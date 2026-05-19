@@ -16,6 +16,8 @@ export interface SourceResult {
   upserted: number;
   passedFilter: number;
   errors: string[];
+  skipped?: boolean;     // true when a source is intentionally skipped (e.g. no API key)
+  skipReason?: string;
 }
 
 export interface IngestRunResult {
@@ -60,10 +62,37 @@ export async function runAllIngesters(supabase: Supabase): Promise<IngestRunResu
       results.push({ source: 'SAM_GOV', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [msg] });
     }
   } else {
-    results.push({ source: 'SAM_GOV', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: ['SAMGOV_API_KEY not set — skipped'] });
+    results.push({
+      source: 'SAM_GOV', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [],
+      skipped: true, skipReason: 'SAMGOV_API_KEY not set',
+    });
   }
 
-  // Future sources go here: ingestUngm, ingestDevbusiness, ingestAecid, ...
+  // ----------------------------------------------------------------------
+  // Future sources — implementation notes
+  // ----------------------------------------------------------------------
+  // UNGM (UN Global Marketplace): no public API. Two paths:
+  //   (a) Subscribe via UNGM Subscribe feature → daily CSV/email export →
+  //       manual upload to a `/api/admin/tenders/csv-import` endpoint.
+  //   (b) Scrape POST /Public/Notice/SearchNotice with anti-forgery cookie.
+  //       Fragile and against the spirit of ToS. Skip unless we get
+  //       explicit permission or partnership.
+  //
+  // CORDIS (EU R&D project results): the canonical source for "who won
+  // similar EU funding before." Used for SME discovery, not tenders.
+  //   - Endpoint: https://cordis.europa.eu/api/projects?...
+  //   - Will be queried per-tender in the SME discovery step, not in this
+  //     daily ingest job.
+  //
+  // EU Funding & Tenders portal (NDICI-Global Europe calls): there is an
+  // internal JSON API at https://ec.europa.eu/info/funding-tenders/...api/
+  // but the endpoint shape shifts. Likely needs the same probe-and-stabilize
+  // approach we did for TED.
+  //
+  // AECID / GIZ / KfW / AFD / FCDO: each has its own portal, mostly without
+  // public APIs. Build per-source HTML scrapers on demand, only when the
+  // user has a real BD use case for that donor.
+  // ----------------------------------------------------------------------
 
   const totals = results.reduce(
     (acc, r) => ({
@@ -76,7 +105,8 @@ export async function runAllIngesters(supabase: Supabase): Promise<IngestRunResu
   );
 
   return {
-    ok: results.every((r) => r.errors.length === 0),
+    // ok means every non-skipped source completed without errors
+    ok: results.every((r) => r.skipped || r.errors.length === 0),
     timestamp: new Date().toISOString(),
     totals,
     sources: results,
