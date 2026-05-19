@@ -67,28 +67,15 @@ interface FetchResult {
 
 export async function fetchTedNotices(opts: FetchOpts): Promise<FetchResult> {
   const sinceDate = isoDate(daysAgo(opts.sinceDays));
-  // TED expert search syntax — publication-date filter, only contract notices
-  // ('FT' = form type; '7' = "competition notice" in eForms 2015 onwards).
-  // We use a permissive query and let our own filter narrow it.
+  // TED v3 expert-search query: publication-date filter only. We deliberately
+  // omit `fields` and `scope` — TED's field-allowlist uses eForms 2015 codes
+  // (BT-* / lot-scoped names) and the default response set already includes
+  // what we need. We store the full raw record so missing fields can be
+  // re-extracted later without re-fetching.
   const body = {
     query: `publication-date>=${sinceDate}`,
-    fields: [
-      'publication-number',
-      'notice-title',
-      'description-procurement',
-      'publication-date',
-      'deadline-receipt-tender-date-lot',
-      'place-performance',
-      'buyer-name',
-      'classification-cpv',
-      'notice-type',
-      'estimated-value',
-      'estimated-value-cur',
-      'links',
-    ],
     page: opts.pageNum,
     limit: opts.pageSize,
-    scope: 'ALL',
   };
 
   const res = await fetch(TED_API_URL, {
