@@ -18,7 +18,11 @@
 import type { SectorRow } from './filter';
 import { applyFilter } from './filter';
 
-const TED_API_URL = 'https://api.ted.europa.eu/v3/notices/search';
+// We use the older TED endpoint (ted.europa.eu/api/v3.0/...) which accepts
+// legacy 2-letter field codes (ND/TI/PD/...) and TED expert-search query
+// syntax. The newer host (api.ted.europa.eu/v3/...) requires eForms 2015
+// BT codes whose allowlist isn't publicly documented and shifts often.
+const TED_API_URL = 'https://ted.europa.eu/api/v3.0/notices/search';
 
 export interface RawTedNotice {
   // Loose shape — TED v3 returns a complex object per notice. We index
@@ -66,16 +70,19 @@ interface FetchResult {
 // ----------------------------------------------------------------------------
 
 export async function fetchTedNotices(opts: FetchOpts): Promise<FetchResult> {
-  const sinceDate = isoDate(daysAgo(opts.sinceDays));
-  // TED v3 expert-search query: publication-date filter only. We deliberately
-  // omit `fields` and `scope` — TED's field-allowlist uses eForms 2015 codes
-  // (BT-* / lot-scoped names) and the default response set already includes
-  // what we need. We store the full raw record so missing fields can be
-  // re-extracted later without re-fetching.
+  // TED expert-search syntax uses date format YYYYMMDD with range operator.
+  // 2-letter field codes are stable: ND=notice ID, TI=title, PD=publication
+  // date, DD=deadline, CY=country code, CPV=Common Procurement Vocabulary,
+  // VAL=estimated value, TY=type of contract, AA=authority type, OJ=Official
+  // Journal reference, RP=buyer profile URL, AUTH_NAME=contracting authority.
+  const fromDate = compactDate(daysAgo(opts.sinceDays));
+  const toDate = compactDate(new Date());
   const body = {
-    query: `publication-date>=${sinceDate}`,
-    page: opts.pageNum,
-    limit: opts.pageSize,
+    query: `PD=[${fromDate} TO ${toDate}]`,
+    fields: ['ND', 'TI', 'PD', 'DD', 'CY', 'CPV', 'VAL', 'TY', 'AA', 'OJ', 'AUTH_NAME', 'AUTH_NAME_ENG', 'RP', 'NC', 'PR', 'IA'],
+    pageSize: opts.pageSize,
+    pageNum: opts.pageNum,
+    scope: 'ACTIVE',
   };
 
   const res = await fetch(TED_API_URL, {
@@ -116,11 +123,11 @@ export function normalizeTedNotice(raw: RawTedNotice, sectors: SectorRow[]): Nor
 
   const title = pickMultilingual(raw, ['notice-title', 'title', 'TI', 'OT']);
   const description = pickMultilingual(raw, ['description-procurement', 'description', 'DS', 'SR']);
-  const buyer = pickMultilingual(raw, ['buyer-name', 'buyerName', 'AA']);
-  const country = pickString(raw, ['country', 'place-performance', 'CY']);
-  const noticeType = pickString(raw, ['notice-type', 'noticeType', 'TD', 'AC']);
-  const publishedAt = pickString(raw, ['publication-date', 'publicationDate', 'PD']);
-  const deadlineAt = pickString(raw, ['deadline-receipt-tender-date-lot', 'deadline', 'DD', 'DT']);
+  const buyer = pickMultilingual(raw, ['AUTH_NAME_ENG', 'AUTH_NAME', 'buyer-name', 'buyerName', 'AA']);
+  const country = pickString(raw, ['CY', 'country', 'place-performance']);
+  const noticeType = pickString(raw, ['TY', 'NC', 'notice-type', 'noticeType', 'TD', 'AC']);
+  const publishedAt = parseDate(pickString(raw, ['PD', 'publication-date', 'publicationDate']));
+  const deadlineAt = parseDate(pickString(raw, ['DD', 'DT', 'deadline-receipt-tender-date-lot', 'deadline']));
 
   const { min: valueMin, max: valueMax, currency, rawText } = readValue(raw);
   const url = readUrl(raw, sourceRef);
@@ -272,4 +279,21 @@ function daysAgo(n: number): Date {
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+function compactDate(d: Date): string {
+  // TED expert-search wants YYYYMMDD without separators.
+  return d.toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+function parseDate(s: string | null): string | null {
+  // TED legacy date format is YYYYMMDD; modern is ISO. Return ISO-8601.
+  if (!s) return null;
+  const t = s.trim();
+  if (/^\d{8}$/.test(t)) {
+    return `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+  const d = new Date(t);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
