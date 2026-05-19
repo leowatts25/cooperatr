@@ -6,6 +6,7 @@
 
 import { createServerClient } from '@/app/lib/supabase';
 import { fetchTedNotices, normalizeTedNotice } from './ted';
+import { fetchSamGovOpportunities, normalizeSamGovOpportunity } from './samgov';
 import type { SectorRow } from './filter';
 
 export interface SourceResult {
@@ -47,7 +48,22 @@ export async function runAllIngesters(supabase: Supabase): Promise<IngestRunResu
     results.push({ source: 'TED', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [msg] });
   }
 
-  // Future sources go here: ingestUngm, ingestSamGov, ingestDevbusiness, ...
+  // SAM.gov requires SAMGOV_API_KEY. If absent we record a 'skipped' result
+  // rather than failing the whole run.
+  const samKey = process.env.SAMGOV_API_KEY;
+  if (samKey) {
+    try {
+      results.push(await ingestSamGov(sectors, supabase, samKey));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[ingest] SAM.gov failed:', msg);
+      results.push({ source: 'SAM_GOV', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [msg] });
+    }
+  } else {
+    results.push({ source: 'SAM_GOV', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: ['SAMGOV_API_KEY not set — skipped'] });
+  }
+
+  // Future sources go here: ingestUngm, ingestDevbusiness, ingestAecid, ...
 
   const totals = results.reduce(
     (acc, r) => ({
@@ -119,4 +135,64 @@ async function ingestTed(sectors: SectorRow[], supabase: Supabase): Promise<Sour
   }
 
   return { source: 'TED', fetched, normalized, upserted, passedFilter, errors };
+}
+
+// ----------------------------------------------------------------------------
+// SAM.gov
+// ----------------------------------------------------------------------------
+
+async function ingestSamGov(sectors: SectorRow[], supabase: Supabase, apiKey: string): Promise<SourceResult> {
+  const errors: string[] = [];
+  let fetched = 0;
+  let normalized = 0;
+  let upserted = 0;
+  let passedFilter = 0;
+
+  const PAGES = 3;
+  const LIMIT = 100;
+  const SINCE_DAYS = 2;
+
+  for (let page = 0; page < PAGES; page++) {
+    let pageResult;
+    try {
+      pageResult = await fetchSamGovOpportunities({
+        sinceDays: SINCE_DAYS,
+        limit: LIMIT,
+        offset: page * LIMIT,
+        apiKey,
+      });
+    } catch (err) {
+      errors.push(`page ${page}: ${err instanceof Error ? err.message : String(err)}`);
+      break;
+    }
+    fetched += pageResult.opportunities.length;
+    if (pageResult.opportunities.length === 0) break;
+
+    const batch = [];
+    for (const raw of pageResult.opportunities) {
+      try {
+        const n = normalizeSamGovOpportunity(raw, sectors);
+        if (n) batch.push(n);
+      } catch (err) {
+        errors.push(`normalize: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    normalized += batch.length;
+    passedFilter += batch.filter((n) => n.passes_filter).length;
+
+    if (batch.length > 0) {
+      const { error: upsertErr, count } = await supabase
+        .from('tenders')
+        .upsert(batch, { onConflict: 'source,source_ref', count: 'exact' });
+      if (upsertErr) {
+        errors.push(`upsert page ${page}: ${upsertErr.message}`);
+      } else {
+        upserted += count ?? batch.length;
+      }
+    }
+
+    if (pageResult.opportunities.length < LIMIT) break;
+  }
+
+  return { source: 'SAM_GOV', fetched, normalized, upserted, passedFilter, errors };
 }
