@@ -369,17 +369,16 @@ export async function getCandidatesForTender(
 
   const tenderSectors = new Set((tender.sectors || []).map((s) => s.toLowerCase()));
   const tenderCountry = (tender.country || '').toUpperCase();
-  const geoAllow = new Set<string>(IN_SCOPE_COUNTRIES);
-  if (tenderCountry) geoAllow.add(tenderCountry);
 
   type Ranked = {
     company: ScoutedCompanyRow;
     warm: LinkedinContactRow | null;
     sectorOverlap: number;
-    positionHint: number;     // count of tender-sector tokens in concatenated contact positions
+    positionHint: number;          // count of tender-sector tokens in concatenated contact positions
     contactCount: number;
-    mostRecent: string;       // ISO date string of most-recent contact, '' if unknown
-    geoOk: boolean;
+    mostRecent: string;            // ISO date string of most-recent contact, '' if unknown
+    inTenderCountry: boolean;      // company HQ is in the tender's specific country
+    inBroadScope: boolean;         // company HQ is anywhere in our broad EU/US/DR allow-list
   };
 
   // Build tender-token set: tender sector slugs + tender title words. Used to
@@ -397,7 +396,8 @@ export async function getCandidatesForTender(
     const sectors = (c.sectors || []).map((s) => s.toLowerCase());
     const sectorOverlap = sectors.filter((s) => tenderSectors.has(s)).length;
     const country = (c.country || '').toUpperCase();
-    const geoOk = country ? geoAllow.has(country) : true;
+    const inTenderCountry = !!country && !!tenderCountry && country === tenderCountry;
+    const inBroadScope = country ? IN_SCOPE_COUNTRIES.has(country) : true; // unknown country = include
     const warm = warmByCompany.get(c.id) || null;
     const blob = (positionsBlobByCompany.get(c.id) || '').toLowerCase();
     let positionHint = 0;
@@ -411,46 +411,46 @@ export async function getCandidatesForTender(
       positionHint,
       contactCount: contactCountByCompany.get(c.id) || 0,
       mostRecent: warm?.connected_on || '',
-      geoOk,
+      inTenderCountry,
+      inBroadScope,
     };
   });
 
-  // Ranking precedence (revised):
-  // Warm intros are a BONUS, not a gate. A great cold candidate beats a
-  // tangential warm one. The matcher LLM further weights warm-intro relevance
-  // at scoring time (it can call out an irrelevant contact in the rationale).
-  //   1. sectorOverlap desc        — must-have signal
+  // Ranking precedence (final):
+  // No eligibility gate — every passing-filter tender deserves a scored BD
+  // row, even when the network covers nothing for it. A low score (15/100)
+  // is information: "real opportunity, network doesn't cover it, pursue cold
+  // or pass." Hiding the tender entirely robs the user of that signal.
+  //
+  // Ranking sorts what we DO have, picking the most-relevant top-N for
+  // scoring. The signals are OR-flavoured — a candidate ranks higher for
+  // ANY of these, no AND requirement:
+  //   1. sectorOverlap desc        — explicit sector match
   //   2. positionHint desc         — contact positions reference tender domain
-  //   3. geoOk desc                — in-scope geography
-  //   4. warm > non-warm           — tiebreaker bonus when other dimensions tie
-  //   5. contactCount desc         — relationship strength (only when warm)
-  //   6. mostRecent desc           — recency (only when warm)
-  //   7. name asc                  — deterministic last-resort tiebreaker
+  //   3. inTenderCountry desc      — company HQ literally in the tender country
+  //   4. warm > non-warm           — bonus when other dimensions tie
+  //   5. inBroadScope desc         — HQ anywhere in EU/US/DR (weak signal)
+  //   6. contactCount desc         — relationship strength
+  //   7. mostRecent desc           — recency
+  //   8. name asc                  — deterministic last-resort tiebreaker
+  //
+  // The matcher LLM is the real filter — it scores honestly and tells the
+  // user what's worth pursuing, with the warm-intro contact and the company
+  // metadata as inputs. Retrieval just picks the top-N most-relevant rows
+  // worth paying a Sonnet call on.
   ranked.sort((a, b) => {
     if (a.sectorOverlap !== b.sectorOverlap) return b.sectorOverlap - a.sectorOverlap;
     if (a.positionHint !== b.positionHint) return b.positionHint - a.positionHint;
-    if (a.geoOk !== b.geoOk) return b.geoOk ? 1 : -1;
+    if (a.inTenderCountry !== b.inTenderCountry) return b.inTenderCountry ? 1 : -1;
     const warmDelta = (b.warm ? 1 : 0) - (a.warm ? 1 : 0);
     if (warmDelta !== 0) return warmDelta;
+    if (a.inBroadScope !== b.inBroadScope) return b.inBroadScope ? 1 : -1;
     if (a.contactCount !== b.contactCount) return b.contactCount - a.contactCount;
     if (a.mostRecent !== b.mostRecent) return a.mostRecent < b.mostRecent ? 1 : -1;
     return a.company.name.localeCompare(b.company.name);
   });
 
-  // Eligibility: real fit, not warm status. A candidate must have sector
-  // overlap AND be in-scope geographically. Cold candidates compete on equal
-  // footing with warm ones. A tender that has no eligible candidates simply
-  // produces zero matches (the tender stays browsable at /admin/tenders,
-  // it just doesn't generate noise on /admin/bd).
-  //
-  // Fallback: when the tender itself has no sectors[] (rare but happens for
-  // un-tagged ingest), we relax to geo-only so the matcher can still run.
-  const eligible = ranked.filter((r) => {
-    if (tenderSectors.size === 0) return r.geoOk;
-    return r.sectorOverlap > 0 && r.geoOk;
-  });
-
-  return eligible.slice(0, limit).map((r) => ({
+  return ranked.slice(0, limit).map((r) => ({
     company: r.company,
     warmIntroContact: r.warm,
     sectorOverlap: r.sectorOverlap,
