@@ -308,30 +308,60 @@ export async function getCandidatesForTender(
   tender: TenderRow,
   limit = 5,
 ): Promise<CandidateWithWarm[]> {
-  // scouted_companies is small (admin-curated + scanner-discovered, hundreds
-  // of rows worst case), so we pull and rank in memory. Avoids fighting
-  // Postgres array operator semantics across two columns.
-  const { data: companies, error: cErr } = await supabase
-    .from('scouted_companies')
-    .select(
-      'id, name, country, website, linkedin_url, description, sectors, size_band, certifications, past_donor_wins, discovered_via, evidence_notes',
-    )
-    .limit(500);
-  if (cErr) throw new Error(`scouted_companies query: ${cErr.message}`);
+  // Paginate scouted_companies — Supabase REST default max-rows is 1000, so a
+  // single SELECT silently caps and we'd miss tail-of-alphabet candidates.
+  const PAGE = 1000;
+  const companies: ScoutedCompanyRow[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await supabase
+      .from('scouted_companies')
+      .select(
+        'id, name, country, website, linkedin_url, description, sectors, size_band, certifications, past_donor_wins, discovered_via, evidence_notes',
+      )
+      .order('id', { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (error) throw new Error(`scouted_companies query page ${offset}: ${error.message}`);
+    const page = (data || []) as ScoutedCompanyRow[];
+    companies.push(...page);
+    if (page.length < PAGE) break;
+  }
 
-  const { data: contacts, error: lErr } = await supabase
-    .from('linkedin_contacts')
-    .select('id, first_name, last_name, email, linkedin_url, position, company_name, scouted_company_id, connected_on')
-    .not('scouted_company_id', 'is', null);
-  if (lErr) throw new Error(`linkedin_contacts query: ${lErr.message}`);
+  // Paginate linkedin_contacts the same way.
+  const contacts: LinkedinContactRow[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await supabase
+      .from('linkedin_contacts')
+      .select('id, first_name, last_name, email, linkedin_url, position, company_name, scouted_company_id, connected_on')
+      .not('scouted_company_id', 'is', null)
+      .order('id', { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (error) throw new Error(`linkedin_contacts query page ${offset}: ${error.message}`);
+    const page = (data || []) as LinkedinContactRow[];
+    contacts.push(...page);
+    if (page.length < PAGE) break;
+  }
 
-  // Pick the most-recently-connected contact per scouted_company_id
+  // Per scouted_company: keep the most-recently-connected contact AND the
+  // total contact count. The count is a real signal — companies with many
+  // contacts in the admin's network are stronger relationships than one-offs.
   const warmByCompany = new Map<string, LinkedinContactRow>();
-  for (const row of (contacts || []) as LinkedinContactRow[]) {
+  const contactCountByCompany = new Map<string, number>();
+  // Pre-compute per-company keyword-relevance from concatenated position text
+  // when scouted_company sectors[] is empty but contact positions hint at fit.
+  const positionsBlobByCompany = new Map<string, string>();
+  for (const row of contacts) {
     if (!row.scouted_company_id) continue;
     const prev = warmByCompany.get(row.scouted_company_id);
     if (!prev || (row.connected_on || '') > (prev.connected_on || '')) {
       warmByCompany.set(row.scouted_company_id, row);
+    }
+    contactCountByCompany.set(
+      row.scouted_company_id,
+      (contactCountByCompany.get(row.scouted_company_id) || 0) + 1,
+    );
+    if (row.position && row.position.trim()) {
+      const cur = positionsBlobByCompany.get(row.scouted_company_id) || '';
+      positionsBlobByCompany.set(row.scouted_company_id, `${cur} ${row.position.trim()}`);
     }
   }
 
@@ -344,22 +374,60 @@ export async function getCandidatesForTender(
     company: ScoutedCompanyRow;
     warm: LinkedinContactRow | null;
     sectorOverlap: number;
+    positionHint: number;     // count of tender-sector tokens in concatenated contact positions
+    contactCount: number;
+    mostRecent: string;       // ISO date string of most-recent contact, '' if unknown
     geoOk: boolean;
   };
 
-  const ranked: Ranked[] = ((companies || []) as ScoutedCompanyRow[]).map((c) => {
+  // Build tender-token set: tender sector slugs + tender title words. Used to
+  // probe contact-position relevance when scouted_company sectors[] is empty.
+  const titleTokens = (tender.title || '')
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((w) => w.length > 4);
+  const tenderTokens = new Set<string>([
+    ...Array.from(tenderSectors).map((s) => s.replace(/_/g, ' ')),
+    ...titleTokens,
+  ]);
+
+  const ranked: Ranked[] = companies.map((c) => {
     const sectors = (c.sectors || []).map((s) => s.toLowerCase());
     const sectorOverlap = sectors.filter((s) => tenderSectors.has(s)).length;
     const country = (c.country || '').toUpperCase();
-    const geoOk = country ? geoAllow.has(country) : true; // unknown country: include
-    return { company: c, warm: warmByCompany.get(c.id) || null, sectorOverlap, geoOk };
+    const geoOk = country ? geoAllow.has(country) : true;
+    const warm = warmByCompany.get(c.id) || null;
+    const blob = (positionsBlobByCompany.get(c.id) || '').toLowerCase();
+    let positionHint = 0;
+    for (const tok of tenderTokens) {
+      if (tok.length > 4 && blob.includes(tok)) positionHint += 1;
+    }
+    return {
+      company: c,
+      warm,
+      sectorOverlap,
+      positionHint,
+      contactCount: contactCountByCompany.get(c.id) || 0,
+      mostRecent: warm?.connected_on || '',
+      geoOk,
+    };
   });
 
-  // Sort: warm intro first, then sector overlap desc, then geo match
+  // Ranking precedence:
+  //   1. warm > non-warm (warm intros are the BD currency)
+  //   2. sectorOverlap desc (explicit sector match wins)
+  //   3. positionHint desc (contact positions reference tender domain)
+  //   4. contactCount desc (more contacts = stronger relationship)
+  //   5. mostRecent desc (recent connections are more leverageable)
+  //   6. geoOk > !geoOk
+  //   7. name asc (deterministic last-resort tiebreaker)
   ranked.sort((a, b) => {
     const warmDelta = (b.warm ? 1 : 0) - (a.warm ? 1 : 0);
     if (warmDelta !== 0) return warmDelta;
     if (a.sectorOverlap !== b.sectorOverlap) return b.sectorOverlap - a.sectorOverlap;
+    if (a.positionHint !== b.positionHint) return b.positionHint - a.positionHint;
+    if (a.contactCount !== b.contactCount) return b.contactCount - a.contactCount;
+    if (a.mostRecent !== b.mostRecent) return a.mostRecent < b.mostRecent ? 1 : -1;
     if (a.geoOk !== b.geoOk) return b.geoOk ? 1 : -1;
     return a.company.name.localeCompare(b.company.name);
   });
