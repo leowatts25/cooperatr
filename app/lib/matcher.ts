@@ -738,18 +738,20 @@ export interface BatchMatchResult {
 
 export async function matchRecentTenders(
   supabase: Supabase,
-  opts: { sinceDays?: number; candidateLimit?: number; maxTenders?: number } = {},
+  opts: { sinceDays?: number; candidateLimit?: number; maxTenders?: number; skipScored?: boolean } = {},
 ): Promise<BatchMatchResult> {
-  const { sinceDays = 7, candidateLimit = 5, maxTenders = 1000 } = opts;
+  const { sinceDays = 7, candidateLimit = 5, maxTenders = 1000, skipScored = false } = opts;
   const sinceIso = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000).toISOString();
 
+  // Pull all passing tenders from the past N days. We'll then filter out
+  // already-scored ones if requested.
   const { data, error } = await supabase
     .from('tenders')
     .select('id')
     .eq('passes_filter', true)
     .gte('published_at', sinceIso)
     .order('published_at', { ascending: false })
-    .limit(maxTenders);
+    .limit(Math.max(maxTenders * 3, 200));  // overscan, we'll trim after skip-filter
   if (error) {
     return {
       ok: false,
@@ -760,7 +762,29 @@ export async function matchRecentTenders(
     };
   }
 
-  const tenders = (data || []) as Array<{ id: string }>;
+  let tenders = (data || []) as Array<{ id: string }>;
+
+  // If skipScored: drop tenders that already have at least one match. Keeps
+  // a fixed per-run budget from rescoring the same tenders every night.
+  if (skipScored && tenders.length > 0) {
+    // Chunk to avoid URL length limits on .in()
+    const ID_CHUNK = 100;
+    const scoredTenderIds = new Set<string>();
+    for (let i = 0; i < tenders.length; i += ID_CHUNK) {
+      const slice = tenders.slice(i, i + ID_CHUNK).map((t) => t.id);
+      const { data: scored } = await supabase
+        .from('tender_matches')
+        .select('tender_id')
+        .in('tender_id', slice);
+      for (const row of (scored || []) as Array<{ tender_id: string }>) {
+        scoredTenderIds.add(row.tender_id);
+      }
+    }
+    tenders = tenders.filter((t) => !scoredTenderIds.has(t.id));
+  }
+
+  tenders = tenders.slice(0, maxTenders);
+
   let tendersWithCandidates = 0;
   let matchesWritten = 0;
   const errors: string[] = [];

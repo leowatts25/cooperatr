@@ -65,8 +65,15 @@ export async function GET(req: NextRequest) {
     // Phase 3 — match. The matcher pulls candidates from scouted_companies
     // (now populated by both LinkedIn auto-promotion AND discovery), ranks
     // them by sector + position + geography fit + warm-intro bonus, and
-    // scores the top 5 per tender.
-    const match = await matchRecentTenders(supabase, { sinceDays: 7, candidateLimit: 5 });
+    // scores the top 5 per tender. Cap per-run at 20 tenders and skip
+    // already-scored ones so the cron stays under the 5-min function limit
+    // while making forward progress every night.
+    const match = await matchRecentTenders(supabase, {
+      sinceDays: 7,
+      candidateLimit: 5,
+      maxTenders: 20,
+      skipScored: true,
+    });
     console.log(
       `[cron/ingest-tenders] match complete — considered=${match.tendersConsidered} with_candidates=${match.tendersWithCandidates} written=${match.matchesWritten} errors=${match.errors.length}`,
     );
