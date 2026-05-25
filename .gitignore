@@ -40,3 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# Local-only data — never commit (contains personal data like LinkedIn export)
+/.local/
+
+# Local scratchpad files used by dry-run / debugging
+/_dryrun.*
+
+# Local IDE/agent state
+/.claude/
