@@ -133,7 +133,16 @@ Add additional dimensions if the pairing calls for them (e.g. language_fit, regu
 
 Cooperatr's BD model is small cross-border coalitions. Geographic gaps are partnership opportunities only when the SME has distinctive value that justifies consortium overhead.
 
-Personal LinkedIn contacts ("warm-intro signal") are metadata about outreach friction, not a fit multiplier. They make first contact easier but don't change the underlying coalition logic. Mention the contact in the rationale (especially if their role is genuinely relevant to the tender — e.g., a Bulgarian Solar Project Manager for a Bulgarian solar tender). Do NOT inflate the score just because a contact exists. A cold candidate with strong sector + geography + capability fit beats a warm candidate with weak fit, every time. Only when warm-intro relevance is direct and substantive (the contact's role maps to the tender scope) should it nudge the score upward — and even then, by at most ~5 points.
+Personal LinkedIn contacts are bonus signals — they reduce outreach friction and add local intel, but they don't change underlying fit. Two warm-intro vectors exist:
+
+1. Per-candidate warm: a contact AT the candidate SME. Bumps that specific candidate's score by at most ~5 points IF the contact's role is substantive to the tender scope.
+
+2. Tender-level warm (provided in the "Network warm context" block when present): contacts in the tender's COUNTRY or SECTOR. These are admin's wider network, not at this specific SME. Use them to:
+   - Bump any candidate's score by ~3-5 points when the candidate's geography or sector aligns with where the admin has network depth (the admin can validate the opportunity locally or get introductions)
+   - Cite specific contacts by name in the rationale as suggested first outreach ("X at Y could validate this opportunity in-country")
+   - Never use these to rescue a fundamentally weak fit
+
+A cold candidate with strong sector + geography + capability fit beats a warm candidate with weak fit, every time. Bonus signals nudge — they don't carry.
 
 Be calibrated, not generous. A sharp 45 with a clear risk note is more useful than an inflated 70. Cite concrete evidence (named donor, sector token, country, certification, past-win). Call out concrete risks in the risks[] array.
 
@@ -185,11 +194,35 @@ const matcherTool: Anthropic.Tool = {
 // Prompt builders
 // ----------------------------------------------------------------------------
 
-function tenderProfile(t: TenderRow): string {
+export interface NetworkWarmContext {
+  contactsInCountry: Array<{ name: string; position: string | null; company: string | null }>;
+  contactsInSector: Array<{ name: string; position: string | null; company: string | null; sectors: string[] }>;
+}
+
+function tenderProfile(t: TenderRow, warm?: NetworkWarmContext): string {
   const value =
     t.value_usd_min == null && t.value_usd_max == null
       ? 'unknown'
       : `${t.value_usd_min ?? '?'} – ${t.value_usd_max ?? '?'} USD${t.currency ? ` (original ${t.currency})` : ''}`;
+
+  let warmBlock = '';
+  if (warm && (warm.contactsInCountry.length > 0 || warm.contactsInSector.length > 0)) {
+    const country = warm.contactsInCountry.length > 0
+      ? warm.contactsInCountry.slice(0, 8).map((c) => `- ${c.name}${c.position ? ` — ${c.position}` : ''}${c.company ? ` @ ${c.company}` : ''}`).join('\n')
+      : '  (none)';
+    const sector = warm.contactsInSector.length > 0
+      ? warm.contactsInSector.slice(0, 8).map((c) => `- ${c.name}${c.position ? ` — ${c.position}` : ''}${c.company ? ` @ ${c.company}` : ''}${c.sectors.length > 0 ? ` [${c.sectors.join(', ')}]` : ''}`).join('\n')
+      : '  (none)';
+    warmBlock = `\n\n## Network warm context for this tender
+(Admin's wider LinkedIn network — bonus signals, not bidders for this deal.)
+
+Contacts in tender country (${t.country || '—'}):
+${country}
+
+Contacts in tender sectors (${(t.sectors || []).join(', ') || '—'}):
+${sector}`;
+  }
+
   return `## Tender
 Source: ${t.source} (${t.source_ref})
 Title: ${t.title || '—'}
@@ -202,7 +235,7 @@ Value: ${value}
 Published: ${t.published_at || '—'}  Deadline: ${t.deadline_at || '—'}
 
 Description:
-${(t.description || '').slice(0, 1800)}`;
+${(t.description || '').slice(0, 1800)}${warmBlock}`;
 }
 
 function candidateProfile(c: ScoutedCompanyRow, warm: LinkedinContactRow | null): string {
@@ -238,13 +271,15 @@ export interface ScoreInput {
   tender: TenderRow;
   candidate: ScoutedCompanyRow;
   warmIntroContact: LinkedinContactRow | null;
+  networkWarmContext?: NetworkWarmContext;
 }
 
 export async function scoreMatch(input: ScoreInput): Promise<MatchScore> {
-  const { tender, candidate, warmIntroContact } = input;
+  const { tender, candidate, warmIntroContact, networkWarmContext } = input;
 
-  // System block: persona + tender profile. Stable across N candidates for the
-  // same tender, so cache it ephemerally — candidates 2..N read from cache.
+  // System block: persona + tender profile (incl. tender-level warm context).
+  // Stable across N candidates for the same tender, so cache it ephemerally —
+  // candidates 2..N read from cache.
   const system: Array<{
     type: 'text';
     text: string;
@@ -257,7 +292,7 @@ export async function scoreMatch(input: ScoreInput): Promise<MatchScore> {
     },
     {
       type: 'text',
-      text: tenderProfile(tender),
+      text: tenderProfile(tender, networkWarmContext),
       cache_control: { type: 'ephemeral' },
     },
   ];
@@ -458,6 +493,135 @@ export async function getCandidatesForTender(
 }
 
 // ----------------------------------------------------------------------------
+// getNetworkWarmContext — tender-level warm-intro aggregates
+// ----------------------------------------------------------------------------
+// For a given tender, compute two bonus signals from the admin's wider
+// LinkedIn network (not specific to any candidate SME):
+//   - contactsInCountry: contacts whose scouted_company is HQ'd in the tender's
+//     country, or whose position text mentions the tender's country name
+//   - contactsInSector: contacts whose scouted_company has overlapping sectors
+//     with the tender
+// These flow into the matcher as bonus context so it can suggest local intel
+// routes ("X at Y could validate this opportunity in-country") without
+// inflating the candidate's score on warm-alone.
+export async function getNetworkWarmContext(
+  supabase: Supabase,
+  tender: TenderRow,
+): Promise<NetworkWarmContext> {
+  const tenderCountry = (tender.country || '').toUpperCase();
+  const tenderSectors = new Set((tender.sectors || []).map((s) => s.toLowerCase()));
+
+  // Paginate contacts (REST max-rows is 1000, we have 1266+)
+  const PAGE = 1000;
+  const contacts: Array<LinkedinContactRow & { scouted_company_id: string }> = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await supabase
+      .from('linkedin_contacts')
+      .select('id, first_name, last_name, email, linkedin_url, position, company_name, scouted_company_id, connected_on')
+      .not('scouted_company_id', 'is', null)
+      .order('id', { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (error) throw new Error(`network warm contacts page ${offset}: ${error.message}`);
+    const page = (data || []) as Array<LinkedinContactRow & { scouted_company_id: string }>;
+    contacts.push(...page);
+    if (page.length < PAGE) break;
+  }
+
+  // Pull only the scouted_company rows we need (those referenced by the contacts).
+  // Chunk into batches small enough for Supabase REST URL limits (~8KB max);
+  // each UUID is 36 chars + 1 separator so ~100 fits comfortably.
+  const companyIds = Array.from(new Set(contacts.map((c) => c.scouted_company_id))).filter(Boolean);
+  const companyMeta = new Map<string, { country: string | null; sectors: string[] }>();
+  const ID_CHUNK = 100;
+  for (let i = 0; i < companyIds.length; i += ID_CHUNK) {
+    const slice = companyIds.slice(i, i + ID_CHUNK);
+    const { data, error } = await supabase
+      .from('scouted_companies')
+      .select('id, country, sectors')
+      .in('id', slice);
+    if (error) throw new Error(`network warm scouted chunk ${i}: ${error.message}`);
+    for (const row of (data || []) as Array<{ id: string; country: string | null; sectors: string[] | null }>) {
+      companyMeta.set(row.id, { country: row.country, sectors: row.sectors || [] });
+    }
+  }
+
+  // Resolve country aliases — TED stores ISO-3 (e.g. BGR), companies may store
+  // ISO-2 (BG). Build a small lookup so the comparison works either way.
+  const ISO3_TO_ISO2: Record<string, string> = {
+    BGR: 'BG', ROU: 'RO', HRV: 'HR', CYP: 'CY', CZE: 'CZ', DNK: 'DK', EST: 'EE',
+    FIN: 'FI', FRA: 'FR', DEU: 'DE', GRC: 'GR', HUN: 'HU', IRL: 'IE', ITA: 'IT',
+    LVA: 'LV', LTU: 'LT', LUX: 'LU', MLT: 'MT', NLD: 'NL', POL: 'PL', PRT: 'PT',
+    SVK: 'SK', SVN: 'SI', ESP: 'ES', SWE: 'SE', AUT: 'AT', BEL: 'BE', GBR: 'GB',
+    USA: 'US', MEX: 'MX', BRA: 'BR', ARG: 'AR', COL: 'CO', PER: 'PE', CHL: 'CL',
+    DOM: 'DO', CAN: 'CA', SEN: 'SN', NGA: 'NG', KEN: 'KE', TZA: 'TZ', UGA: 'UG',
+    ETH: 'ET', GHA: 'GH', CIV: 'CI', RWA: 'RW', ZMB: 'ZM', MOZ: 'MZ', MAR: 'MA',
+    EGY: 'EG', TUN: 'TN', JOR: 'JO', LBN: 'LB', IRQ: 'IQ', YEM: 'YE',
+  };
+  const tenderCountryIso2 = ISO3_TO_ISO2[tenderCountry] || tenderCountry;
+
+  // Country-name forms for free-text position matches
+  const ISO_TO_NAMES: Record<string, string[]> = {
+    BG: ['bulgaria', 'bulgarian'],
+    ES: ['spain', 'spanish', 'españa'],
+    DE: ['germany', 'german', 'deutschland'],
+    FR: ['france', 'french'],
+    IT: ['italy', 'italian'],
+    NL: ['netherlands', 'dutch', 'holland'],
+    PT: ['portugal', 'portuguese'],
+    SN: ['senegal', 'senegalese'],
+    KE: ['kenya', 'kenyan'],
+    NG: ['nigeria', 'nigerian'],
+    MZ: ['mozambique', 'mozambican'],
+    EG: ['egypt', 'egyptian'],
+    MA: ['morocco', 'moroccan'],
+    DO: ['dominican'],
+    MX: ['mexico', 'mexican'],
+    PE: ['peru', 'peruvian'],
+    CO: ['colombia', 'colombian'],
+    US: ['united states', 'u.s.', 'usa', 'american'],
+    GB: ['united kingdom', 'uk', 'britain', 'british', 'england', 'scotland'],
+  };
+  const countryNames = ISO_TO_NAMES[tenderCountryIso2] || [];
+
+  const contactsInCountry: NetworkWarmContext['contactsInCountry'] = [];
+  const contactsInSector: NetworkWarmContext['contactsInSector'] = [];
+
+  for (const c of contacts) {
+    const meta = companyMeta.get(c.scouted_company_id);
+    if (!meta) continue;
+    const name = [c.first_name, c.last_name].filter(Boolean).join(' ') || '(unnamed)';
+    const positionLower = (c.position || '').toLowerCase();
+
+    // Country match: company HQ matches tender country (either casing) OR
+    // position text mentions the country name
+    const companyCountryNorm = (meta.country || '').toUpperCase();
+    const countryHit =
+      (companyCountryNorm && (companyCountryNorm === tenderCountryIso2 || companyCountryNorm === tenderCountry))
+      || countryNames.some((n) => positionLower.includes(n));
+    if (countryHit && contactsInCountry.length < 30) {
+      contactsInCountry.push({
+        name,
+        position: c.position,
+        company: c.company_name || null,
+      });
+    }
+
+    // Sector match: company sectors overlap tender sectors
+    const overlap = meta.sectors.filter((s) => tenderSectors.has(s.toLowerCase()));
+    if (overlap.length > 0 && contactsInSector.length < 30) {
+      contactsInSector.push({
+        name,
+        position: c.position,
+        company: c.company_name || null,
+        sectors: overlap,
+      });
+    }
+  }
+
+  return { contactsInCountry, contactsInSector };
+}
+
+// ----------------------------------------------------------------------------
 // matchTender — score one tender against its candidates and persist
 // ----------------------------------------------------------------------------
 
@@ -488,6 +652,12 @@ export async function matchTender(
   }
 
   const candidates = await getCandidatesForTender(supabase, tender as TenderRow, candidateLimit);
+
+  // Compute tender-level warm context ONCE per tender — same for all candidates.
+  // This is the "wider network" bonus signal: contacts in the tender's country
+  // and/or sector, regardless of which company they work at.
+  const networkWarmContext = await getNetworkWarmContext(supabase, tender as TenderRow);
+
   const matches: ScoredCandidate[] = [];
 
   for (const { company, warmIntroContact } of candidates) {
@@ -496,6 +666,7 @@ export async function matchTender(
         tender: tender as TenderRow,
         candidate: company,
         warmIntroContact,
+        networkWarmContext,
       });
       matches.push({
         scouted_company_id: company.id,
