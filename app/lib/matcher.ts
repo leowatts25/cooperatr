@@ -131,7 +131,9 @@ Dimensions you must score (each 0.0-1.0):
 
 Add additional dimensions if the pairing calls for them (e.g. language_fit, regulatory_alignment, coalition_viability) — keep them 0.0-1.0.
 
-Cooperatr's BD model is small cross-border coalitions. Geographic gaps are partnership opportunities only when the SME has distinctive value that justifies consortium overhead. When a personal LinkedIn contact is named (warm-intro signal), weight the overall score up — but only if the underlying coalition logic actually works. A warm intro doesn't fix a fundamentally weak fit.
+Cooperatr's BD model is small cross-border coalitions. Geographic gaps are partnership opportunities only when the SME has distinctive value that justifies consortium overhead.
+
+Personal LinkedIn contacts ("warm-intro signal") are metadata about outreach friction, not a fit multiplier. They make first contact easier but don't change the underlying coalition logic. Mention the contact in the rationale (especially if their role is genuinely relevant to the tender — e.g., a Bulgarian Solar Project Manager for a Bulgarian solar tender). Do NOT inflate the score just because a contact exists. A cold candidate with strong sector + geography + capability fit beats a warm candidate with weak fit, every time. Only when warm-intro relevance is direct and substantive (the contact's role maps to the tender scope) should it nudge the score upward — and even then, by at most ~5 points.
 
 Be calibrated, not generous. A sharp 45 with a clear risk note is more useful than an inflated 70. Cite concrete evidence (named donor, sector token, country, certification, past-win). Call out concrete risks in the risks[] array.
 
@@ -413,31 +415,37 @@ export async function getCandidatesForTender(
     };
   });
 
-  // Ranking precedence:
-  //   1. warm > non-warm (warm intros are the BD currency)
-  //   2. sectorOverlap desc (explicit sector match wins)
-  //   3. positionHint desc (contact positions reference tender domain)
-  //   4. contactCount desc (more contacts = stronger relationship)
-  //   5. mostRecent desc (recent connections are more leverageable)
-  //   6. geoOk > !geoOk
-  //   7. name asc (deterministic last-resort tiebreaker)
+  // Ranking precedence (revised):
+  // Warm intros are a BONUS, not a gate. A great cold candidate beats a
+  // tangential warm one. The matcher LLM further weights warm-intro relevance
+  // at scoring time (it can call out an irrelevant contact in the rationale).
+  //   1. sectorOverlap desc        — must-have signal
+  //   2. positionHint desc         — contact positions reference tender domain
+  //   3. geoOk desc                — in-scope geography
+  //   4. warm > non-warm           — tiebreaker bonus when other dimensions tie
+  //   5. contactCount desc         — relationship strength (only when warm)
+  //   6. mostRecent desc           — recency (only when warm)
+  //   7. name asc                  — deterministic last-resort tiebreaker
   ranked.sort((a, b) => {
-    const warmDelta = (b.warm ? 1 : 0) - (a.warm ? 1 : 0);
-    if (warmDelta !== 0) return warmDelta;
     if (a.sectorOverlap !== b.sectorOverlap) return b.sectorOverlap - a.sectorOverlap;
     if (a.positionHint !== b.positionHint) return b.positionHint - a.positionHint;
+    if (a.geoOk !== b.geoOk) return b.geoOk ? 1 : -1;
+    const warmDelta = (b.warm ? 1 : 0) - (a.warm ? 1 : 0);
+    if (warmDelta !== 0) return warmDelta;
     if (a.contactCount !== b.contactCount) return b.contactCount - a.contactCount;
     if (a.mostRecent !== b.mostRecent) return a.mostRecent < b.mostRecent ? 1 : -1;
-    if (a.geoOk !== b.geoOk) return b.geoOk ? 1 : -1;
     return a.company.name.localeCompare(b.company.name);
   });
 
-  // Eligibility:
-  //   - warm-intro candidates always pull through (that's the point)
-  //   - otherwise require sector overlap (when tender has sectors) AND geo
-  //   - if tender has no sectors[] (rare but happens), fall back to geo-only
+  // Eligibility: real fit, not warm status. A candidate must have sector
+  // overlap AND be in-scope geographically. Cold candidates compete on equal
+  // footing with warm ones. A tender that has no eligible candidates simply
+  // produces zero matches (the tender stays browsable at /admin/tenders,
+  // it just doesn't generate noise on /admin/bd).
+  //
+  // Fallback: when the tender itself has no sectors[] (rare but happens for
+  // un-tagged ingest), we relax to geo-only so the matcher can still run.
   const eligible = ranked.filter((r) => {
-    if (r.warm) return true;
     if (tenderSectors.size === 0) return r.geoOk;
     return r.sectorOverlap > 0 && r.geoOk;
   });
