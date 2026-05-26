@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/app/lib/supabase';
 import { runAllIngesters } from '@/app/lib/ingesters/run';
-import { matchRecentTenders } from '@/app/lib/matcher';
+import { matchSpecificTenders } from '@/app/lib/matcher';
 import { runDiscoveryForRecentTenders } from '@/app/lib/discovery';
 
 export const maxDuration = 300; // ingest + discovery + match — allow 5 min
@@ -52,27 +52,25 @@ export async function GET(req: NextRequest) {
     console.log('[cron/ingest-tenders] ingest complete', ingest.totals);
 
     // Phase 2 — discovery (scouts the open market for real SME bidders per
-    // tender). Cap per-run to stay under the 300s function limit and keep
-    // Anthropic spend bounded. Future runs pick up the next batch.
+    // tender). Cap per-run to stay under the 300s function limit. Returns
+    // the specific tender IDs it processed so phase 3 can match THOSE same
+    // tenders (not a different random set).
     const discovery = await runDiscoveryForRecentTenders(supabase, {
       sinceDays: 7,
-      maxTenders: 30,
+      maxTenders: 15,
     });
     console.log(
       `[cron/ingest-tenders] discovery complete — tenders=${discovery.tenders_processed} candidates=${discovery.candidates_total} inserted=${discovery.inserted_total} matched=${discovery.matched_total} cost=$${discovery.est_cost_usd}`,
     );
 
-    // Phase 3 — match. The matcher pulls candidates from scouted_companies
-    // (now populated by both LinkedIn auto-promotion AND discovery), ranks
-    // them by sector + position + geography fit + warm-intro bonus, and
-    // scores the top 5 per tender. Cap per-run at 20 tenders and skip
-    // already-scored ones so the cron stays under the 5-min function limit
-    // while making forward progress every night.
-    const match = await matchRecentTenders(supabase, {
-      sinceDays: 7,
+    // Phase 3 — match the SAME tenders discovery just covered. Discovered
+    // candidates only exist for those specific tenders, so scoring others is
+    // a waste (they'd fall back to LinkedIn warm-intros and produce noise).
+    // Parallelizes at concurrency=5 with each tender's 5 candidates sequential
+    // (so the cached system+tender block benefits subsequent candidates).
+    const match = await matchSpecificTenders(supabase, discovery.tender_ids, {
       candidateLimit: 5,
-      maxTenders: 20,
-      skipScored: true,
+      concurrency: 5,
     });
     console.log(
       `[cron/ingest-tenders] match complete — considered=${match.tendersConsidered} with_candidates=${match.tendersWithCandidates} written=${match.matchesWritten} errors=${match.errors.length}`,

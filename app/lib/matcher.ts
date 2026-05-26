@@ -728,6 +728,53 @@ export async function matchTender(
 // matchRecentTenders — batch: score every passing tender from the past week
 // ----------------------------------------------------------------------------
 
+// Match a specific set of tender IDs (e.g. the ones discovery just covered).
+// Used by the cron to keep discovery and match aligned on the same tender set.
+export async function matchSpecificTenders(
+  supabase: Supabase,
+  tenderIds: string[],
+  opts: { candidateLimit?: number; concurrency?: number } = {},
+): Promise<BatchMatchResult> {
+  const { candidateLimit = 5, concurrency = 5 } = opts;
+  let tendersWithCandidates = 0;
+  let matchesWritten = 0;
+  const errors: string[] = [];
+
+  const queue = [...tenderIds];
+  let active = 0;
+  await new Promise<void>((resolve) => {
+    const next = () => {
+      while (active < concurrency && queue.length > 0) {
+        const id = queue.shift()!;
+        active += 1;
+        matchTender(supabase, id, { candidateLimit })
+          .then((out) => {
+            if (out.candidates > 0) tendersWithCandidates += 1;
+            matchesWritten += out.written;
+            errors.push(...out.errors.map((e) => `${id}: ${e}`));
+          })
+          .catch((err) => {
+            errors.push(`${id}: ${err instanceof Error ? err.message : String(err)}`);
+          })
+          .finally(() => {
+            active -= 1;
+            if (queue.length > 0) next();
+            else if (active === 0) resolve();
+          });
+      }
+    };
+    next();
+  });
+
+  return {
+    ok: errors.length === 0,
+    tendersConsidered: tenderIds.length,
+    tendersWithCandidates,
+    matchesWritten,
+    errors,
+  };
+}
+
 export interface BatchMatchResult {
   ok: boolean;
   tendersConsidered: number;
@@ -789,16 +836,36 @@ export async function matchRecentTenders(
   let matchesWritten = 0;
   const errors: string[] = [];
 
-  for (const t of tenders) {
-    try {
-      const out = await matchTender(supabase, t.id, { candidateLimit });
-      if (out.candidates > 0) tendersWithCandidates += 1;
-      matchesWritten += out.written;
-      errors.push(...out.errors.map((e) => `${t.id}: ${e}`));
-    } catch (err) {
-      errors.push(`${t.id}: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
+  // Parallelize tenders. Each tender's internal 5 scoreMatch calls stay
+  // sequential to benefit from the cached system+tender block. Concurrency=5
+  // means ~5 tenders × ~50s sequential = ~50s wall-clock per wave; 20 tenders
+  // ÷ 5 = 4 waves ≈ 200s. Fits under the 300s function cap.
+  const CONCURRENCY = 5;
+  const queue = [...tenders];
+  let active = 0;
+  await new Promise<void>((resolve) => {
+    const next = () => {
+      while (active < CONCURRENCY && queue.length > 0) {
+        const t = queue.shift()!;
+        active += 1;
+        matchTender(supabase, t.id, { candidateLimit })
+          .then((out) => {
+            if (out.candidates > 0) tendersWithCandidates += 1;
+            matchesWritten += out.written;
+            errors.push(...out.errors.map((e) => `${t.id}: ${e}`));
+          })
+          .catch((err) => {
+            errors.push(`${t.id}: ${err instanceof Error ? err.message : String(err)}`);
+          })
+          .finally(() => {
+            active -= 1;
+            if (queue.length > 0) next();
+            else if (active === 0) resolve();
+          });
+      }
+    };
+    next();
+  });
 
   return {
     ok: errors.length === 0,

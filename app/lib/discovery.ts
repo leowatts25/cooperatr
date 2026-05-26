@@ -282,6 +282,7 @@ Return 5-10 real bidding-capable EU/US SMEs with a credible path to win this. Sk
 export interface DiscoveryRunResult {
   ok: boolean;
   tenders_processed: number;
+  tender_ids: string[];  // the specific tenders that got discovery — pass these to match
   candidates_total: number;
   inserted_total: number;
   matched_total: number;
@@ -312,6 +313,7 @@ export async function runDiscoveryForRecentTenders(
     return {
       ok: false,
       tenders_processed: 0,
+      tender_ids: [],
       candidates_total: 0,
       inserted_total: 0,
       matched_total: 0,
@@ -383,6 +385,7 @@ export async function runDiscoveryForRecentTenders(
   return {
     ok: errors.length === 0,
     tenders_processed: toDiscover.length,
+    tender_ids: toDiscover.map((t) => t.id),
     candidates_total: candidatesTotal,
     inserted_total: insertedTotal,
     matched_total: matchedTotal,
