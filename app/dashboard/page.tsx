@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/app/components/AuthGuard';
 import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
+import { getCurrentUser, ADMIN_EMAIL } from '@/app/lib/supabase-auth';
 
 interface Stats {
   opportunities: number;
@@ -21,6 +22,26 @@ interface RecentItem {
   funder?: string;
   match_score?: number;
   created_at: string;
+}
+
+interface BdMatch {
+  id: string;
+  score: number | null;
+  rationale: string | null;
+  warm_intro_via_contact_id: string | null;
+  tender: {
+    id: string;
+    source: string;
+    title: string | null;
+    country: string | null;
+    sectors: string[] | null;
+    deadline_at: string | null;
+  } | null;
+  company: {
+    id: string;
+    name: string;
+    country: string | null;
+  } | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -44,16 +65,35 @@ function DashboardContent() {
   const [recentOpps, setRecentOpps] = useState<RecentItem[]>([]);
   const [recentProposals, setRecentProposals] = useState<RecentItem[]>([]);
   const [recentProjects, setRecentProjects] = useState<RecentItem[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [bdMatches, setBdMatches] = useState<BdMatch[]>([]);
+  const [bdTotalScored, setBdTotalScored] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [oppsRes, proposalsRes, projectsRes, partnersRes] = await Promise.all([
+        const user = await getCurrentUser();
+        const admin = user?.email === ADMIN_EMAIL;
+        setIsAdmin(admin);
+
+        const baseRequests = [
           fetch('/api/opportunities').then(r => r.json()).catch(() => ({ opportunities: [] })),
           fetch('/api/proposals').then(r => r.json()).catch(() => ({ proposals: [] })),
           fetch('/api/projects').then(r => r.json()).catch(() => ({ projects: [] })),
           fetch('/api/partners').then(r => r.json()).catch(() => ({ partners: [] })),
+        ];
+
+        // BD scanner is admin-only today; fetch alongside the rest when admin.
+        const bdRequest = admin
+          ? fetch(`/api/admin/bd?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}&status=suggested&limit=5`)
+              .then(r => r.json())
+              .catch(() => ({ matches: [], totals: { byStatus: {}, returned: 0 } }))
+          : Promise.resolve({ matches: [], totals: { byStatus: {}, returned: 0 } });
+
+        const [oppsRes, proposalsRes, projectsRes, partnersRes, bdRes] = await Promise.all([
+          ...baseRequests,
+          bdRequest,
         ]);
 
         const opps = oppsRes.opportunities || [];
@@ -73,6 +113,13 @@ function DashboardContent() {
         setRecentOpps(opps.slice(0, 3));
         setRecentProposals(proposals.slice(0, 3));
         setRecentProjects(projects.slice(0, 3));
+
+        if (admin) {
+          // /api/admin/bd already orders by score desc, matched_at desc — take top 5
+          setBdMatches((bdRes.matches || []) as BdMatch[]);
+          const byStatus = (bdRes.totals?.byStatus || {}) as Record<string, number>;
+          setBdTotalScored(Object.values(byStatus).reduce((a: number, b: number) => a + b, 0));
+        }
       } catch (err) {
         console.error('Dashboard fetch error:', err);
       } finally {
@@ -171,6 +218,109 @@ function DashboardContent() {
           {t('dashboard.searchOpportunities')}
         </button>
       </div>
+
+      {/* BD Scanner section (admin only) — surfaces the push-mode product on the dashboard */}
+      {isAdmin && (
+        <div style={{
+          background: 'var(--bg-surface)',
+          borderRadius: 12,
+          padding: 24,
+          border: '1px solid var(--border)',
+          marginBottom: 32,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 18 }}>📡</span>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)', margin: 0 }}>
+                  Scanner — recent matches
+                </h3>
+                <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: 'var(--accent)20', color: 'var(--accent)', fontWeight: 600 }}>
+                  {bdTotalScored} scored
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                Real bidders scouted per tender. Daily cron at 07:30 UTC. Pursue from the BD review page.
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/admin/bd')}
+              style={{
+                padding: '8px 16px',
+                background: 'var(--accent)',
+                color: '#0F1623',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: 13,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              View all →
+            </button>
+          </div>
+
+          {bdMatches.length > 0 ? (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {bdMatches.map((m) => {
+                const score = Math.round(m.score ?? 0);
+                const scoreColor =
+                  score >= 85 ? '#22C55E' : score >= 65 ? '#F59E0B' : score >= 40 ? '#FB923C' : '#EF4444';
+                const t = m.tender;
+                const c = m.company;
+                const deadline = t?.deadline_at ? new Date(t.deadline_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => router.push('/admin/bd')}
+                    style={{
+                      background: 'var(--bg-elevated)',
+                      border: `1px solid ${m.warm_intro_via_contact_id ? 'var(--accent)44' : 'var(--border)'}`,
+                      borderRadius: 8,
+                      padding: '10px 14px',
+                      display: 'grid',
+                      gridTemplateColumns: '40px 1fr auto',
+                      gap: 12,
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.15s',
+                    }}
+                  >
+                    <div style={{
+                      background: '#0F1623',
+                      border: `2px solid ${scoreColor}`,
+                      borderRadius: 6,
+                      padding: '4px 2px',
+                      textAlign: 'center',
+                    }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: scoreColor, lineHeight: 1 }}>{score}</div>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {t?.title || '(untitled)'}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <span><strong style={{ color: 'var(--text-primary)' }}>{c?.name || '—'}</strong></span>
+                        {c?.country && <span>· {c.country}</span>}
+                        {t?.country && <span>· tender {t.country}</span>}
+                        {(t?.sectors || []).slice(0, 2).map(s => <span key={s}>· {s.replace(/_/g, ' ')}</span>)}
+                        {deadline && <span style={{ color: '#F59E0B' }}>· deadline {deadline}</span>}
+                        {m.warm_intro_via_contact_id && <span style={{ color: 'var(--accent)' }}>· 🤝 warm</span>}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>→</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-elevated)', borderRadius: 8 }}>
+              No matches yet. The daily cron runs at 07:30 UTC and writes ~20 new scored pairings per day.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Recent Activity Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>

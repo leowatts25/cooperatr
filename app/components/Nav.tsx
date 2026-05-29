@@ -16,6 +16,12 @@ const modules = [
   { href: '/agents', key: 'nav.agents' as const, accent: true },
 ];
 
+// Admin-only nav items. The BD scanner is admin-gated today; if/when we open
+// it to all approved users it just moves into the `modules` array above.
+const adminModules: Array<{ href: string; label: string; accent?: boolean }> = [
+  { href: '/admin/bd', label: 'Scanner', accent: true },
+];
+
 export default function Nav() {
   const pathname = usePathname();
   const { locale, setLocale, t } = useTranslation();
@@ -66,6 +72,26 @@ export default function Nav() {
                   color: active ? 'var(--text-primary)' : 'accent' in m && m.accent ? 'var(--accent)' : 'var(--text-muted)',
                 }}>
                   {t(m.key)}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+        {isAdmin && adminModules.map((m) => {
+          const active = pathname === m.href || pathname.startsWith(m.href + '/');
+          return (
+            <Link key={m.href} href={m.href} style={{ textDecoration: 'none' }}>
+              <div style={{
+                padding: '6px 10px', borderRadius: '8px',
+                backgroundColor: active ? 'var(--bg-elevated)' : 'transparent',
+                border: active ? '1px solid var(--border)' : '1px solid transparent',
+              }}>
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: active ? '600' : '400',
+                  color: m.accent ? 'var(--accent)' : 'var(--text-muted)',
+                }}>
+                  {m.label}
                 </span>
               </div>
             </Link>
