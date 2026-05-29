@@ -345,6 +345,22 @@ export async function getCandidatesForTender(
   tender: TenderRow,
   limit = 5,
 ): Promise<CandidateWithWarm[]> {
+  // Bidder candidate pool excludes LinkedIn-auto-promoted rows. Those
+  // organizations (Winrock, World Bank, USAID, FAO, IDB, big consultancies,
+  // individuals, etc.) are network contact pools, NOT bidding candidates —
+  // they don't bid commercially on EU procurement, and treating them as
+  // bidders fills the BD report with "you can't pitch Winrock on this deal"
+  // noise. They remain in scouted_companies for warm-intro lookups (the
+  // tender-level network warm context still surfaces "you have contacts
+  // at Winrock in agri_food"), but they are not scored as bidders.
+  //
+  // Real bidder candidates come from:
+  //   - claude_discovery (per-tender market scouting)
+  //   - manual (admin-added)
+  //   - cordis / ted_archive (past donor-program winners — future work)
+  //   - web_search (future, layered into discovery v2)
+  const BIDDER_DISCOVERY_VIA = ['claude_discovery', 'manual', 'cordis', 'ted_archive', 'web_search'];
+
   // Paginate scouted_companies — Supabase REST default max-rows is 1000, so a
   // single SELECT silently caps and we'd miss tail-of-alphabet candidates.
   const PAGE = 1000;
@@ -355,6 +371,7 @@ export async function getCandidatesForTender(
       .select(
         'id, name, country, website, linkedin_url, description, sectors, size_band, certifications, past_donor_wins, discovered_via, evidence_notes',
       )
+      .in('discovered_via', BIDDER_DISCOVERY_VIA)
       .order('id', { ascending: true })
       .range(offset, offset + PAGE - 1);
     if (error) throw new Error(`scouted_companies query page ${offset}: ${error.message}`);
