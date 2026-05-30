@@ -3,6 +3,7 @@ import { createServerClient } from '@/app/lib/supabase';
 import { runAllIngesters } from '@/app/lib/ingesters/run';
 import { matchSpecificTenders } from '@/app/lib/matcher';
 import { runDiscoveryForRecentTenders } from '@/app/lib/discovery';
+import { runTranslationForRecentTenders } from '@/app/lib/translation';
 
 export const maxDuration = 300; // ingest + discovery + match — allow 5 min
 
@@ -51,6 +52,17 @@ export async function GET(req: NextRequest) {
     const ingest = await runAllIngesters(supabase);
     console.log('[cron/ingest-tenders] ingest complete', ingest.totals);
 
+    // Phase 1.5 — translation (free, MyMemory; English-only for now). Runs
+    // before discovery+match so subsequent phases see English text and the
+    // dashboard renders in English from the moment matches land.
+    const translation = await runTranslationForRecentTenders(supabase, {
+      sinceDays: 14,
+      maxTenders: 60,  // ~60 × 800 words = 48K — under MyMemory's 50K/day cap with email
+    });
+    console.log(
+      `[cron/ingest-tenders] translation — translated=${translation.translated} skipped_done=${translation.skippedAlreadyComplete} skipped_nosrc=${translation.skippedNoSource} chars=${translation.charsUsed} langs=${translation.languagesProcessed.join(',')} errors=${translation.errors.length}`,
+    );
+
     // Phase 2 — discovery (scouts the open market for real SME bidders per
     // tender). Cap per-run to stay under the 300s function limit. Returns
     // the specific tender IDs it processed so phase 3 can match THOSE same
@@ -78,7 +90,7 @@ export async function GET(req: NextRequest) {
 
     const ok = ingest.ok && discovery.ok && match.ok;
     return NextResponse.json(
-      { ingest, discovery, match },
+      { ingest, translation, discovery, match },
       { status: ok ? 200 : 500 },
     );
   } catch (err) {

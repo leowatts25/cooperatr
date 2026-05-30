@@ -40,6 +40,8 @@ interface MatchJoinRow {
     value_usd_min: number | null;
     value_usd_max: number | null;
     deadline_at: string | null;
+    translations: Record<string, { title?: string; description?: string }> | null;
+    source_language: string | null;
   } | null;
   company: {
     id: string;
@@ -79,7 +81,7 @@ export async function GET(req: NextRequest) {
        warm_intro_via_contact_id, matched_at, reviewed_at,
        tender:tenders (
          id, source, source_ref, url, title, donor, buyer, country, sectors,
-         value_usd_min, value_usd_max, deadline_at
+         value_usd_min, value_usd_max, deadline_at, translations, source_language
        ),
        company:scouted_companies (
          id, name, country, website, sectors, size_band

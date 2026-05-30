@@ -3,6 +3,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, ADMIN_EMAIL } from '@/app/lib/supabase-auth';
+import { useTranslation } from '@/app/lib/i18n/context';
+
+// Helper: pick the best translation for the user's current locale, with
+// fallback chain locale → en → null. Used by every page that displays
+// tender content.
+function pickTranslation(
+  translations: Record<string, { title?: string; description?: string }> | null | undefined,
+  locale: string,
+): { title?: string; description?: string } | null {
+  if (!translations) return null;
+  return translations[locale] || translations.en || null;
+}
 
 // ============================================================================
 // /admin/bd — weekly BD review dashboard
@@ -37,6 +49,8 @@ interface BdMatch {
     value_usd_min: number | null;
     value_usd_max: number | null;
     deadline_at: string | null;
+    translations: Record<string, { title?: string; description?: string }> | null;
+    source_language: string | null;
   } | null;
   company: {
     id: string;
@@ -73,6 +87,7 @@ const STATUS_TABS: Array<{ key: string; label: string }> = [
 
 export default function AdminBdPage() {
   const router = useRouter();
+  const { locale } = useTranslation();
   const [matches, setMatches] = useState<BdMatch[]>([]);
   const [totals, setTotals] = useState<BdResponse['totals']>({ byStatus: {}, returned: 0 });
   const [loading, setLoading] = useState(true);
@@ -224,6 +239,7 @@ export default function AdminBdPage() {
             <MatchRow
               key={m.id}
               match={m}
+              locale={locale}
               onPursue={handlePursue}
               onStatusChange={handleStatusChange}
               pursuing={pursuingId === m.id}
@@ -257,11 +273,13 @@ function EmptyState({ statusTab, warmOnly }: { statusTab: string; warmOnly: bool
 
 function MatchRow({
   match,
+  locale,
   onPursue,
   onStatusChange,
   pursuing,
 }: {
   match: BdMatch;
+  locale: string;
   onPursue: (m: BdMatch) => void;
   onStatusChange: (id: string, status: string) => void;
   pursuing: boolean;
@@ -273,6 +291,11 @@ function MatchRow({
   const scoreColor = score >= 85 ? '#22C55E' : score >= 65 ? '#F59E0B' : score >= 40 ? '#FB923C' : '#EF4444';
   const valueLabel = formatValue(t?.value_usd_min ?? null, t?.value_usd_max ?? null);
   const deadline = t?.deadline_at ? new Date(t.deadline_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
+
+  // Translation pick: user's locale first, then English, then the raw original.
+  const translated = pickTranslation(t?.translations, locale);
+  const displayTitle = translated?.title || t?.title || t?.source_ref || '(deleted tender)';
+  const isTranslated = !!translated?.title && translated.title !== t?.title;
 
   return (
     <div style={{
@@ -313,14 +336,24 @@ function MatchRow({
           )}
         </div>
 
-        {/* Tender title */}
+        {/* Tender title — prefer translated for user locale, fall back to original */}
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
           {t?.url
             ? <a href={t.url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                {t.title || t.source_ref} ↗
+                {displayTitle} ↗
               </a>
-            : t?.title || t?.source_ref || '(deleted tender)'}
+            : displayTitle}
+          {isTranslated && t?.source_language && t.source_language !== locale && (
+            <span style={{ fontSize: 10, marginLeft: 8, color: 'var(--text-muted)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {t.source_language} → {locale}
+            </span>
+          )}
         </div>
+        {isTranslated && t?.title && (
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 6, opacity: 0.7 }}>
+            Original: {t.title}
+          </div>
+        )}
 
         {/* Tender meta */}
         <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>

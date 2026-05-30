@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { getCurrentUser, ADMIN_EMAIL } from '@/app/lib/supabase-auth';
+import { useTranslation } from '@/app/lib/i18n/context';
 
 interface Tender {
   id: string;
@@ -23,6 +24,8 @@ interface Tender {
   deadline_at: string | null;
   passes_filter: boolean;
   filter_reasons: string[];
+  translations: Record<string, { title?: string; description?: string }> | null;
+  source_language: string | null;
 }
 
 interface IngestResult {
@@ -114,6 +117,7 @@ function AdminTendersPageInner() {
 }
 
 function TendersView() {
+  const { locale } = useTranslation();
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [totals, setTotals] = useState<{ all: number; passing: number }>({ all: 0, passing: 0 });
   const [loading, setLoading] = useState(true);
@@ -254,7 +258,7 @@ function TendersView() {
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
-          {tenders.map((t) => <TenderRow key={t.id} tender={t} />)}
+          {tenders.map((t) => <TenderRow key={t.id} tender={t} locale={locale} />)}
         </div>
       )}
     </div>
@@ -284,7 +288,7 @@ const selectStyle = {
   fontSize: 13,
 };
 
-function TenderRow({ tender }: { tender: Tender }) {
+function TenderRow({ tender, locale }: { tender: Tender; locale: string }) {
   const valueLabel = formatValue(tender.value_usd_min, tender.value_usd_max);
   const dateLabel = tender.published_at ? new Date(tender.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
   const deadlineLabel = tender.deadline_at ? new Date(tender.deadline_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
@@ -309,11 +313,25 @@ function TenderRow({ tender }: { tender: Tender }) {
           : <span style={{ fontSize: 11, color: '#7A90A8' }}>filtered</span>}
       </div>
       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-        {tender.url
-          ? <a href={tender.url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-              {tender.title || tender.source_ref} ↗
-            </a>
-          : tender.title || tender.source_ref}
+        {(() => {
+          const tr = tender.translations?.[locale] || tender.translations?.en;
+          const displayTitle = tr?.title || tender.title || tender.source_ref;
+          const isTranslated = !!tr?.title && tr.title !== tender.title;
+          return (
+            <>
+              {tender.url
+                ? <a href={tender.url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                    {displayTitle} ↗
+                  </a>
+                : displayTitle}
+              {isTranslated && tender.source_language && tender.source_language !== locale && (
+                <span style={{ fontSize: 10, marginLeft: 8, color: 'var(--text-muted)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  {tender.source_language} → {locale}
+                </span>
+              )}
+            </>
+          );
+        })()}
       </div>
       <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {tender.buyer && <span>{tender.buyer}</span>}

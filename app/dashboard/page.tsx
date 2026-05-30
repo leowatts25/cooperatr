@@ -36,6 +36,7 @@ interface BdMatch {
     country: string | null;
     sectors: string[] | null;
     deadline_at: string | null;
+    translations: Record<string, { title?: string; description?: string }> | null;
   } | null;
   company: {
     id: string;
@@ -60,7 +61,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 function DashboardContent() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [stats, setStats] = useState<Stats>({ opportunities: 0, savedOpportunities: 0, proposals: 0, projects: 0, indicators: 0, partners: 0 });
   const [recentOpps, setRecentOpps] = useState<RecentItem[]>([]);
   const [recentProposals, setRecentProposals] = useState<RecentItem[]>([]);
@@ -298,7 +299,7 @@ function DashboardContent() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t?.title || '(untitled)'}
+                        {t?.translations?.[locale]?.title || t?.translations?.en?.title || t?.title || '(untitled)'}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <span><strong style={{ color: 'var(--text-primary)' }}>{c?.name || '—'}</strong></span>

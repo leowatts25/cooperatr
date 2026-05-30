@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient();
   let query = supabase
     .from('tenders')
-    .select('id, source, source_ref, url, title, donor, buyer, country, sectors, type, value_usd_min, value_usd_max, currency, published_at, deadline_at, passes_filter, filter_reasons, created_at')
+    .select('id, source, source_ref, url, title, donor, buyer, country, sectors, type, value_usd_min, value_usd_max, currency, published_at, deadline_at, passes_filter, filter_reasons, created_at, translations, source_language')
     .order('published_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
     .limit(limit);
