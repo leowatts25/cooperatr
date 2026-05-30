@@ -241,6 +241,18 @@ const translations = {
     'landing.module.5.name': 'Impact Reporting',
     'landing.module.5.desc': 'Generates donor-compliant impact reports mapped to GRI, CSRD, EFRAG sector guidance, HRDD, and SDG indicators from live project data. Built for the reporting cadence EU and DFI funders actually require — quarterly narratives, annual results frameworks, final evaluations.',
 
+    // Landing — Push-mode BD section (how it works / live ops)
+    'landing.push.kicker': 'How it works',
+    'landing.push.title': 'We do not wait for you to look. We watch the pipeline for you.',
+    'landing.push.subtitle': 'Most platforms hand you a search bar and leave you scrolling. Cooperatr indexes every donor pipeline daily, reverse-matches candidate companies against each tender, and surfaces the pairings that are actually winnable — with named warm-intro routes when they exist.',
+    'landing.push.step.1.label': 'Index every pipeline daily',
+    'landing.push.step.1.desc': 'A continuous crawler pulls fresh tenders from TED, SAM.gov, and bilateral donor portals — about 300 new EU notices a day. Sector-tagged on ingest using CPV codes plus keyword matching across eight languages so non-English titles still land in the right bucket.',
+    'landing.push.step.2.label': 'Reverse-match against your network',
+    'landing.push.step.2.desc': 'For each filtered tender, the engine pulls candidate SMEs — warm-intro contacts from your LinkedIn network first, then sector and geography fit. A senior-strategist layer scores each pairing on sector, geography, capability, and size with a corpus-grounded rationale.',
+    'landing.push.step.3.label': 'Surface only what is winnable',
+    'landing.push.step.3.desc': 'Top-scoring pairings show up in your weekly review with a calibrated rationale, a suggested partner stack, and explicit risks. You see the matches worth a conversation — not the long tail of notices that are technically open but already politically spoken-for.',
+    'landing.push.note': 'Push mode rolls out to customer pipelines in 2026. Today, every Cooperatr account gets the pull-mode Discovery Engine for designing cooperation projects from scratch — push subscriptions and the warm-intro layer open later this year.',
+
     // Landing — FAQ
     'landing.faqLabel': 'Common questions',
     'landing.faqTitle': 'Questions we hear often.',
@@ -823,6 +835,18 @@ const translations = {
     'landing.module.4.desc': 'Seguimiento de hitos, calendarios de desembolso e indicadores M&E vinculados directamente al marco lógico de tu propuesta. El sistema señala desviaciones antes de que lo haga tu financiador.',
     'landing.module.5.name': 'Informes de Impacto',
     'landing.module.5.desc': 'Genera informes de impacto conformes al financiador mapeados a indicadores GRI, CSRD, orientación sectorial EFRAG, HRDD y ODS desde datos de proyecto en vivo. Construido para la cadencia de reporting que realmente exigen los financiadores UE y DFI — narrativas trimestrales, marcos de resultados anuales, evaluaciones finales.',
+
+    // Landing — Push (modo push / operaciones en vivo)
+    'landing.push.kicker': 'Cómo funciona',
+    'landing.push.title': 'No esperamos a que busques. Vigilamos el pipeline por ti.',
+    'landing.push.subtitle': 'La mayoría de plataformas te dan una barra de búsqueda y te dejan rebuscando. Cooperatr indexa cada pipeline de donantes a diario, hace match inverso de empresas candidatas contra cada licitación y eleva los pares que son realmente ganables — con rutas de contacto cálido nombradas cuando existen.',
+    'landing.push.step.1.label': 'Indexar cada pipeline a diario',
+    'landing.push.step.1.desc': 'Un rastreador continuo extrae licitaciones nuevas de TED, SAM.gov y portales de donantes bilaterales — unas 300 notificaciones nuevas de la UE al día. Etiquetado por sector en la ingesta usando códigos CPV y matching de palabras clave en ocho idiomas, para que los títulos no en inglés aterricen en el sector correcto.',
+    'landing.push.step.2.label': 'Match inverso contra tu red',
+    'landing.push.step.2.desc': 'Para cada licitación filtrada, el motor extrae PYMES candidatas — primero los contactos cálidos de tu red de LinkedIn, luego encaje sectorial y geográfico. Una capa de estratega sénior puntúa cada par en sector, geografía, capacidad y tamaño con un razonamiento fundamentado en el corpus.',
+    'landing.push.step.3.label': 'Mostrar solo lo ganable',
+    'landing.push.step.3.desc': 'Los pares mejor puntuados aparecen en tu revisión semanal con razonamiento calibrado, una pila de socios sugerida y riesgos explícitos. Ves los matches que merecen una conversación — no la larga cola de notificaciones técnicamente abiertas pero ya políticamente adjudicadas.',
+    'landing.push.note': 'El modo push se está desplegando a pipelines de clientes en 2026. Hoy, cada cuenta Cooperatr recibe el Discovery Engine en modo pull para diseñar proyectos de cooperación desde cero — las suscripciones push y la capa de contacto cálido se abren más adelante este año.',
 
     'landing.faqLabel': 'Preguntas frecuentes',
     'landing.faqTitle': 'Preguntas que escuchamos a menudo.',

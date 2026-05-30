@@ -36,6 +36,12 @@ export default function Dashboard() {
     { num: 4, label: 'landing.engineStep.4.label', desc: 'landing.engineStep.4.desc' },
   ];
 
+  const pushSteps: { num: number; icon: string; label: TranslationKey; desc: TranslationKey }[] = [
+    { num: 1, icon: '📡', label: 'landing.push.step.1.label', desc: 'landing.push.step.1.desc' },
+    { num: 2, icon: '🎯', label: 'landing.push.step.2.label', desc: 'landing.push.step.2.desc' },
+    { num: 3, icon: '📩', label: 'landing.push.step.3.label', desc: 'landing.push.step.3.desc' },
+  ];
+
   const stats = [
     { value: '€400B+', label: t('landing.statsLabel.1') },
     { value: '$40B+', label: t('landing.statsLabel.2') },
@@ -182,6 +188,61 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Push-mode BD pipeline — what's distinctive */}
+      <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E8E2D8' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              {t('landing.push.kicker')}
+            </p>
+            <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '20px' }}>
+              {t('landing.push.title')}
+            </h2>
+            <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.7, maxWidth: '720px', margin: '0 auto' }}>
+              {t('landing.push.subtitle')}
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+            {pushSteps.map((step) => (
+              <div key={step.num} style={{
+                backgroundColor: '#F7F5F0',
+                border: '1px solid #E8E2D8',
+                borderRadius: '10px',
+                padding: '28px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                  <span style={{ fontSize: '22px' }}>{step.icon}</span>
+                  <div style={{
+                    width: '24px', height: '24px', borderRadius: '50%',
+                    backgroundColor: 'rgba(31,108,197,0.12)',
+                    border: '1px solid rgba(31,108,197,0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '11px', fontWeight: 700, color: '#1f6cc5',
+                  }}>
+                    {step.num}
+                  </div>
+                </div>
+                <h3 className="font-serif" style={{ fontSize: '17px', color: '#1A2332', marginBottom: '10px', lineHeight: 1.3 }}>
+                  {t(step.label)}
+                </h3>
+                <p style={{ fontSize: '13px', color: '#4A5568', lineHeight: 1.65, margin: 0 }}>
+                  {t(step.desc)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <p style={{
+            fontSize: '13px', color: '#718096', lineHeight: 1.7, textAlign: 'center',
+            maxWidth: '720px', margin: '0 auto', fontStyle: 'italic',
+            paddingTop: '20px', borderTop: '1px solid #E8E2D8',
+          }}>
+            {t('landing.push.note')}
+          </p>
         </div>
       </div>
 
