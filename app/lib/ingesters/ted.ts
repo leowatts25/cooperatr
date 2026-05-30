@@ -29,6 +29,75 @@ import { applyFilter } from './filter';
 
 const TED_API_URL = 'https://api.ted.europa.eu/v3/notices/search';
 
+// ─── Dev-finance relevance gate for TED ──────────────────────────────────────
+// TED publishes ~800 notices/day — mostly EU member-state domestic commercial
+// procurement (Polish electricity supply, Czech construction, Italian water
+// utilities, etc.). None of that is relevant to cooperatr.
+//
+// We only want TED notices that have a credible dev-finance angle:
+//   (a) Buyer is outside the EU-27 (pre-accession, neighbourhood, developing
+//       country — these are typically EuropeAid/IPA/NDICI funded), OR
+//   (b) Title or description contains an explicit dev-finance signal word.
+//
+// This gate runs AFTER the sector keyword filter, so both must pass.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EU27_ALPHA3 = new Set([
+  'AUT', 'BEL', 'BGR', 'CYP', 'CZE', 'DEU', 'DNK', 'EST', 'ESP', 'FIN', 'FRA',
+  'GRC', 'HRV', 'HUN', 'IRL', 'ITA', 'LVA', 'LTU', 'LUX', 'MLT', 'NLD', 'POL',
+  'PRT', 'ROU', 'SVK', 'SVN', 'SWE',
+]);
+
+// EU Commission / EEAS / agencies buying for domestic EU admin are still EU-27
+// buyers — not dev-finance. These buyer keywords flag genuine TA contracts:
+const DEV_FINANCE_SIGNALS = [
+  'technical assistance',
+  'capacity building', 'capacity-building',
+  'twinning',
+  'ndici',
+  'global gateway',
+  'ipa iii', 'ipa ii', ' ipa ',
+  'eu delegation',
+  'europeaid',
+  'dg intpa',
+  'devco',
+  'developing countr',
+  'development cooperation',
+  'international development',
+  'sub-saharan',
+  'west africa', 'east africa', 'southern africa', 'central africa',
+  'horn of africa',
+  'latin america', 'caribbean',
+  'central asia',
+  'south asia',
+  'eastern partnership',
+  'western balkans',
+  'neighbourhood policy',
+  'sigma ',
+  'official development assistance',
+  ' oda ',
+  'pre-accession',
+  'accession process',
+  'institutional reform',
+  'sector reform',
+  'policy reform',
+  'advisory services',
+];
+
+function isDevFinanceRelevant(
+  country: string | null,
+  title: string | null,
+  description: string | null,
+): boolean {
+  // Buyer outside EU-27 → likely dev-finance (IPA candidate countries, neighbours, etc.)
+  if (country && country.trim() && !EU27_ALPHA3.has(country.trim().toUpperCase())) {
+    return true;
+  }
+  // Text signal scan
+  const text = `${title ?? ''} ${description ?? ''}`.toLowerCase();
+  return DEV_FINANCE_SIGNALS.some((sig) => text.includes(sig));
+}
+
 const TED_FIELDS = [
   'publication-number',
   'title-proc',
@@ -168,8 +237,16 @@ export function normalizeTedNotice(raw: RawTedNotice, sectors: SectorRow[]): Nor
     published_at: publishedAt,
     deadline_at: deadlineAt,
     raw,
-    passes_filter: keywordFilter.passes,
-    filter_reasons: reasons,
+    // Two-gate filter:
+    //   1. Sector keyword match (from applyFilter — already requires matched.length > 0)
+    //   2. Dev-finance relevance gate — blocks domestic EU-27 procurement even when
+    //      a sector keyword accidentally matches (e.g. "energy" in an electricity
+    //      supply contract for a Polish municipality).
+    passes_filter: keywordFilter.passes && isDevFinanceRelevant(country, title, description),
+    filter_reasons: [
+      ...reasons,
+      isDevFinanceRelevant(country, title, description) ? 'dev_finance:yes' : 'dev_finance:no',
+    ],
   };
 }
 
@@ -291,20 +368,36 @@ function readValue(raw: RawTedNotice): {
 // CPV → sector mapping
 // ----------------------------------------------------------------------------
 // Common Procurement Vocabulary codes are 8-digit numbers. The first 2 digits
-// identify the broad sector. Map our 6 cooperatr sectors to CPV prefixes:
+// identify the broad sector. Only map CPV codes that genuinely appear in
+// development-finance TA contracts — NOT commodity supply or domestic utility
+// procurement (those generated false positives: CPV 09 = electricity supply
+// for Polish municipalities, CPV 65 = domestic water distribution, etc.).
+//
+// Note: CPV matching is a *supplementary* signal — it adds sector tags that
+// text keywords may miss. The dev-finance gate still applies on top.
 const CPV_TO_SECTOR: Array<{ prefix: string; sector: string }> = [
-  { prefix: '03', sector: 'agri_food' },          // agricultural products
-  { prefix: '77', sector: 'agri_food' },          // agricultural services
-  { prefix: '15', sector: 'agri_food' },          // food/beverages
-  { prefix: '09', sector: 'renewable_energy' },   // petroleum/electricity/energy
-  { prefix: '31', sector: 'renewable_energy' },   // electrical machinery (generators, batteries)
+  // Agri-food: products, agricultural/forestry services, food processing
+  { prefix: '03', sector: 'agri_food' },          // agricultural products & live animals
+  { prefix: '77', sector: 'agri_food' },          // agricultural, forestry, fishing services
+  { prefix: '15', sector: 'agri_food' },          // food and beverages
+  // Renewable energy: construction/installation projects only (not commodity supply)
   { prefix: '45251', sector: 'renewable_energy' },// power plant construction
-  { prefix: '65', sector: 'water_tech' },         // water/electricity distribution
-  { prefix: '41', sector: 'water_tech' },         // collected/purified water
-  { prefix: '90', sector: 'circular_esg' },       // sewage/refuse/cleaning
-  { prefix: '90510', sector: 'circular_esg' },    // refuse and waste services
-  { prefix: '14', sector: 'critical_minerals' },  // mining, metals, minerals
-  { prefix: '79980', sector: 'human_rights' },    // various rights/civil services
+  { prefix: '45261', sector: 'renewable_energy' },// roofwork including solar
+  // Water: supply infrastructure & treatment services (not domestic distribution)
+  { prefix: '41', sector: 'water_tech' },          // collected/purified water
+  { prefix: '45232', sector: 'water_tech' },       // pipelines and associated works
+  { prefix: '45247', sector: 'water_tech' },       // dams, canals, irrigation
+  // Circular/ESG: environmental consulting & waste management services
+  { prefix: '90510', sector: 'circular_esg' },     // refuse collection & disposal
+  { prefix: '90711', sector: 'circular_esg' },     // environmental impact assessment
+  { prefix: '90720', sector: 'circular_esg' },     // environmental protection
+  // Critical minerals: mining sector only (not metals trading)
+  { prefix: '14', sector: 'critical_minerals' },   // mining, metals, minerals, quarrying
+  // Human rights / governance: consulting & public admin services
+  { prefix: '75100', sector: 'human_rights' },     // public administration services
+  { prefix: '75200', sector: 'human_rights' },     // welfare & related services
+  { prefix: '79411', sector: 'human_rights' },     // general management consulting
+  { prefix: '73000', sector: 'human_rights' },     // research & development services
 ];
 
 function sectorsFromCpv(codes: string[]): string[] {

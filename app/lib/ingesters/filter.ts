@@ -81,9 +81,9 @@ export function applyFilter(
   reasons.push(value.reason);
 
   // Pass if (a) at least one sector matched AND (b) value range is acceptable.
-  // We allow sector-less tenders through too (with a flag) so a human can
-  // spot-check what we're missing.
-  const passes = value.inRange;
+  // Both conditions are required — value-range-only let ALL TED domestic-procurement
+  // tenders through (Polish electricity supply, Italian water utilities, etc).
+  const passes = matched.length > 0 && value.inRange;
 
   return { passes, matchedSectors: matched, reasons };
 }
