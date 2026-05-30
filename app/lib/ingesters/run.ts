@@ -7,6 +7,7 @@
 import { createServerClient } from '@/app/lib/supabase';
 import { fetchTedNotices, normalizeTedNotice } from './ted';
 import { fetchSamGovOpportunities, normalizeSamGovOpportunity } from './samgov';
+import { fetchEftNotices, normalizeEftNotice } from './eftportal';
 import type { SectorRow } from './filter';
 
 export interface SourceResult {
@@ -68,6 +69,25 @@ export async function runAllIngesters(supabase: Supabase): Promise<IngestRunResu
     });
   }
 
+  // EU Funding & Tenders Portal (NDICI/Global Gateway/IPA/NEAR procurement and grant calls).
+  // No API key required — uses the public SEDIA apiKey. Can be disabled by setting
+  // EU_FT_PORTAL_ENABLED=false in the environment.
+  const eftEnabled = process.env.EU_FT_PORTAL_ENABLED !== 'false';
+  if (eftEnabled) {
+    try {
+      results.push(await ingestEftPortal(sectors, supabase));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[ingest] EU F&T Portal failed:', msg);
+      results.push({ source: 'EU_FT', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [msg] });
+    }
+  } else {
+    results.push({
+      source: 'EU_FT', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [],
+      skipped: true, skipReason: 'EU_FT_PORTAL_ENABLED=false',
+    });
+  }
+
   // ----------------------------------------------------------------------
   // Future sources — implementation notes
   // ----------------------------------------------------------------------
@@ -84,10 +104,9 @@ export async function runAllIngesters(supabase: Supabase): Promise<IngestRunResu
   //   - Will be queried per-tender in the SME discovery step, not in this
   //     daily ingest job.
   //
-  // EU Funding & Tenders portal (NDICI-Global Europe calls): there is an
-  // internal JSON API at https://ec.europa.eu/info/funding-tenders/...api/
-  // but the endpoint shape shifts. Likely needs the same probe-and-stabilize
-  // approach we did for TED.
+  // EU Funding & Tenders portal (NDICI-Global Europe calls): IMPLEMENTED.
+  // Uses the public SEDIA search API (apiKey=SEDIA, no registration needed).
+  // See app/lib/ingesters/eftportal.ts for implementation details.
   //
   // AECID / GIZ / KfW / AFD / FCDO: each has its own portal, mostly without
   // public APIs. Build per-source HTML scrapers on demand, only when the
@@ -225,4 +244,90 @@ async function ingestSamGov(sectors: SectorRow[], supabase: Supabase, apiKey: st
   }
 
   return { source: 'SAM_GOV', fetched, normalized, upserted, passedFilter, errors };
+}
+
+// ----------------------------------------------------------------------------
+// EU Funding & Tenders Portal (NDICI / Global Gateway / IPA / NEAR)
+// ----------------------------------------------------------------------------
+// The SEDIA API returns results sorted by startDate DESC. We run two separate
+// searches — one for INTPA/DEVCO procurement, one for NEAR/IPA — to maximise
+// recall while keeping page counts bounded. Results are deduplicated by
+// source_ref (callIdentifier) before upsert.
+// ----------------------------------------------------------------------------
+
+async function ingestEftPortal(sectors: SectorRow[], supabase: Supabase): Promise<SourceResult> {
+  const errors: string[] = [];
+  let fetched = 0;
+  let normalized = 0;
+  let upserted = 0;
+  let passedFilter = 0;
+
+  const PAGES = 3;
+  const PAGE_SIZE = 50;
+  const SINCE_DAYS = 7; // Larger window: dev-finance calls open for weeks, not days
+
+  // Two targeted search queries to cover the main dev-finance procurement offices.
+  // Using OR across all terms in a single query works but mixes in unrelated results
+  // (e.g. internal EC administrative tenders that happen to mention "NEAR"). Splitting
+  // by office prefix gives cleaner signal-to-noise.
+  const searchQueries = [
+    'EC-INTPA OR EC-DEVCO OR NDICI OR "Global Gateway"',
+    'EC-NEAR OR "IPA III" OR "IPA II" OR "neighbourhood" INTPA',
+  ];
+
+  // Track refs we've already processed to deduplicate across queries
+  const seenRefs = new Set<string>();
+
+  for (const searchText of searchQueries) {
+    for (let page = 1; page <= PAGES; page++) {
+      let pageResult;
+      try {
+        pageResult = await fetchEftNotices({ sinceDays: SINCE_DAYS, pageSize: PAGE_SIZE, pageNum: page, searchText });
+      } catch (err) {
+        errors.push(`query "${searchText.slice(0, 30)}…" page ${page}: ${err instanceof Error ? err.message : String(err)}`);
+        break;
+      }
+
+      fetched += pageResult.notices.length;
+      if (pageResult.notices.length === 0) break;
+
+      const batch = [];
+      for (const raw of pageResult.notices) {
+        // Skip already-seen refs from the other query
+        if (seenRefs.has(raw.reference)) continue;
+        seenRefs.add(raw.reference);
+
+        try {
+          const n = normalizeEftNotice(raw, sectors);
+          if (n) {
+            // Also skip duplicate source_refs (callIdentifiers) — SEDIA indexes
+            // the same CFT once per language; we only need one record.
+            if (seenRefs.has(`ref:${n.source_ref}`)) continue;
+            seenRefs.add(`ref:${n.source_ref}`);
+            batch.push(n);
+          }
+        } catch (err) {
+          errors.push(`normalize: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      normalized += batch.length;
+      passedFilter += batch.filter((n) => n.passes_filter).length;
+
+      if (batch.length > 0) {
+        const { error: upsertErr, count } = await supabase
+          .from('tenders')
+          .upsert(batch, { onConflict: 'source,source_ref', count: 'exact' });
+        if (upsertErr) {
+          errors.push(`upsert page ${page}: ${upsertErr.message}`);
+        } else {
+          upserted += count ?? batch.length;
+        }
+      }
+
+      if (pageResult.notices.length < PAGE_SIZE) break;
+    }
+  }
+
+  return { source: 'EU_FT', fetched, normalized, upserted, passedFilter, errors };
 }
