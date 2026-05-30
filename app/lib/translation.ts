@@ -81,9 +81,46 @@ export async function runTranslationForRecentTenders(
   const targetLanguages = (opts.targetLanguages ?? DEFAULT_TARGETS) as string[];
   const since = new Date(Date.now() - sinceDays * 86400_000).toISOString();
 
-  // Load passing tenders that don't yet have ALL the target languages.
-  // We pull a slightly oversized window then filter in JS so callers can
-  // change targetLanguages without a schema change.
+  // ---- Priority 1: tenders that already appear in tender_matches ----
+  // These are the visible BD report rows — translating them first means the
+  // user sees English immediately rather than waiting for backfill to reach
+  // them by publication-date order.
+  const { data: matchedTenderRows } = await supabase
+    .from('tender_matches')
+    .select('tender_id')
+    .order('matched_at', { ascending: false })
+    .limit(maxTenders * 3);
+  const matchedTenderIds = Array.from(
+    new Set((matchedTenderRows || []).map((r) => (r as { tender_id: string }).tender_id)),
+  );
+
+  let priorityRows: Array<{
+    id: string;
+    title: string | null;
+    description: string | null;
+    country: string | null;
+    translations: Translations | null;
+    source_language: string | null;
+  }> = [];
+  if (matchedTenderIds.length > 0) {
+    // Chunk .in() to stay under URL length cap
+    const ID_CHUNK = 80;
+    for (let i = 0; i < matchedTenderIds.length; i += ID_CHUNK) {
+      const slice = matchedTenderIds.slice(i, i + ID_CHUNK);
+      const { data: chunk } = await supabase
+        .from('tenders')
+        .select('id, title, description, country, translations, source_language')
+        .in('id', slice);
+      if (chunk) priorityRows.push(...(chunk as typeof priorityRows));
+    }
+    // Filter to ones still needing translation
+    priorityRows = priorityRows.filter((r) => {
+      const ex = (r.translations || {}) as Translations;
+      return targetLanguages.some((lang) => !ex[lang]);
+    });
+  }
+
+  // ---- Priority 2: recent passing tenders not yet covered ----
   const { data, error } = await supabase
     .from('tenders')
     .select('id, title, description, country, translations, source_language')
@@ -98,14 +135,18 @@ export async function runTranslationForRecentTenders(
     };
   }
 
-  const rows = (data || []) as Array<{
-    id: string;
-    title: string | null;
-    description: string | null;
-    country: string | null;
-    translations: Translations | null;
-    source_language: string | null;
-  }>;
+  const recentRows = (data || []) as typeof priorityRows;
+
+  // Merge: priority (matched) tenders first, then recent passing.
+  // Dedupe by id (priority wins).
+  const seen = new Set<string>();
+  const rows: typeof priorityRows = [];
+  for (const r of priorityRows) {
+    if (!seen.has(r.id)) { seen.add(r.id); rows.push(r); }
+  }
+  for (const r of recentRows) {
+    if (!seen.has(r.id)) { seen.add(r.id); rows.push(r); }
+  }
 
   // Trim to rows that are MISSING at least one target language
   const needsWork = rows.filter((r) => {

@@ -57,7 +57,8 @@ export async function GET(req: NextRequest) {
     // dashboard renders in English from the moment matches land.
     const translation = await runTranslationForRecentTenders(supabase, {
       sinceDays: 14,
-      maxTenders: 60,  // ~60 × 800 words = 48K — under MyMemory's 50K/day cap with email
+      maxTenders: 25,  // Keeps total cron under 300s. Prioritises tenders that
+                       // already have matches so visible BD rows go English first.
     });
     console.log(
       `[cron/ingest-tenders] translation — translated=${translation.translated} skipped_done=${translation.skippedAlreadyComplete} skipped_nosrc=${translation.skippedNoSource} chars=${translation.charsUsed} langs=${translation.languagesProcessed.join(',')} errors=${translation.errors.length}`,
