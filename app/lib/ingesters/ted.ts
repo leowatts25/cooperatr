@@ -396,8 +396,9 @@ const CPV_TO_SECTOR: Array<{ prefix: string; sector: string }> = [
   // Human rights / governance: consulting & public admin services
   { prefix: '75100', sector: 'human_rights' },     // public administration services
   { prefix: '75200', sector: 'human_rights' },     // welfare & related services
-  { prefix: '79411', sector: 'human_rights' },     // general management consulting
-  { prefix: '73000', sector: 'human_rights' },     // research & development services
+  // NOTE: CPV 79411 (general management consulting) and 73000 (R&D services)
+  // were removed — far too generic, they mapped almost any consulting/research
+  // tender into human_rights (e.g. the EEA geospatial Topic Centre false positive).
 ];
 
 function sectorsFromCpv(codes: string[]): string[] {

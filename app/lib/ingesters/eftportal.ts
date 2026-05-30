@@ -108,8 +108,8 @@ const CPV_TO_SECTOR: Array<{ prefix: string; sector: string }> = [
   { prefix: '14', sector: 'critical_minerals' },
   { prefix: '75100', sector: 'human_rights' },
   { prefix: '75200', sector: 'human_rights' },
-  { prefix: '79411', sector: 'human_rights' },
-  { prefix: '73000', sector: 'human_rights' },
+  // CPV 79411 (general mgmt consulting) and 73000 (R&D services) removed:
+  // too generic, they over-tagged consulting/research tenders as human_rights.
 ];
 
 // ─── Exported interfaces ──────────────────────────────────────────────────────
@@ -194,29 +194,36 @@ export async function fetchEftNotices(opts: FetchOpts): Promise<FetchResult> {
   const totalResults = typeof json.totalResults === 'number' ? json.totalResults : rawResults.length;
 
   // Client-side filter: only procurement (type=0) and grant calls (type=2)
-  // with open/forthcoming status. Skip R&D Horizon/FP7 topics (type=1).
-  // Also enforce the sinceDays window based on startDate.
-  const cutoff = new Date();
-  cutoff.setUTCDate(cutoff.getUTCDate() - opts.sinceDays);
+  // that are actionable — i.e. a consultant can still bid. Skip R&D Horizon/FP7
+  // topics (type=1).
+  //
+  // IMPORTANT: dev-finance calls open for weeks-to-months, so we do NOT filter
+  // on publication date (startDate). The relevant question is "can Leo still
+  // submit?" — which means status OPEN/FORTHCOMING and a deadline in the future.
+  // (An earlier version filtered startDate within `sinceDays`; that rejected
+  // 100% of results because the newest INTPA tenders publish months before
+  // their deadlines.)
+  const now = new Date();
 
   const notices = rawResults.filter((r) => {
     const meta = r.metadata ?? {};
     const typeVal = pickMeta(meta, 'type');
     const sortStatus = pickMeta(meta, 'sortStatus');
-    const startDateStr = pickMeta(meta, 'startDate');
+    const deadlineStr = pickMeta(meta, 'deadlineDate');
 
     // Only process procurement contracts and grant call-for-proposals
     if (typeVal !== '0' && typeVal !== '2') return false;
 
-    // Accept: OPEN (1), FORTHCOMING (2), or UNDER EVALUATION (4)
-    // Skip: CLOSED (3) — deadline already passed and results published
-    if (sortStatus === '3') return false;
+    // Accept: OPEN (1) and FORTHCOMING (2) only — these are biddable.
+    // Skip: CLOSED (3) and UNDER EVALUATION (4) — submission window has passed.
+    if (sortStatus !== '1' && sortStatus !== '2') return false;
 
-    // Enforce sinceDays publication window to avoid reprocessing old notices.
-    // If startDate is missing we let it through (normalizer will handle it).
-    if (startDateStr) {
-      const startDate = new Date(startDateStr);
-      if (!isNaN(startDate.getTime()) && startDate < cutoff) return false;
+    // If there's a deadline, it must still be in the future. FORTHCOMING calls
+    // (and any with a missing/unparseable deadline) are kept — they haven't
+    // opened yet or the deadline isn't published.
+    if (deadlineStr) {
+      const deadline = new Date(deadlineStr);
+      if (!isNaN(deadline.getTime()) && deadline < now) return false;
     }
 
     return true;
