@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createServerClient } from '@/app/lib/supabase';
 import { cooperatrProfileBlock, isNeedsUsExcluded } from '@/app/lib/cooperatrProfile';
 import { scoreTenderFit, TENDER_FIT_FLOOR, type TenderFit } from '@/app/lib/tenderFit';
-import { expandOpportunity, EXPANSION_SCORE_FLOOR } from '@/app/lib/opportunityExpansion';
+import { expandOpportunity, EXPANSION_SCORE_FLOOR, type OpportunityExpansion } from '@/app/lib/opportunityExpansion';
 
 // ============================================================================
 // BD Matcher — scores (tender × scouted_company) pairings with Claude Sonnet 4.6
@@ -693,6 +693,7 @@ export interface TenderMatchOutcome {
   errors: string[];
   tenderFit?: TenderFit;
   skipped?: boolean;          // true when Stage-1 gate hard-skipped company matching
+  expansions?: Record<string, OpportunityExpansion>; // Stage-3, keyed by scouted_company_id
 }
 
 // ----------------------------------------------------------------------------
@@ -888,6 +889,7 @@ export async function matchTender(
     matches,
     errors,
     tenderFit,
+    expansions: Object.fromEntries(expansions),
   };
 }
 

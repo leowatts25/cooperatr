@@ -85,7 +85,10 @@ Design the expansion now via emit_expansion. No preamble.`;
   const t0 = Date.now();
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 900,
+    // 1800: the expansion emits up to 4 partners + 3 investors + two prose
+    // paragraphs. At 900 the final field (expanded_impact) was being truncated
+    // by the output cap, silently dropping it. 1800 leaves comfortable headroom.
+    max_tokens: 1800,
     system: system as Anthropic.Messages.MessageCreateParams['system'],
     tools: [expansionTool],
     tool_choice: { type: 'tool', name: 'emit_expansion' },
@@ -97,6 +100,18 @@ Design the expansion now via emit_expansion. No preamble.`;
   if (!toolBlock || toolBlock.type !== 'tool_use') {
     throw new Error(`expansion returned no tool use (stop=${response.stop_reason})`);
   }
+  if (response.stop_reason === 'max_tokens') {
+    console.warn(`[expansion] WARN truncated at max_tokens — fields may be incomplete (tender=${tender.source_ref})`);
+  }
   console.log(`[expansion] ${ms}ms tender=${tender.source_ref} company=${company.name}`);
-  return toolBlock.input as OpportunityExpansion;
+
+  // Normalize: never return undefined fields — truncation or model omission
+  // would otherwise write `undefined` into jsonb / the admin UI.
+  const raw = toolBlock.input as Partial<OpportunityExpansion>;
+  return {
+    consortium_partners: Array.isArray(raw.consortium_partners) ? raw.consortium_partners : [],
+    impact_investors: Array.isArray(raw.impact_investors) ? raw.impact_investors : [],
+    blended_finance_angle: raw.blended_finance_angle ?? '',
+    expanded_impact: raw.expanded_impact ?? '',
+  };
 }

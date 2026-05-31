@@ -72,6 +72,24 @@ async function main() {
   console.log(`elapsed: ${ms}ms`);
   console.log('============================================================\n');
 
+  // ── Stage 1 — tender-fit gate ──────────────────────────────────────────────
+  if (outcome.tenderFit) {
+    const f = outcome.tenderFit;
+    console.log('### STAGE 1 — TENDER FIT ###');
+    console.log(`verdict: ${f.verdict.toUpperCase()}  |  fit_score: ${f.fit_score}`);
+    console.log(`sector_fit: ${f.sector_fit}  geography_fit: ${f.geography_fit}  deal_band_fit: ${f.deal_band_fit}`);
+    if (f.reasons?.length) {
+      console.log('reasons:');
+      for (const r of f.reasons) console.log(`  - ${r}`);
+    }
+    console.log();
+  }
+  if (outcome.skipped) {
+    console.log(`>> HARD-SKIPPED: tender-fit below floor — no company matching performed.\n`);
+    console.log('No DB writes performed (dryRun=true).');
+    return;
+  }
+
   for (const [i, m] of outcome.matches.entries()) {
     console.log(`--- match ${i + 1} ---`);
     console.log(`scouted_company_id: ${m.scouted_company_id}`);
@@ -86,6 +104,20 @@ async function main() {
     if (m.risks && m.risks.length > 0) {
       console.log(`risks:`);
       for (const r of m.risks) console.log(`  - ${r}`);
+    }
+    const exp = outcome.expansions?.[m.scouted_company_id];
+    if (exp) {
+      console.log(`opportunity_expansion (STAGE 3):`);
+      if (exp.consortium_partners?.length) {
+        console.log(`  consortium_partners:`);
+        for (const p of exp.consortium_partners) console.log(`    - ${typeof p === 'string' ? p : JSON.stringify(p)}`);
+      }
+      if (exp.impact_investors?.length) {
+        console.log(`  impact_investors:`);
+        for (const p of exp.impact_investors) console.log(`    - ${typeof p === 'string' ? p : JSON.stringify(p)}`);
+      }
+      if (exp.blended_finance_angle) console.log(`  blended_finance_angle: ${exp.blended_finance_angle}`);
+      if (exp.expanded_impact) console.log(`  expanded_impact: ${exp.expanded_impact}`);
     }
     console.log();
   }
