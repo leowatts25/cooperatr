@@ -1,10 +1,18 @@
 'use client';
 import Link from 'next/link';
+import { useState } from 'react';
 import { useTranslation } from '@/app/lib/i18n/context';
 import type { TranslationKey } from '@/app/lib/i18n/translations';
 
 export default function Dashboard() {
   const { t } = useTranslation();
+  const [activeExample, setActiveExample] = useState(0);
+
+  const examples: { tab: TranslationKey; title: TranslationKey; body1: TranslationKey; body2: TranslationKey; body3: TranslationKey }[] = [
+    { tab: 'landing.example.0.tab', title: 'landing.example.0.title', body1: 'landing.example.0.body1', body2: 'landing.example.0.body2', body3: 'landing.example.0.body3' },
+    { tab: 'landing.example.1.tab', title: 'landing.example.1.title', body1: 'landing.example.1.body1', body2: 'landing.example.1.body2', body3: 'landing.example.1.body3' },
+    { tab: 'landing.example.2.tab', title: 'landing.example.2.title', body1: 'landing.example.2.body1', body2: 'landing.example.2.body2', body3: 'landing.example.2.body3' },
+  ];
 
   const sectors = [
     { icon: '🌾', name: t('landing.sectors.agri') },
@@ -274,18 +282,46 @@ export default function Dashboard() {
       {/* A working example */}
       <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
         <div style={{ maxWidth: '820px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
             <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
               {t('landing.example.kicker')}
             </p>
             <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', color: '#1A2332', lineHeight: 1.25 }}>
-              {t('landing.example.title')}
+              {t(examples[activeExample].title)}
             </h2>
           </div>
+          <div role="tablist" aria-label={t('landing.example.kicker')} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '10px', marginBottom: '28px' }}>
+            {examples.map((ex, i) => {
+              const active = i === activeExample;
+              return (
+                <button
+                  key={ex.tab}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setActiveExample(i)}
+                  style={{
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    letterSpacing: '0.3px',
+                    padding: '10px 18px',
+                    borderRadius: '999px',
+                    border: active ? '1px solid #1f6cc5' : '1px solid #E8E2D8',
+                    backgroundColor: active ? '#1f6cc5' : '#fff',
+                    color: active ? '#fff' : '#4A5568',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {t(ex.tab)}
+                </button>
+              );
+            })}
+          </div>
           <div style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '36px', borderLeft: '4px solid #1f6cc5' }}>
-            <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, marginTop: 0, marginBottom: '18px' }}>{t('landing.example.body1')}</p>
-            <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, marginBottom: '18px' }}>{t('landing.example.body2')}</p>
-            <p style={{ fontSize: '15px', color: '#1A2332', lineHeight: 1.75, fontWeight: 600, margin: 0 }}>{t('landing.example.body3')}</p>
+            <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, marginTop: 0, marginBottom: '18px' }}>{t(examples[activeExample].body1)}</p>
+            <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, marginBottom: '18px' }}>{t(examples[activeExample].body2)}</p>
+            <p style={{ fontSize: '15px', color: '#1A2332', lineHeight: 1.75, fontWeight: 600, margin: 0 }}>{t(examples[activeExample].body3)}</p>
           </div>
         </div>
       </div>
