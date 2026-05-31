@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/app/components/AuthGuard';
+import FeaturePreview from '@/app/components/marketing/FeaturePreview';
 import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Partner {
@@ -251,4 +252,4 @@ function PartnersContent() {
   );
 }
 
-export default function PartnersPage() { return <AuthGuard><PartnersContent /></AuthGuard>; }
+export default function PartnersPage() { return <AuthGuard marketing={<FeaturePreview feature="partners" />}><PartnersContent /></AuthGuard>; }

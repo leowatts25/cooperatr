@@ -44,12 +44,15 @@ export default function Dashboard() {
           <p style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '3px', textTransform: 'uppercase', color: 'rgba(240,237,230,0.6)', marginBottom: '28px' }}>
             {t('landing.location')}
           </p>
-          <h1 className="font-serif" style={{ fontSize: 'clamp(38px, 6vw, 72px)', color: '#F5F0E8', lineHeight: 1.1, marginBottom: '28px', letterSpacing: '-1px' }}>
+          <h1 className="font-serif" style={{ fontSize: 'clamp(32px, 4.6vw, 54px)', color: '#F5F0E8', lineHeight: 1.12, marginBottom: '24px', letterSpacing: '-1px', maxWidth: '820px', marginLeft: 'auto', marginRight: 'auto' }}>
             {t('landing.heroPrefix')}{' '}
             <span style={{ borderBottom: '3px solid #4a9eff', paddingBottom: '2px' }}>{t('landing.heroHighlight')}</span>
             {t('landing.heroSuffix')}
           </h1>
-          <p style={{ fontSize: 'clamp(20px, 2.8vw, 28px)', fontWeight: 400, color: 'rgba(245,240,232,0.88)', lineHeight: 1.45, maxWidth: '760px', margin: '0 auto 40px' }}>
+          <p style={{ fontSize: 'clamp(17px, 2vw, 21px)', fontWeight: 400, color: 'rgba(245,240,232,0.85)', lineHeight: 1.55, maxWidth: '720px', margin: '0 auto 20px' }}>
+            {t('landing.heroApproach')}
+          </p>
+          <p style={{ fontSize: 'clamp(14px, 1.5vw, 16px)', fontWeight: 500, color: 'rgba(245,240,232,0.6)', lineHeight: 1.5, maxWidth: '640px', margin: '0 auto 40px' }}>
             {t('landing.heroSub')}
           </p>
           <Link href="/opportunities">

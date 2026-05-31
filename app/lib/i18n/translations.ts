@@ -184,10 +184,50 @@ const translations = {
     'landing.live': 'LIVE',
     'landing.comingSoon': 'COMING SOON',
 
+    // Feature preview (logged-out gated routes)
+    'feature.badge': 'MEMBER WORKSPACE',
+    'feature.cta': 'Create free account',
+    'feature.signIn': 'Sign in',
+    'feature.capKicker': 'What you can do inside',
+    'feature.bottomTitle': 'Ready to put this to work?',
+    'feature.bottomSub': 'Create your account in minutes. No upfront cost — you only pay when you win.',
+    'feature.exploreCta': 'Explore the full platform →',
+
+    'feature.opportunities.title': 'Find the contracts and funding you would never have spotted',
+    'feature.opportunities.sub': 'The Discovery Engine reads EU public finance pipelines, private-sector dynamics, and geopolitical momentum to surface fundable opportunities matched to your company.',
+    'feature.opportunities.b1': 'Tell us your sector, geography, and capabilities — get a ranked shortlist of live and emerging opportunities.',
+    'feature.opportunities.b2': 'See estimated deal value, funding paths, timelines, and the partners or buyers behind each one.',
+    'feature.opportunities.b3': 'Every match comes with a confidence score and the reasoning behind it — no black boxes.',
+
+    'feature.proposals.title': 'Turn a winning idea into a submission-ready proposal',
+    'feature.proposals.sub': 'Proposal Development drafts the structure, narrative, and compliance backbone of your bid so your team can focus on the substance that wins.',
+    'feature.proposals.b1': 'Generate a full proposal outline aligned to the funder\'s requirements and evaluation criteria.',
+    'feature.proposals.b2': 'Draft technical narratives, work plans, and budgets you can refine instead of starting from a blank page.',
+    'feature.proposals.b3': 'Built-in checks flag missing sections and eligibility gaps before you submit.',
+
+    'feature.partners.title': 'Vet partners and clear compliance before you commit',
+    'feature.partners.sub': 'Partner Vetting & Compliance screens potential consortium members and counterparties against the checks that EU-funded work demands.',
+    'feature.partners.b1': 'Screen partners against sanctions, exclusion, and integrity databases in one pass.',
+    'feature.partners.b2': 'Surface red flags early — ownership, track record, and financial standing — before contracts are signed.',
+    'feature.partners.b3': 'Keep an audit-ready record of every due-diligence step for funders and auditors.',
+
+    'feature.projects.title': 'Run funded projects without losing the thread',
+    'feature.projects.sub': 'Project Execution keeps deliverables, milestones, and reporting obligations on track from kickoff to closeout.',
+    'feature.projects.b1': 'Track milestones, deliverables, and deadlines against the contract in one place.',
+    'feature.projects.b2': 'Coordinate consortium partners with shared timelines and clear ownership.',
+    'feature.projects.b3': 'Stay ahead of reporting cycles so nothing slips through the cracks.',
+
+    'feature.reports.title': 'Show your impact with evidence funders trust',
+    'feature.reports.sub': 'Impact Reporting turns project data into the monitoring, evaluation, and learning outputs your funders require.',
+    'feature.reports.b1': 'Define indicators and capture results against your logframe as the work happens.',
+    'feature.reports.b2': 'Generate funder-ready progress and impact reports without rebuilding them each cycle.',
+    'feature.reports.b3': 'Back every claim with traceable data so evaluations hold up to scrutiny.',
+
     // Landing — hero highlight + ctaNoCommit
     'landing.heroHighlight': 'scale impact',
     'landing.heroPrefix': 'Cooperatr helps innovative companies',
-    'landing.heroSuffix': ' to address pressing global challenges. Our unique approach sits at the intersection of finance, technology, and strategic partnerships and equips small and medium enterprises with the tools to rise to the occasion.',
+    'landing.heroSuffix': ' to address pressing global challenges.',
+    'landing.heroApproach': 'Our unique approach sits at the intersection of finance, technology, and strategic partnerships and equips small and medium enterprises with the tools to rise to the occasion.',
     'landing.bottomCtaDesc': 'Enter your company profile and get a strategic preview of cooperation projects designed for your capabilities — in under two minutes.',
     'landing.bottomCtaSub': 'No upfront cost. No commitment. You pay only when you win.',
 
@@ -858,9 +898,49 @@ const translations = {
     'landing.live': 'ACTIVO',
     'landing.comingSoon': 'PRÓXIMAMENTE',
 
+    // Feature preview (logged-out gated routes)
+    'feature.badge': 'ESPACIO DE MIEMBROS',
+    'feature.cta': 'Crear cuenta gratis',
+    'feature.signIn': 'Iniciar sesión',
+    'feature.capKicker': 'Lo que puedes hacer dentro',
+    'feature.bottomTitle': '¿Listo para ponerlo en marcha?',
+    'feature.bottomSub': 'Crea tu cuenta en minutos. Sin coste inicial: solo pagas cuando ganas.',
+    'feature.exploreCta': 'Explora la plataforma completa →',
+
+    'feature.opportunities.title': 'Encuentra los contratos y la financiación que nunca habrías detectado',
+    'feature.opportunities.sub': 'El Motor de Descubrimiento analiza los flujos de financiación pública de la UE, la dinámica del sector privado y el momento geopolítico para revelar oportunidades financiables a la medida de tu empresa.',
+    'feature.opportunities.b1': 'Indícanos tu sector, geografía y capacidades, y obtén una lista priorizada de oportunidades activas y emergentes.',
+    'feature.opportunities.b2': 'Consulta el valor estimado, las vías de financiación, los plazos y los socios o compradores detrás de cada una.',
+    'feature.opportunities.b3': 'Cada coincidencia incluye una puntuación de confianza y el razonamiento que la respalda, sin cajas negras.',
+
+    'feature.proposals.title': 'Convierte una idea ganadora en una propuesta lista para presentar',
+    'feature.proposals.sub': 'Desarrollo de Propuestas redacta la estructura, la narrativa y la base de cumplimiento de tu oferta para que tu equipo se centre en lo que gana contratos.',
+    'feature.proposals.b1': 'Genera un esquema completo de propuesta alineado con los requisitos y criterios de evaluación del financiador.',
+    'feature.proposals.b2': 'Redacta narrativas técnicas, planes de trabajo y presupuestos que puedes refinar en lugar de empezar de cero.',
+    'feature.proposals.b3': 'Las verificaciones integradas señalan secciones faltantes y brechas de elegibilidad antes de enviar.',
+
+    'feature.partners.title': 'Verifica socios y resuelve el cumplimiento antes de comprometerte',
+    'feature.partners.sub': 'Verificación de Socios y Cumplimiento examina a posibles miembros del consorcio y contrapartes según las comprobaciones que exige el trabajo financiado por la UE.',
+    'feature.partners.b1': 'Examina a los socios frente a bases de datos de sanciones, exclusión e integridad en una sola pasada.',
+    'feature.partners.b2': 'Detecta señales de alerta a tiempo —propiedad, trayectoria y solidez financiera— antes de firmar contratos.',
+    'feature.partners.b3': 'Mantén un registro auditable de cada paso de diligencia debida para financiadores y auditores.',
+
+    'feature.projects.title': 'Gestiona proyectos financiados sin perder el hilo',
+    'feature.projects.sub': 'Ejecución de Proyectos mantiene los entregables, hitos y obligaciones de informes en marcha desde el inicio hasta el cierre.',
+    'feature.projects.b1': 'Haz seguimiento de hitos, entregables y plazos frente al contrato en un solo lugar.',
+    'feature.projects.b2': 'Coordina a los socios del consorcio con cronogramas compartidos y responsabilidades claras.',
+    'feature.projects.b3': 'Anticípate a los ciclos de informes para que nada se escape.',
+
+    'feature.reports.title': 'Demuestra tu impacto con evidencia que los financiadores confían',
+    'feature.reports.sub': 'Informes de Impacto convierte los datos del proyecto en los resultados de monitoreo, evaluación y aprendizaje que tus financiadores requieren.',
+    'feature.reports.b1': 'Define indicadores y captura resultados frente a tu marco lógico a medida que avanza el trabajo.',
+    'feature.reports.b2': 'Genera informes de progreso e impacto listos para el financiador sin rehacerlos en cada ciclo.',
+    'feature.reports.b3': 'Respalda cada afirmación con datos trazables para que las evaluaciones resistan el escrutinio.',
+
     'landing.heroHighlight': 'escalar su impacto',
     'landing.heroPrefix': 'Cooperatr ayuda a las empresas innovadoras a',
-    'landing.heroSuffix': ' para afrontar desafíos globales urgentes. Nuestro enfoque único se sitúa en la intersección de las finanzas, la tecnología y las alianzas estratégicas, y dota a las pequeñas y medianas empresas de las herramientas para estar a la altura.',
+    'landing.heroSuffix': ' para afrontar desafíos globales urgentes.',
+    'landing.heroApproach': 'Nuestro enfoque único se sitúa en la intersección de las finanzas, la tecnología y las alianzas estratégicas, y dota a las pequeñas y medianas empresas de las herramientas para estar a la altura.',
     'landing.bottomCtaDesc': 'Introduce el perfil de tu empresa y obtén una vista previa estratégica de proyectos de cooperación diseñados para tus capacidades — en menos de dos minutos.',
     'landing.bottomCtaSub': 'Sin coste inicial. Sin compromiso. Solo pagas cuando ganas.',
 

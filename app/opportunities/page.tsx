@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import AuthGuard from '@/app/components/AuthGuard';
+import FeaturePreview from '@/app/components/marketing/FeaturePreview';
 import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 const SECTORS = ['Agri-food', 'Renewable Energy', 'Water Technology', 'Digital & ICT', 'Health Services', 'Infrastructure', 'Other'];
@@ -1014,5 +1015,5 @@ function OpportunitiesContent() {
 }
 
 export default function OpportunitiesPage() {
-  return <AuthGuard><OpportunitiesContent /></AuthGuard>;
+  return <AuthGuard marketing={<FeaturePreview feature="opportunities" />}><OpportunitiesContent /></AuthGuard>;
 }

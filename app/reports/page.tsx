@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/app/components/AuthGuard';
+import FeaturePreview from '@/app/components/marketing/FeaturePreview';
 import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Project {
@@ -119,4 +120,4 @@ function ReportsContent() {
   );
 }
 
-export default function ReportsPage() { return <AuthGuard><ReportsContent /></AuthGuard>; }
+export default function ReportsPage() { return <AuthGuard marketing={<FeaturePreview feature="reports" />}><ReportsContent /></AuthGuard>; }

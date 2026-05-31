@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/app/components/AuthGuard';
+import FeaturePreview from '@/app/components/marketing/FeaturePreview';
 import { useTranslation, type TranslationKey } from '@/app/lib/i18n/context';
 
 interface Proposal {
@@ -102,4 +103,4 @@ function ProposalsContent() {
   );
 }
 
-export default function ProposalsPage() { return <AuthGuard><ProposalsContent /></AuthGuard>; }
+export default function ProposalsPage() { return <AuthGuard marketing={<FeaturePreview feature="proposals" />}><ProposalsContent /></AuthGuard>; }

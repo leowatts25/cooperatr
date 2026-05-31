@@ -7,9 +7,16 @@ import { getCurrentUser, getUserProfile } from '@/app/lib/supabase-auth';
 interface AuthGuardProps {
   children: React.ReactNode;
   requireApproval?: boolean;
+  /**
+   * Optional marketing fallback for logged-out visitors. When provided, an
+   * unauthenticated user sees this content (a feature marketing preview with a
+   * sign-up CTA) instead of being redirected to /auth. Logged-in users still
+   * get `children`; pending/rejected users still redirect as before.
+   */
+  marketing?: React.ReactNode;
 }
 
-export default function AuthGuard({ children, requireApproval = false }: AuthGuardProps) {
+export default function AuthGuard({ children, requireApproval = false, marketing }: AuthGuardProps) {
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated' | 'pending'>('loading');
 
@@ -19,7 +26,9 @@ export default function AuthGuard({ children, requireApproval = false }: AuthGua
 
       if (!user) {
         setStatus('unauthenticated');
-        router.push('/auth');
+        // With a marketing fallback we keep the visitor on the page and show
+        // the preview; without one we bounce to the sign-in screen.
+        if (!marketing) router.push('/auth');
         return;
       }
 
@@ -55,6 +64,8 @@ export default function AuthGuard({ children, requireApproval = false }: AuthGua
       </div>
     );
   }
+
+  if (status === 'unauthenticated' && marketing) return <>{marketing}</>;
 
   if (status !== 'authenticated') return null;
 
