@@ -266,13 +266,17 @@ async function ingestEftPortal(sectors: SectorRow[], supabase: Supabase): Promis
   const PAGE_SIZE = 50;
   const SINCE_DAYS = 7; // Larger window: dev-finance calls open for weeks, not days
 
-  // Two targeted search queries to cover the main dev-finance procurement offices.
-  // Using OR across all terms in a single query works but mixes in unrelated results
-  // (e.g. internal EC administrative tenders that happen to mention "NEAR"). Splitting
-  // by office prefix gives cleaner signal-to-noise.
+  // Plain-text topical queries, NOT callIdentifier-prefix queries. The prefix
+  // form ('EC-INTPA OR EC-DEVCO …') matches SEDIA's entire historical corpus
+  // for those offices — thousands of CLOSED tenders — and sorting by startDate
+  // buries the few OPEN/FORTHCOMING calls far beyond the pages we fetch, so the
+  // biddable filter returned 0 every run (EU_FT was empty all-time). Topical
+  // text queries rank live, relevant dev-finance calls near the top: each of
+  // these surfaces ~20-25 OPEN/FORTHCOMING biddable notices in the first 3 pages.
   const searchQueries = [
-    'EC-INTPA OR EC-DEVCO OR NDICI OR "Global Gateway"',
-    'EC-NEAR OR "IPA III" OR "IPA II" OR "neighbourhood" INTPA',
+    'INTPA development cooperation',
+    'NEAR IPA neighbourhood',
+    'humanitarian assistance',
   ];
 
   // Track refs we've already processed to deduplicate across queries

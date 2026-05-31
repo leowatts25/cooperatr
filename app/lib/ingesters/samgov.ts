@@ -167,6 +167,19 @@ const INTL_DEV_AGENCY_SIGNALS = [
   'foreign assistance',
 ];
 
+// Agencies that procure for their own US-government operations — including
+// their overseas footprint (military bases, embassies' facilities upkeep).
+// A foreign place-of-performance does NOT make their solicitations dev-finance:
+// a DoD water line at an Air Force base in Spain is military base ops, not aid.
+const DOMESTIC_PROCUREMENT_AGENCY_SIGNALS = [
+  'dept of defense', 'department of defense', 'defense logistics',
+  'air force', 'department of the navy', 'dept of the navy', 'army',
+  'veterans affairs', 'va medical', 'homeland security',
+  'department of the interior', 'interior, department',
+  'department of agriculture', 'department of energy',
+  'general services administration', 'department of justice',
+];
+
 function devFinanceGate(
   buyer: string | null,
   country: string | null,
@@ -178,23 +191,32 @@ function devFinanceGate(
     return { passes: true, reason: 'dev-finance: intl-dev agency' };
   }
 
+  const isDomesticAgency = DOMESTIC_PROCUREMENT_AGENCY_SIGNALS.some((s) => b.includes(s));
+
   // Place of performance outside the US (treat missing/US/USA as domestic).
+  // Foreign location only counts as a dev-finance signal when the buyer is NOT
+  // a domestic-ops agency — otherwise US military/embassy facilities abroad
+  // leak through (e.g. Air Force base construction in Spain).
   const c = (country ?? '').toLowerCase().trim();
-  const isDomestic = c === '' || c === 'usa' || c === 'us' || c === 'united states' || c === 'united states of america';
-  if (!isDomestic) {
+  const isDomesticLoc = c === '' || c === 'usa' || c === 'us' || c === 'united states' || c === 'united states of america';
+  if (!isDomesticLoc && !isDomesticAgency) {
     return { passes: true, reason: `dev-finance: foreign place-of-performance (${country})` };
   }
 
   // Fallback: explicit overseas-development language in the text. Keeps genuine
-  // foreign-aid solicitations that under-populate placeOfPerformance.
-  const text = `${title ?? ''} ${description ?? ''}`.toLowerCase();
-  const DEV_TEXT_SIGNALS = [
-    'overseas', 'developing countr', 'foreign assistance', 'humanitarian',
-    'capacity building', 'sub-saharan', 'in-country', 'host country',
-    'host government', 'bilateral assistance', 'official development assistance',
-  ];
-  if (DEV_TEXT_SIGNALS.some((s) => text.includes(s))) {
-    return { passes: true, reason: 'dev-finance: overseas-development language' };
+  // foreign-aid solicitations that under-populate placeOfPerformance. Still
+  // suppressed for domestic-ops agencies — a DoD job that mentions "overseas"
+  // is base support, not aid.
+  if (!isDomesticAgency) {
+    const text = `${title ?? ''} ${description ?? ''}`.toLowerCase();
+    const DEV_TEXT_SIGNALS = [
+      'developing countr', 'foreign assistance', 'humanitarian',
+      'capacity building', 'sub-saharan', 'host country',
+      'host government', 'bilateral assistance', 'official development assistance',
+    ];
+    if (DEV_TEXT_SIGNALS.some((s) => text.includes(s))) {
+      return { passes: true, reason: 'dev-finance: overseas-development language' };
+    }
   }
 
   return { passes: false, reason: 'rejected: US domestic procurement (no dev-finance signal)' };
