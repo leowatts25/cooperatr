@@ -1,5 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerClient } from '@/app/lib/supabase';
+import { cooperatrProfileBlock, isNeedsUsExcluded } from '@/app/lib/cooperatrProfile';
+import { scoreTenderFit, TENDER_FIT_FLOOR, type TenderFit } from '@/app/lib/tenderFit';
+import { expandOpportunity, EXPANSION_SCORE_FLOOR } from '@/app/lib/opportunityExpansion';
 
 // ============================================================================
 // BD Matcher — scores (tender × scouted_company) pairings with Claude Sonnet 4.6
@@ -59,6 +62,9 @@ export interface TenderRow {
   published_at: string | null;
   deadline_at: string | null;
   passes_filter: boolean;
+  // Stage-1 tender-fit (migration 015). Optional so older callers still typecheck.
+  tender_fit_score?: number | null;
+  tender_fit_verdict?: string | null;
 }
 
 export interface ScoutedCompanyRow {
@@ -97,6 +103,7 @@ export interface FitDimensions {
   geography: number;
   capability: number;
   size: number;
+  needs_us: number;   // does this SME actually NEED Cooperatr? (Stage-2 recalibration)
   [key: string]: number;
 }
 
@@ -119,19 +126,24 @@ export interface ScoredCandidate extends MatchScore {
 
 const MATCHER_SYSTEM_PROMPT = `You are Cooperatr's BD Matcher — a senior development-finance strategist scoring (tender × SME) pairings for an internal pipeline. The pipeline is push-mode: tenders are ingested from donor feeds and matched against SMEs the team has scouted (some are warm-intro contacts from the admin's LinkedIn network, others discovered via web search or CORDIS).
 
-Calibration anchors:
-- 85-100  Pursue immediately. Sector and capability fit; geography works (in-country, or company has strong prior delivery in similar markets); warm intro or strong past-win evidence.
-- 65-84   Pursue as a coalition. Sector fits AND the company brings something genuinely distinctive — a specific certification, proprietary capability, sub-domain specialty, EU regulatory standing, or a track record the local market doesn't have. A named partner archetype closes the remaining gap and would actually want this SME in the consortium.
-- 40-64   Uncertain coalition. Some signal exists but the SME's distinctive value-add is weak, OR the partner would do most of the work (meaning they could just bid without this SME). Surface for human review.
-- 0-39    Skip. Wrong sector, wrong size, legal exclusion, OR the SME has no edge a competent local alternative couldn't match.
+${cooperatrProfileBlock()}
 
-A partner_stack is not a free pass. Ask: why would the local partner want this SME in the consortium? If the answer is "no reason — they could win this alone," score in the 30s. If the SME brings something the local market doesn't have, score 60+. The score reflects coalition viability, not the existence of a theoretical partnership.
+The single most important question, before sector/capability: DOES THIS SME NEED COOPERATR? Cooperatr's value is opening donor funding to the "forgotten market" — Spanish/EU SMEs and NGOs that can't access it alone. A firm that already wins donor work on its own (a global consultancy like Accenture/Deloitte/McKinsey, an established development prime like Chemonics/DAI/Tetra Tech, or a seasoned federal service contractor) does NOT need an unknown intermediary, no matter how capable it is. High capability on such a firm is a reason to score LOW, not high — pairing them with us is pointless. Spanish SMEs are the first-choice partner; an EU/other SME is acceptable when no Spanish fit exists.
+
+Calibration anchors:
+- 85-100  Pursue immediately. An SME that genuinely needs Cooperatr; sector and capability fit; geography works (in-country, founder reach, or strong prior delivery in similar markets); ideally a warm intro or past-win evidence. Spanish SME is the ideal here.
+- 65-84   Pursue as a coalition. The SME needs us AND brings something genuinely distinctive — a certification, proprietary capability, sub-domain specialty, EU regulatory standing, or a track record the local market lacks. A named partner archetype closes the remaining gap and would actually want this SME in the consortium.
+- 40-64   Uncertain. Some signal exists but the SME's distinctive value-add is weak, OR the partner would do most of the work (they could bid without this SME). Surface for human review.
+- 0-39    Skip. Wrong sector, wrong size, legal exclusion, the SME has no edge a competent local alternative couldn't match — OR the firm clearly doesn't need Cooperatr (a global consultancy / established prime / seasoned federal contractor). When needs_us is low, the overall score MUST sit here regardless of capability.
+
+A partner_stack is not a free pass. Ask: why would the local partner want this SME in the consortium? If the answer is "no reason — they could win this alone," score in the 30s. If the SME brings something the local market doesn't have, score 60+. The score reflects coalition viability AND need-for-Cooperatr, not the existence of a theoretical partnership.
 
 Dimensions you must score (each 0.0-1.0):
 - sector       overlap between tender sectors[] and company sectors[]
-- geography    can this SME plausibly deliver in the buyer country / project country?
+- geography    can this SME plausibly deliver in the buyer/project country? (Spanish & EU SMEs delivering EU-funded development work score well; weigh founder reach.)
 - capability   do described capabilities, certifications, and past donor wins map to the tender scope?
 - size         is the tender value compatible with the company's size band? Both too-big (won't be selected as lead) and too-small (uneconomic to bid) hurt the score.
+- needs_us     does this SME NEED Cooperatr? 1.0 = a Spanish/EU SME or NGO that can't access this funding alone; 0.0 = a global consultancy, established development prime, or seasoned federal contractor that wins this kind of work without help. This dimension gates the overall score: needs_us < 0.3 caps the overall at <40.
 
 Add additional dimensions if the pairing calls for them (e.g. language_fit, regulatory_alignment, coalition_viability) — keep them 0.0-1.0.
 
@@ -170,14 +182,15 @@ const matcherTool: Anthropic.Tool = {
       },
       fit_dimensions: {
         type: 'object',
-        description: 'Per-dimension 0.0-1.0 scores. Required keys: sector, geography, capability, size. Add other dimensions (e.g. language_fit) if useful.',
+        description: 'Per-dimension 0.0-1.0 scores. Required keys: sector, geography, capability, size, needs_us. Add other dimensions (e.g. language_fit) if useful.',
         properties: {
           sector: { type: 'number', minimum: 0, maximum: 1 },
           geography: { type: 'number', minimum: 0, maximum: 1 },
           capability: { type: 'number', minimum: 0, maximum: 1 },
           size: { type: 'number', minimum: 0, maximum: 1 },
+          needs_us: { type: 'number', minimum: 0, maximum: 1, description: 'Does this SME NEED Cooperatr? 1.0 = forgotten-market SME/NGO; 0.0 = global consultancy / established prime / seasoned federal contractor.' },
         },
-        required: ['sector', 'geography', 'capability', 'size'],
+        required: ['sector', 'geography', 'capability', 'size', 'needs_us'],
       },
       partner_stack: {
         type: 'array',
@@ -276,14 +289,18 @@ export interface ScoreInput {
   candidate: ScoutedCompanyRow;
   warmIntroContact: LinkedinContactRow | null;
   networkWarmContext?: NetworkWarmContext;
+  recentFeedback?: string;
 }
 
 export async function scoreMatch(input: ScoreInput): Promise<MatchScore> {
-  const { tender, candidate, warmIntroContact, networkWarmContext } = input;
+  const { tender, candidate, warmIntroContact, networkWarmContext, recentFeedback } = input;
 
   // System block: persona + tender profile (incl. tender-level warm context).
   // Stable across N candidates for the same tender, so cache it ephemerally —
   // candidates 2..N read from cache.
+  const systemText = recentFeedback
+    ? `${MATCHER_SYSTEM_PROMPT}\n\n## Recent operator feedback (recalibration signal)\nThe operator reviewed past matches and gave this feedback. Weight your scoring to reflect it:\n${recentFeedback}`
+    : MATCHER_SYSTEM_PROMPT;
   const system: Array<{
     type: 'text';
     text: string;
@@ -291,7 +308,7 @@ export async function scoreMatch(input: ScoreInput): Promise<MatchScore> {
   }> = [
     {
       type: 'text',
-      text: MATCHER_SYSTEM_PROMPT,
+      text: systemText,
       cache_control: { type: 'ephemeral' },
     },
     {
@@ -384,6 +401,17 @@ export async function getCandidatesForTender(
     if (page.length < PAGE) break;
   }
 
+  // Stage-2 hard exclusion: drop firms that clearly don't NEED Cooperatr
+  // (global consultancies, established development primes, seasoned federal
+  // contractors). The "Accenture bug" — these were scoring high on capability
+  // and surfacing as matches. They will never need an unknown intermediary, so
+  // they don't belong in the candidate pool at all.
+  const excludedCompanies = companies.filter((c) => isNeedsUsExcluded(c.name));
+  const eligibleCompanies = companies.filter((c) => !isNeedsUsExcluded(c.name));
+  if (excludedCompanies.length > 0) {
+    console.log(`[matcher] needs-us exclusion dropped ${excludedCompanies.length} firm(s): ${excludedCompanies.slice(0, 5).map((c) => c.name).join(', ')}${excludedCompanies.length > 5 ? '…' : ''}`);
+  }
+
   // Paginate linkedin_contacts the same way.
   const contacts: LinkedinContactRow[] = [];
   for (let offset = 0; ; offset += PAGE) {
@@ -435,6 +463,7 @@ export async function getCandidatesForTender(
     mostRecent: string;            // ISO date string of most-recent contact, '' if unknown
     inTenderCountry: boolean;      // company HQ is in the tender's specific country
     inBroadScope: boolean;         // company HQ is anywhere in our broad EU/US/DR allow-list
+    isSpanish: boolean;            // company HQ is in Spain — Cooperatr's first-choice partner
   };
 
   // Build tender-token set: tender sector slugs + tender title words. Used to
@@ -448,12 +477,13 @@ export async function getCandidatesForTender(
     ...titleTokens,
   ]);
 
-  const ranked: Ranked[] = companies.map((c) => {
+  const ranked: Ranked[] = eligibleCompanies.map((c) => {
     const sectors = (c.sectors || []).map((s) => s.toLowerCase());
     const sectorOverlap = sectors.filter((s) => tenderSectors.has(s)).length;
     const country = (c.country || '').toUpperCase();
     const inTenderCountry = !!country && !!tenderCountry && country === tenderCountry;
     const inBroadScope = country ? IN_SCOPE_COUNTRIES.has(country) : true; // unknown country = include
+    const isSpanish = country === 'ES' || country === 'ESP';
     const warm = warmByCompany.get(c.id) || null;
     const blob = (positionsBlobByCompany.get(c.id) || '').toLowerCase();
     let positionHint = 0;
@@ -469,32 +499,22 @@ export async function getCandidatesForTender(
       mostRecent: warm?.connected_on || '',
       inTenderCountry,
       inBroadScope,
+      isSpanish,
     };
   });
 
-  // Ranking precedence (final):
-  // No eligibility gate — every passing-filter tender deserves a scored BD
-  // row, even when the network covers nothing for it. A low score (15/100)
-  // is information: "real opportunity, network doesn't cover it, pursue cold
-  // or pass." Hiding the tender entirely robs the user of that signal.
-  //
-  // Ranking sorts what we DO have, picking the most-relevant top-N for
-  // scoring. The signals are OR-flavoured — a candidate ranks higher for
-  // ANY of these, no AND requirement:
-  //   1. sectorOverlap desc        — explicit sector match
-  //   2. positionHint desc         — contact positions reference tender domain
-  //   3. inTenderCountry desc      — company HQ literally in the tender country
-  //   4. warm > non-warm           — bonus when other dimensions tie
-  //   5. inBroadScope desc         — HQ anywhere in EU/US/DR (weak signal)
-  //   6. contactCount desc         — relationship strength
-  //   7. mostRecent desc           — recency
-  //   8. name asc                  — deterministic last-resort tiebreaker
-  //
-  // The matcher LLM is the real filter — it scores honestly and tells the
-  // user what's worth pursuing, with the warm-intro contact and the company
-  // metadata as inputs. Retrieval just picks the top-N most-relevant rows
-  // worth paying a Sonnet call on.
-  ranked.sort((a, b) => {
+  // Ranking precedence (Stage-2 recalibration):
+  //   1. isSpanish desc            — Spanish SMEs are the first-choice partner
+  //   2. sectorOverlap desc        — explicit sector match
+  //   3. positionHint desc         — contact positions reference tender domain
+  //   4. inTenderCountry desc      — company HQ literally in the tender country
+  //   5. warm > non-warm           — bonus when other dimensions tie
+  //   6. inBroadScope desc         — HQ anywhere in EU/US/DR (weak signal)
+  //   7. contactCount desc         — relationship strength
+  //   8. mostRecent desc           — recency
+  //   9. name asc                  — deterministic last-resort tiebreaker
+  const sortRanked = (a: Ranked, b: Ranked): number => {
+    if (a.isSpanish !== b.isSpanish) return b.isSpanish ? 1 : -1;
     if (a.sectorOverlap !== b.sectorOverlap) return b.sectorOverlap - a.sectorOverlap;
     if (a.positionHint !== b.positionHint) return b.positionHint - a.positionHint;
     if (a.inTenderCountry !== b.inTenderCountry) return b.inTenderCountry ? 1 : -1;
@@ -504,9 +524,27 @@ export async function getCandidatesForTender(
     if (a.contactCount !== b.contactCount) return b.contactCount - a.contactCount;
     if (a.mostRecent !== b.mostRecent) return a.mostRecent < b.mostRecent ? 1 : -1;
     return a.company.name.localeCompare(b.company.name);
-  });
+  };
 
-  return ranked.slice(0, limit).map((r) => ({
+  // Hard sector gate WITH fallback. Per the recalibration spec: a real sector
+  // match is required, and Spanish SMEs come first. So we build the candidate
+  // list in priority tiers and fill up to `limit`:
+  //   Tier 1: Spanish SMEs with a sector match   (the ideal)
+  //   Tier 2: any-country SMEs with a sector match (no good Spanish fit → move on)
+  //   Tier 3: fallback — no sector match at all. Only used to backfill if the
+  //           sector-matched tiers can't fill `limit`. A no-sector candidate
+  //           still gets scored (the LLM will rate it low), so the tender isn't
+  //           dropped silently — but it never displaces a sector match.
+  const spanishSector = ranked.filter((r) => r.isSpanish && r.sectorOverlap > 0).sort(sortRanked);
+  const otherSector = ranked.filter((r) => !r.isSpanish && r.sectorOverlap > 0).sort(sortRanked);
+  const noSector = ranked.filter((r) => r.sectorOverlap === 0).sort(sortRanked);
+
+  const ordered: Ranked[] = [...spanishSector, ...otherSector];
+  if (ordered.length < limit) {
+    ordered.push(...noSector.slice(0, limit - ordered.length));
+  }
+
+  return ordered.slice(0, limit).map((r) => ({
     company: r.company,
     warmIntroContact: r.warm,
     sectorOverlap: r.sectorOverlap,
@@ -653,14 +691,48 @@ export interface TenderMatchOutcome {
   written: number;
   matches: ScoredCandidate[];
   errors: string[];
+  tenderFit?: TenderFit;
+  skipped?: boolean;          // true when Stage-1 gate hard-skipped company matching
+}
+
+// ----------------------------------------------------------------------------
+// getRecentFeedback — recalibration signal for Stage 1 + Stage 2 prompts
+// ----------------------------------------------------------------------------
+// Pull the most recent operator feedback (thumbs-down or free-text) on past
+// matches and format it into a compact block. Both the tender-fit screener and
+// the matcher read this so the operator's corrections steer future scoring.
+export async function getRecentFeedback(supabase: Supabase, limit = 12): Promise<string | undefined> {
+  const { data, error } = await supabase
+    .from('tender_matches')
+    .select('feedback, feedback_signal, score, tender:tenders(title), company:scouted_companies(name)')
+    .not('feedback', 'is', null)
+    .order('feedback_at', { ascending: false })
+    .limit(limit);
+  if (error || !data || data.length === 0) return undefined;
+
+  const lines: string[] = [];
+  for (const row of data as unknown as Array<{
+    feedback: string | null;
+    feedback_signal: string | null;
+    score: number | null;
+    tender: { title: string | null } | null;
+    company: { name: string | null } | null;
+  }>) {
+    if (!row.feedback) continue;
+    const signal = row.feedback_signal === 'down' ? '👎' : row.feedback_signal === 'up' ? '👍' : '·';
+    const t = (row.tender?.title || 'tender').slice(0, 70);
+    const c = row.company?.name || 'company';
+    lines.push(`${signal} [${c} × "${t}", scored ${Math.round(row.score ?? 0)}]: ${row.feedback.slice(0, 240)}`);
+  }
+  return lines.length > 0 ? lines.join('\n') : undefined;
 }
 
 export async function matchTender(
   supabase: Supabase,
   tenderId: string,
-  opts: { dryRun?: boolean; candidateLimit?: number } = {},
+  opts: { dryRun?: boolean; candidateLimit?: number; recentFeedback?: string; skipExpansion?: boolean } = {},
 ): Promise<TenderMatchOutcome> {
-  const { dryRun = false, candidateLimit = 5 } = opts;
+  const { dryRun = false, candidateLimit = 5, skipExpansion = false } = opts;
   const errors: string[] = [];
 
   const { data: tender, error: tErr } = await supabase
@@ -672,22 +744,71 @@ export async function matchTender(
     throw new Error(`tender ${tenderId} not found: ${tErr?.message || 'no row'}`);
   }
 
-  const candidates = await getCandidatesForTender(supabase, tender as TenderRow, candidateLimit);
+  const tenderRow = tender as TenderRow;
+
+  // Recalibration signal — recent operator feedback. Fetched once per tender if
+  // not supplied by the batch caller (batch passes it once to avoid N queries).
+  const recentFeedback = opts.recentFeedback ?? (await getRecentFeedback(supabase));
+
+  // ── Stage 1 — tender-fit gate ──────────────────────────────────────────────
+  // Decide whether this tender fits Cooperatr BEFORE spending Sonnet calls on
+  // company matching. Below the floor → hard-skip + record (no company match).
+  let tenderFit: TenderFit | undefined;
+  try {
+    tenderFit = await scoreTenderFit(tenderRow, recentFeedback);
+    if (!dryRun) {
+      const { error: fErr } = await supabase
+        .from('tenders')
+        .update({
+          tender_fit_score: tenderFit.fit_score,
+          tender_fit_reasons: {
+            sector_fit: tenderFit.sector_fit,
+            geography_fit: tenderFit.geography_fit,
+            deal_band_fit: tenderFit.deal_band_fit,
+            reasons: tenderFit.reasons,
+          },
+          tender_fit_verdict: tenderFit.verdict,
+          tender_fit_at: new Date().toISOString(),
+        })
+        .eq('id', tenderId);
+      if (fErr) errors.push(`tender_fit persist: ${fErr.message}`);
+    }
+  } catch (err) {
+    // Don't let a tender-fit failure block matching — log and proceed.
+    errors.push(`tender_fit: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  if (tenderFit && tenderFit.fit_score < TENDER_FIT_FLOOR) {
+    // Hard skip + record. The score is persisted above; no company matching.
+    return {
+      tenderId,
+      candidates: 0,
+      scored: 0,
+      written: 0,
+      matches: [],
+      errors,
+      tenderFit,
+      skipped: true,
+    };
+  }
+
+  const candidates = await getCandidatesForTender(supabase, tenderRow, candidateLimit);
 
   // Compute tender-level warm context ONCE per tender — same for all candidates.
   // This is the "wider network" bonus signal: contacts in the tender's country
   // and/or sector, regardless of which company they work at.
-  const networkWarmContext = await getNetworkWarmContext(supabase, tender as TenderRow);
+  const networkWarmContext = await getNetworkWarmContext(supabase, tenderRow);
 
   const matches: ScoredCandidate[] = [];
 
   for (const { company, warmIntroContact } of candidates) {
     try {
       const score = await scoreMatch({
-        tender: tender as TenderRow,
+        tender: tenderRow,
         candidate: company,
         warmIntroContact,
         networkWarmContext,
+        recentFeedback,
       });
       matches.push({
         scouted_company_id: company.id,
@@ -697,6 +818,29 @@ export async function matchTender(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${company.name} (${company.id}): ${msg}`);
+    }
+  }
+
+  // ── Stage 3 — opportunity-engine expansion for strong matches ───────────────
+  // For matches worth pursuing, expand the single bid into a structured deal
+  // (consortium partners / impact investors / blended finance). Capped to the
+  // top matches above the floor so we don't pay for it on weak pairings.
+  const expansions = new Map<string, Awaited<ReturnType<typeof expandOpportunity>>>();
+  if (!skipExpansion) {
+    const companyById = new Map(candidates.map((c) => [c.company.id, c.company]));
+    const strong = matches
+      .filter((m) => (m.score ?? 0) >= EXPANSION_SCORE_FLOOR)
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+      .slice(0, 2); // at most the top 2 strong matches per tender
+    for (const m of strong) {
+      const company = companyById.get(m.scouted_company_id);
+      if (!company) continue;
+      try {
+        const exp = await expandOpportunity(tenderRow, company, m.rationale);
+        expansions.set(m.scouted_company_id, exp);
+      } catch (err) {
+        errors.push(`expansion ${company.name}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 
@@ -710,6 +854,7 @@ export async function matchTender(
       fit_dimensions: m.fit_dimensions,
       partner_stack: m.partner_stack ?? null,
       risks: m.risks ?? null,
+      opportunity_expansion: expansions.get(m.scouted_company_id) ?? null,
       warm_intro_via_contact_id: m.warm_intro_via_contact_id,
       matched_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -742,6 +887,7 @@ export async function matchTender(
     written,
     matches,
     errors,
+    tenderFit,
   };
 }
 
@@ -761,6 +907,9 @@ export async function matchSpecificTenders(
   let matchesWritten = 0;
   const errors: string[] = [];
 
+  // Fetch the recalibration feedback once for the whole batch.
+  const recentFeedback = await getRecentFeedback(supabase);
+
   const queue = [...tenderIds];
   let active = 0;
   await new Promise<void>((resolve) => {
@@ -768,7 +917,7 @@ export async function matchSpecificTenders(
       while (active < concurrency && queue.length > 0) {
         const id = queue.shift()!;
         active += 1;
-        matchTender(supabase, id, { candidateLimit })
+        matchTender(supabase, id, { candidateLimit, recentFeedback })
           .then((out) => {
             if (out.candidates > 0) tendersWithCandidates += 1;
             matchesWritten += out.written;
@@ -857,6 +1006,9 @@ export async function matchRecentTenders(
   let matchesWritten = 0;
   const errors: string[] = [];
 
+  // Fetch the recalibration feedback once for the whole batch.
+  const recentFeedback = await getRecentFeedback(supabase);
+
   // Parallelize tenders. Each tender's internal 5 scoreMatch calls stay
   // sequential to benefit from the cached system+tender block. Concurrency=5
   // means ~5 tenders × ~50s sequential = ~50s wall-clock per wave; 20 tenders
@@ -869,7 +1021,7 @@ export async function matchRecentTenders(
       while (active < CONCURRENCY && queue.length > 0) {
         const t = queue.shift()!;
         active += 1;
-        matchTender(supabase, t.id, { candidateLimit })
+        matchTender(supabase, t.id, { candidateLimit, recentFeedback })
           .then((out) => {
             if (out.candidates > 0) tendersWithCandidates += 1;
             matchesWritten += out.written;

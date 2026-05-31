@@ -33,6 +33,15 @@ interface BdMatch {
   risks: string[] | null;
   status: string;
   notes: string | null;
+  opportunity_expansion: {
+    consortium_partners?: string[];
+    impact_investors?: string[];
+    blended_finance_angle?: string;
+    expanded_impact?: string;
+  } | null;
+  feedback: string | null;
+  feedback_signal: string | null;
+  feedback_at: string | null;
   warm_intro_via_contact_id: string | null;
   matched_at: string;
   reviewed_at: string | null;
@@ -51,6 +60,9 @@ interface BdMatch {
     deadline_at: string | null;
     translations: Record<string, { title?: string; description?: string }> | null;
     source_language: string | null;
+    tender_fit_score: number | null;
+    tender_fit_verdict: string | null;
+    tender_fit_reasons: { sector_fit?: number; geography_fit?: number; deal_band_fit?: number; reasons?: string[] } | null;
   } | null;
   company: {
     id: string;
@@ -169,6 +181,30 @@ export default function AdminBdPage() {
     }
   }
 
+  // Save per-match feedback (free text + optional thumbs). Updates local state
+  // optimistically so the textarea keeps its value without a full refetch.
+  async function handleFeedback(matchId: string, feedback: string, signal: 'up' | 'down' | null) {
+    try {
+      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL });
+      const res = await fetch(`/api/admin/bd?${params}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, feedback, feedback_signal: signal }),
+      });
+      if (!res.ok) throw new Error('feedback save failed');
+      setMatches((prev) =>
+        prev.map((m) =>
+          m.id === matchId
+            ? { ...m, feedback, feedback_signal: signal, feedback_at: new Date().toISOString() }
+            : m,
+        ),
+      );
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }
+
   if (!isAdmin) {
     return (
       <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -242,6 +278,7 @@ export default function AdminBdPage() {
               locale={locale}
               onPursue={handlePursue}
               onStatusChange={handleStatusChange}
+              onFeedback={handleFeedback}
               pursuing={pursuingId === m.id}
             />
           ))}
@@ -276,12 +313,14 @@ function MatchRow({
   locale,
   onPursue,
   onStatusChange,
+  onFeedback,
   pursuing,
 }: {
   match: BdMatch;
   locale: string;
   onPursue: (m: BdMatch) => void;
   onStatusChange: (id: string, status: string) => void;
+  onFeedback: (id: string, feedback: string, signal: 'up' | 'down' | null) => Promise<void>;
   pursuing: boolean;
 }) {
   const t = match.tender;
@@ -328,6 +367,18 @@ function MatchRow({
           {t?.donor && <span style={badgeStyle('donor')}>{t.donor}</span>}
           {t?.country && <span style={badgeStyle('country')}>📍 {t.country}</span>}
           {(t?.sectors || []).map((s) => <span key={s} style={badgeStyle('sector')}>{s.replace(/_/g, ' ')}</span>)}
+          {typeof t?.tender_fit_score === 'number' && (
+            <span
+              title={(t.tender_fit_reasons?.reasons || []).join(' · ')}
+              style={{
+                ...badgeStyle('fit'),
+                background: t.tender_fit_score >= 70 ? '#22C55E20' : t.tender_fit_score >= 45 ? '#F59E0B20' : '#EF444420',
+                color: t.tender_fit_score >= 70 ? '#22C55E' : t.tender_fit_score >= 45 ? '#F59E0B' : '#EF4444',
+              }}
+            >
+              tender-fit {Math.round(t.tender_fit_score)}{t.tender_fit_verdict ? ` · ${t.tender_fit_verdict}` : ''}
+            </span>
+          )}
           {w && (
             <span style={{ ...badgeStyle('warm'), display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               🤝 warm: {[w.first_name, w.last_name].filter(Boolean).join(' ') || '(contact)'}
@@ -402,6 +453,14 @@ function MatchRow({
             <strong>Risks:</strong> {match.risks.join(' · ')}
           </div>
         )}
+
+        {/* Stage-3 opportunity-engine expansion */}
+        {match.opportunity_expansion && (
+          <OpportunityExpansionBlock expansion={match.opportunity_expansion} />
+        )}
+
+        {/* Feedback box — recalibration signal */}
+        <FeedbackBox match={match} onFeedback={onFeedback} />
       </div>
 
       {/* Action column */}
@@ -446,6 +505,139 @@ function MatchRow({
   );
 }
 
+function OpportunityExpansionBlock({
+  expansion,
+}: {
+  expansion: NonNullable<BdMatch['opportunity_expansion']>;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ marginTop: 10, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none',
+          background: 'rgba(31,108,197,0.08)', color: 'var(--text-primary)',
+          fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex',
+          alignItems: 'center', justifyContent: 'space-between',
+        }}
+      >
+        <span>🚀 Opportunity-engine expansion</span>
+        <span style={{ opacity: 0.6 }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--text-primary)', display: 'grid', gap: 8 }}>
+          {expansion.consortium_partners && expansion.consortium_partners.length > 0 && (
+            <div>
+              <strong style={{ color: 'var(--text-muted)' }}>Consortium:</strong>{' '}
+              {expansion.consortium_partners.join(' · ')}
+            </div>
+          )}
+          {expansion.impact_investors && expansion.impact_investors.length > 0 && (
+            <div>
+              <strong style={{ color: 'var(--text-muted)' }}>Impact capital:</strong>{' '}
+              {expansion.impact_investors.join(' · ')}
+            </div>
+          )}
+          {expansion.blended_finance_angle && (
+            <div>
+              <strong style={{ color: 'var(--text-muted)' }}>Blended finance:</strong>{' '}
+              {expansion.blended_finance_angle}
+            </div>
+          )}
+          {expansion.expanded_impact && (
+            <div>
+              <strong style={{ color: 'var(--text-muted)' }}>Expanded impact:</strong>{' '}
+              {expansion.expanded_impact}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeedbackBox({
+  match,
+  onFeedback,
+}: {
+  match: BdMatch;
+  onFeedback: (id: string, feedback: string, signal: 'up' | 'down' | null) => Promise<void>;
+}) {
+  const [text, setText] = useState(match.feedback || '');
+  const [signal, setSignal] = useState<'up' | 'down' | null>(
+    match.feedback_signal === 'up' || match.feedback_signal === 'down' ? match.feedback_signal : null,
+  );
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(match.feedback_at);
+
+  const dirty = text !== (match.feedback || '') || signal !== (match.feedback_signal || null);
+
+  async function save(nextSignal?: 'up' | 'down' | null) {
+    const sig = nextSignal === undefined ? signal : nextSignal;
+    setSaving(true);
+    try {
+      await onFeedback(match.id, text, sig);
+      setSavedAt(new Date().toISOString());
+      if (nextSignal !== undefined) setSignal(nextSignal);
+    } catch {
+      /* handled upstream */
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const thumbBtn = (kind: 'up' | 'down'): React.CSSProperties => {
+    const active = signal === kind;
+    const color = kind === 'up' ? '#22C55E' : '#EF4444';
+    return {
+      padding: '4px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+      border: `1px solid ${active ? color : 'var(--border)'}`,
+      background: active ? `${color}20` : 'var(--bg-surface)',
+      color: active ? color : 'var(--text-muted)',
+    };
+  };
+
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-muted)' }}>
+          Feedback (recalibrates future scoring)
+        </span>
+        <button type="button" onClick={() => save(signal === 'up' ? null : 'up')} disabled={saving} style={thumbBtn('up')}>👍</button>
+        <button type="button" onClick={() => save(signal === 'down' ? null : 'down')} disabled={saving} style={thumbBtn('down')}>👎</button>
+        {savedAt && !dirty && <span style={{ fontSize: 11, color: '#22C55E' }}>✓ saved</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Why is this match good or bad? e.g. 'wrong sector', 'this company doesn't need us', 'great fit — pursue'…"
+          rows={2}
+          style={{
+            flex: 1, resize: 'vertical', padding: '6px 10px', borderRadius: 8,
+            border: '1px solid var(--border)', background: 'var(--bg-surface)',
+            color: 'var(--text-primary)', fontSize: 12, fontFamily: 'inherit',
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => save()}
+          disabled={saving || !dirty}
+          style={{
+            padding: '8px 14px', borderRadius: 8, border: 'none',
+            background: dirty && !saving ? 'var(--accent)' : 'var(--bg-elevated)',
+            color: dirty && !saving ? '#0F1623' : 'var(--text-muted)',
+            fontSize: 12, fontWeight: 700, cursor: dirty && !saving ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function badgeStyle(kind: string): React.CSSProperties {
   const colors: Record<string, [string, string]> = {
     source: ['#0EA5E9', '#0EA5E920'],
@@ -455,6 +647,7 @@ function badgeStyle(kind: string): React.CSSProperties {
     sectorSm: ['#EC4899', '#EC489915'],
     size: ['#F59E0B', '#F59E0B20'],
     warm: ['#F59E0B', '#F59E0B25'],
+    fit: ['#22C55E', '#22C55E20'],
   };
   const [fg, bg] = colors[kind] || ['#7A90A8', '#7A90A820'];
   return {

@@ -34,6 +34,7 @@ const SECTOR_SLUGS = [
   'circular_esg',
   'critical_minerals',
   'human_rights',
+  'capacity_building',
 ];
 
 // ----------------------------------------------------------------------------
@@ -110,7 +111,7 @@ For each candidate, return:
 - country        (ISO 3166-1 alpha-2, HQ country)
 - website        (canonical domain if known, else null)
 - description    (1-2 sentences: what they do, sub-sector specialty, relevant track record)
-- sectors        (from: agri_food, renewable_energy, water_tech, circular_esg, critical_minerals, human_rights)
+- sectors        (from: agri_food, renewable_energy, water_tech, circular_esg, critical_minerals, human_rights, capacity_building)
 - past_donor_wins (free-text named donor+program, e.g. "AECID 2023 (Senegal solar microgrid)")
 - size_band      (micro <10, small 10-50, medium 50-250, large 250+ staff)
 - geographic_footprint (ISO 3166-1 alpha-2 codes of countries where they have delivered)
