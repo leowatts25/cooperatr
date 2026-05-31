@@ -20,7 +20,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerClient } from '@/app/lib/supabase';
 
-const client = new Anthropic();
+// maxRetries: 6 — discovery emits large candidate batches (up to ~4k output
+// tokens/call). On a low Anthropic tier (8k output tokens/min) this can hit
+// the per-minute cap; retrying with backoff lets the run self-throttle instead
+// of failing.
+const client = new Anthropic({ maxRetries: 6 });
 type Supabase = ReturnType<typeof createServerClient>;
 
 const SECTOR_SLUGS = [
@@ -170,7 +174,9 @@ Return 5-10 real bidding-capable EU/US SMEs with a credible path to win this. Sk
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 6000,
+    // 4000 (was 6000): enough for 5-10 candidates while trimming the per-call
+    // output burst against the 8k-tokens/min tier cap.
+    max_tokens: 4000,
     system: [
       {
         type: 'text',

@@ -289,7 +289,11 @@ async function ingestEftPortal(sectors: SectorRow[], supabase: Supabase): Promis
       }
 
       fetched += pageResult.notices.length;
-      if (pageResult.notices.length === 0) break;
+      // Break only when the API itself has no more results. Do NOT break just
+      // because this page's *filtered* (biddable) count is low — open/forthcoming
+      // tenders are sparsely scattered among mostly-closed results, so they
+      // often sit on later pages. (This was the bug that made EU_FT return 0.)
+      if (pageResult.rawCount === 0) break;
 
       const batch = [];
       for (const raw of pageResult.notices) {
@@ -325,7 +329,8 @@ async function ingestEftPortal(sectors: SectorRow[], supabase: Supabase): Promis
         }
       }
 
-      if (pageResult.notices.length < PAGE_SIZE) break;
+      // Last page reached when the API returns fewer RAW results than a full page.
+      if (pageResult.rawCount < PAGE_SIZE) break;
     }
   }
 

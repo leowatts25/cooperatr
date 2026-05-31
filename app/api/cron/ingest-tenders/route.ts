@@ -70,7 +70,9 @@ export async function GET(req: NextRequest) {
     // tenders (not a different random set).
     const discovery = await runDiscoveryForRecentTenders(supabase, {
       sinceDays: 7,
-      maxTenders: 15,
+      maxTenders: 6,  // Throttled for the 8k-tokens/min Anthropic tier. The
+                      // skipScored pipeline clears any backlog over subsequent
+                      // daily runs, so a smaller per-run batch is fine.
     });
     console.log(
       `[cron/ingest-tenders] discovery complete — tenders=${discovery.tenders_processed} candidates=${discovery.candidates_total} inserted=${discovery.inserted_total} matched=${discovery.matched_total} cost=$${discovery.est_cost_usd}`,
@@ -82,8 +84,8 @@ export async function GET(req: NextRequest) {
     // Parallelizes at concurrency=5 with each tender's 5 candidates sequential
     // (so the cached system+tender block benefits subsequent candidates).
     const match = await matchSpecificTenders(supabase, discovery.tender_ids, {
-      candidateLimit: 5,
-      concurrency: 5,
+      candidateLimit: 4,  // top-ranked candidates only — fewer Sonnet calls
+      concurrency: 2,     // throttle burst against the 8k-tokens/min tier cap
     });
     console.log(
       `[cron/ingest-tenders] match complete — considered=${match.tendersConsidered} with_candidates=${match.tendersWithCandidates} written=${match.matchesWritten} errors=${match.errors.length}`,

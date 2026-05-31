@@ -110,6 +110,16 @@ export function normalizeSamGovOpportunity(raw: RawSamGovOpportunity, sectors: S
 
   const filter = applyFilter({ title, description, value_usd_min: min, value_usd_max: max }, sectors);
 
+  // Dev-finance gate. SAM.gov's raw feed is overwhelmingly US *domestic*
+  // federal procurement (VA hospital plumbing, Navy doors). Those clear the
+  // sector+value filter by accident but are useless to us. Require an
+  // explicit international-development signal: either the buying agency is an
+  // intl-dev agency (State/DFC/MCC/USAID-successor/USTDA) OR the work is
+  // performed outside the United States.
+  const dev = devFinanceGate(buyer, country, title, description);
+  const passes = filter.passes && dev.passes;
+  const reasons = dev.passes ? filter.reasons : [...filter.reasons, dev.reason];
+
   return {
     source: 'SAM_GOV',
     source_ref: sourceRef,
@@ -129,9 +139,65 @@ export function normalizeSamGovOpportunity(raw: RawSamGovOpportunity, sectors: S
     published_at: publishedAt,
     deadline_at: deadlineAt,
     raw,
-    passes_filter: filter.passes,
-    filter_reasons: filter.reasons,
+    passes_filter: passes,
+    filter_reasons: reasons,
   };
+}
+
+// ----------------------------------------------------------------------------
+// Dev-finance gate
+// ----------------------------------------------------------------------------
+
+// Agencies whose mandate is international development / foreign assistance.
+// Matched against the full org path (fullParentPathName) so sub-bureaus count.
+const INTL_DEV_AGENCY_SIGNALS = [
+  'agency for international development',
+  'usaid',
+  'department of state',
+  'state department',
+  'development finance corporation',
+  'millennium challenge',
+  'trade and development agency',
+  'ustda',
+  'african development foundation',
+  'inter-american foundation',
+  'peace corps',
+  'overseas private investment',
+  'bureau of international',
+  'foreign assistance',
+];
+
+function devFinanceGate(
+  buyer: string | null,
+  country: string | null,
+  title: string | null,
+  description: string | null,
+): { passes: boolean; reason: string } {
+  const b = (buyer ?? '').toLowerCase();
+  if (INTL_DEV_AGENCY_SIGNALS.some((s) => b.includes(s))) {
+    return { passes: true, reason: 'dev-finance: intl-dev agency' };
+  }
+
+  // Place of performance outside the US (treat missing/US/USA as domestic).
+  const c = (country ?? '').toLowerCase().trim();
+  const isDomestic = c === '' || c === 'usa' || c === 'us' || c === 'united states' || c === 'united states of america';
+  if (!isDomestic) {
+    return { passes: true, reason: `dev-finance: foreign place-of-performance (${country})` };
+  }
+
+  // Fallback: explicit overseas-development language in the text. Keeps genuine
+  // foreign-aid solicitations that under-populate placeOfPerformance.
+  const text = `${title ?? ''} ${description ?? ''}`.toLowerCase();
+  const DEV_TEXT_SIGNALS = [
+    'overseas', 'developing countr', 'foreign assistance', 'humanitarian',
+    'capacity building', 'sub-saharan', 'in-country', 'host country',
+    'host government', 'bilateral assistance', 'official development assistance',
+  ];
+  if (DEV_TEXT_SIGNALS.some((s) => text.includes(s))) {
+    return { passes: true, reason: 'dev-finance: overseas-development language' };
+  }
+
+  return { passes: false, reason: 'rejected: US domestic procurement (no dev-finance signal)' };
 }
 
 // ----------------------------------------------------------------------------

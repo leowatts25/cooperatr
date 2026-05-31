@@ -20,7 +20,11 @@ import { createServerClient } from '@/app/lib/supabase';
 // At current pricing roughly $5–15/week with cache hits. See BD-SCANNER.md.
 // ============================================================================
 
-const client = new Anthropic();
+// maxRetries: 6 — the SDK retries 429s with backoff, honouring the
+// retry-after header. On a low Anthropic tier (8k output tokens/min) the
+// matcher+discovery burst can hit the per-minute cap; retrying lets the run
+// self-throttle and complete instead of erroring out mid-batch.
+const client = new Anthropic({ maxRetries: 6 });
 
 // EU-27 + Dominican Republic + USA (per filter spec). The tender's own buyer
 // country is also added at retrieval time. Empty-country candidates are not
@@ -302,7 +306,7 @@ export async function scoreMatch(input: ScoreInput): Promise<MatchScore> {
   const t0 = Date.now();
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1200,
+    max_tokens: 1000,
     system: system as Anthropic.Messages.MessageCreateParams['system'],
     tools: [matcherTool],
     tool_choice: { type: 'tool', name: 'emit_match' },
@@ -752,7 +756,7 @@ export async function matchSpecificTenders(
   tenderIds: string[],
   opts: { candidateLimit?: number; concurrency?: number } = {},
 ): Promise<BatchMatchResult> {
-  const { candidateLimit = 5, concurrency = 5 } = opts;
+  const { candidateLimit = 5, concurrency = 2 } = opts;
   let tendersWithCandidates = 0;
   let matchesWritten = 0;
   const errors: string[] = [];
@@ -857,7 +861,7 @@ export async function matchRecentTenders(
   // sequential to benefit from the cached system+tender block. Concurrency=5
   // means ~5 tenders × ~50s sequential = ~50s wall-clock per wave; 20 tenders
   // ÷ 5 = 4 waves ≈ 200s. Fits under the 300s function cap.
-  const CONCURRENCY = 5;
+  const CONCURRENCY = 2;
   const queue = [...tenders];
   let active = 0;
   await new Promise<void>((resolve) => {

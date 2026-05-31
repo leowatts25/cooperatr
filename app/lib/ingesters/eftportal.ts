@@ -153,8 +153,10 @@ interface FetchOpts {
 }
 
 interface FetchResult {
-  notices: RawEftNotice[];
+  notices: RawEftNotice[];   // post client-side filter (biddable only)
   totalResults: number;
+  rawCount: number;          // results returned by the API before filtering —
+                             // used to decide whether more pages exist
 }
 
 // ─── API call ─────────────────────────────────────────────────────────────────
@@ -229,7 +231,7 @@ export async function fetchEftNotices(opts: FetchOpts): Promise<FetchResult> {
     return true;
   });
 
-  return { notices, totalResults };
+  return { notices, totalResults, rawCount: rawResults.length };
 }
 
 // ─── Normalization ────────────────────────────────────────────────────────────
