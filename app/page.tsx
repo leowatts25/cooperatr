@@ -4,8 +4,14 @@ import { useTranslation } from '@/app/lib/i18n/context';
 import {
   MarketingTabs,
   RunBiz,
-  WhatWeDo,
+  Modules,
+  MarketNow,
   StatsBand,
+  WhatWeDo,
+  PushPipeline,
+  WorkingExamples,
+  EngineSection,
+  Segments,
   ExploreCards,
   Faq,
   FinalCta,
@@ -64,7 +70,13 @@ export default function Dashboard() {
 
       <RunBiz />
       <WhatWeDo />
+      <Modules />
+      <MarketNow />
       <StatsBand />
+      <PushPipeline />
+      <WorkingExamples />
+      <EngineSection />
+      <Segments />
       <ExploreCards />
       <Faq />
       <FinalCta />

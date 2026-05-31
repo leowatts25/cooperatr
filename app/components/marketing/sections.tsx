@@ -493,10 +493,38 @@ export function Faq() {
 // ── Explore cards (home → marketing pages) ────────────────────────────────────
 export function ExploreCards() {
   const { t } = useTranslation();
-  const cards: { href: string; title: TranslationKey; desc: TranslationKey }[] = [
-    { href: '/how-it-works', title: 'landing.explore.how.title', desc: 'landing.explore.how.desc' },
-    { href: '/platform', title: 'landing.explore.platform.title', desc: 'landing.explore.platform.desc' },
-    { href: '/about', title: 'landing.explore.about.title', desc: 'landing.explore.about.desc' },
+  const cards: {
+    href: string;
+    icon: string;
+    accent: string;
+    title: TranslationKey;
+    desc: TranslationKey;
+    bullets: TranslationKey[];
+  }[] = [
+    {
+      href: '/how-it-works',
+      icon: '⚙️',
+      accent: '#1f6cc5',
+      title: 'landing.explore.how.title',
+      desc: 'landing.explore.how.desc',
+      bullets: ['landing.explore.how.b1', 'landing.explore.how.b2', 'landing.explore.how.b3'],
+    },
+    {
+      href: '/platform',
+      icon: '🧩',
+      accent: '#0d8a6a',
+      title: 'landing.explore.platform.title',
+      desc: 'landing.explore.platform.desc',
+      bullets: ['landing.explore.platform.b1', 'landing.explore.platform.b2', 'landing.explore.platform.b3'],
+    },
+    {
+      href: '/about',
+      icon: '👥',
+      accent: '#a05a1f',
+      title: 'landing.explore.about.title',
+      desc: 'landing.explore.about.desc',
+      bullets: ['landing.explore.about.b1', 'landing.explore.about.b2', 'landing.explore.about.b3'],
+    },
   ];
   return (
     <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E8E2D8' }}>
@@ -505,17 +533,47 @@ export function ExploreCards() {
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
             {t('landing.explore.kicker')}
           </p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25 }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '16px' }}>
             {t('landing.explore.title')}
           </h2>
+          <p style={{ fontSize: '16px', color: '#718096', lineHeight: 1.7, maxWidth: '620px', margin: '0 auto' }}>
+            {t('landing.explore.sub')}
+          </p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           {cards.map((c) => (
             <Link key={c.href} href={c.href} style={{ textDecoration: 'none' }}>
-              <div style={{ backgroundColor: '#F7F5F0', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '32px', height: '100%', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}>
-                <h3 className="font-serif" style={{ fontSize: '20px', color: '#1A2332', marginBottom: '12px' }}>{t(c.title)}</h3>
-                <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.65, margin: '0 0 20px' }}>{t(c.desc)}</p>
-                <span style={{ marginTop: 'auto', fontSize: '14px', fontWeight: 700, color: '#1f6cc5' }}>{t('landing.explore.cta')}</span>
+              <div style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '12px', height: '100%', cursor: 'pointer', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 1px 3px rgba(26,35,50,0.06)' }}>
+                {/* graphic header strip */}
+                <div style={{
+                  background: `linear-gradient(135deg, ${c.accent} 0%, #1A2332 140%)`,
+                  padding: '28px 28px 24px',
+                  display: 'flex', alignItems: 'center', gap: '14px',
+                }}>
+                  <div style={{
+                    width: '52px', height: '52px', borderRadius: '12px',
+                    backgroundColor: 'rgba(255,255,255,0.16)',
+                    border: '1px solid rgba(255,255,255,0.28)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '26px', flexShrink: 0,
+                  }}>
+                    {c.icon}
+                  </div>
+                  <h3 className="font-serif" style={{ fontSize: '22px', color: '#F5F0E8', margin: 0, lineHeight: 1.2 }}>{t(c.title)}</h3>
+                </div>
+                {/* body */}
+                <div style={{ padding: '24px 28px 28px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                  <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.65, margin: '0 0 20px' }}>{t(c.desc)}</p>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {c.bullets.map((b) => (
+                      <li key={b} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13px', color: '#4A5568', lineHeight: 1.5 }}>
+                        <span style={{ color: c.accent, fontWeight: 700, flexShrink: 0 }}>✓</span>
+                        <span>{t(b)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <span style={{ marginTop: 'auto', fontSize: '14px', fontWeight: 700, color: c.accent }}>{t('landing.explore.cta')}</span>
+                </div>
               </div>
             </Link>
           ))}
