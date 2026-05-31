@@ -3,6 +3,7 @@ import {
   MarketingTabs,
   PageHero,
   Modules,
+  AgentRoster,
   Segments,
   Windows,
   FinalCta,
@@ -14,6 +15,7 @@ export default function PlatformPage() {
       <MarketingTabs />
       <PageHero titleKey="page.platform.title" subKey="page.platform.sub" />
       <Modules />
+      <AgentRoster />
       <Segments />
       <Windows />
       <FinalCta />

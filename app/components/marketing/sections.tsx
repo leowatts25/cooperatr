@@ -441,6 +441,121 @@ export function Windows() {
   );
 }
 
+// ── AI agent roster (the technology behind the platform) ──────────────────────
+interface MktAgent {
+  name: TranslationKey;
+  role: TranslationKey;
+  desc: TranslationKey;
+  expertise: TranslationKey;
+  icon: string;
+  color: string;
+}
+
+const moduleAgents: MktAgent[] = [
+  { name: 'agents.mod.opp.name', role: 'agents.mod.opp.role', desc: 'agents.mod.opp.desc', expertise: 'agents.mod.opp.expertise', icon: '🔍', color: '#F0A500' },
+  { name: 'agents.mod.proposal.name', role: 'agents.mod.proposal.role', desc: 'agents.mod.proposal.desc', expertise: 'agents.mod.proposal.expertise', icon: '📝', color: '#60A5FA' },
+  { name: 'agents.mod.compliance.name', role: 'agents.mod.compliance.role', desc: 'agents.mod.compliance.desc', expertise: 'agents.mod.compliance.expertise', icon: '🛡️', color: '#22C55E' },
+  { name: 'agents.mod.project.name', role: 'agents.mod.project.role', desc: 'agents.mod.project.desc', expertise: 'agents.mod.project.expertise', icon: '📊', color: '#8B5CF6' },
+  { name: 'agents.mod.mel.name', role: 'agents.mod.mel.role', desc: 'agents.mod.mel.desc', expertise: 'agents.mod.mel.expertise', icon: '📋', color: '#EC4899' },
+];
+
+const sectorAgents: MktAgent[] = [
+  { name: 'agents.sec.agrifood.name', role: 'agents.sec.agrifood.region', desc: 'agents.sec.agrifood.desc', expertise: 'agents.sec.agrifood.expertise', icon: '🌾', color: '#84CC16' },
+  { name: 'agents.sec.energy.name', role: 'agents.sec.energy.region', desc: 'agents.sec.energy.desc', expertise: 'agents.sec.energy.expertise', icon: '⚡', color: '#F59E0B' },
+  { name: 'agents.sec.water.name', role: 'agents.sec.water.region', desc: 'agents.sec.water.desc', expertise: 'agents.sec.water.expertise', icon: '💧', color: '#06B6D4' },
+  { name: 'agents.sec.circular.name', role: 'agents.sec.circular.region', desc: 'agents.sec.circular.desc', expertise: 'agents.sec.circular.expertise', icon: '♻️', color: '#10B981' },
+  { name: 'agents.sec.minerals.name', role: 'agents.sec.minerals.region', desc: 'agents.sec.minerals.desc', expertise: 'agents.sec.minerals.expertise', icon: '⛏️', color: '#A855F7' },
+];
+
+function MktAgentCard({ agent, expanded, onToggle }: { agent: MktAgent; expanded: boolean; onToggle: () => void }) {
+  const { t } = useTranslation();
+  const expertiseList = t(agent.expertise).split('|').map((s) => s.trim()).filter(Boolean);
+  return (
+    <div
+      onClick={onToggle}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        border: `1px solid ${expanded ? agent.color + '66' : 'rgba(255,255,255,0.1)'}`,
+        borderRadius: '12px', padding: '24px', cursor: 'pointer',
+        position: 'relative', overflow: 'hidden', transition: 'border-color 0.2s',
+      }}
+    >
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: `linear-gradient(90deg, ${agent.color}, transparent)`, opacity: expanded ? 1 : 0.4 }} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${agent.color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
+          {agent.icon}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span className="font-serif" style={{ fontSize: '17px', color: '#F5F0E8' }}>{t(agent.name)}</span>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
+          </div>
+          <div style={{ fontSize: '13px', color: agent.color, marginBottom: '6px' }}>{t(agent.role)}</div>
+          <div style={{ fontSize: '13px', color: 'rgba(245,240,232,0.6)', lineHeight: 1.55 }}>{t(agent.desc)}</div>
+          {expanded && (
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+              <div style={{ fontSize: '11px', color: 'rgba(245,240,232,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+                {t('agents.expertise')}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {expertiseList.map((item, i) => (
+                  <span key={i} style={{ padding: '4px 10px', borderRadius: '6px', background: `${agent.color}1f`, color: agent.color, fontSize: '12px', fontWeight: 500 }}>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AgentRoster() {
+  const { t } = useTranslation();
+  const [expandedModule, setExpandedModule] = useState<number | null>(0);
+  const [expandedSector, setExpandedSector] = useState<number | null>(null);
+  const total = moduleAgents.length + sectorAgents.length;
+  return (
+    <div style={{ backgroundColor: '#1A2332', padding: '80px 32px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#1f6cc5', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('agents.title')}</p>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#F5F0E8', lineHeight: 1.25, marginBottom: '20px' }}>{t('agents.subtitle')}</h2>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22C55E' }} />
+            <span style={{ fontSize: '13px', color: '#22C55E', fontWeight: 600 }}>{total} {t('agents.active')}</span>
+          </div>
+        </div>
+
+        <h3 className="font-serif" style={{ fontSize: '20px', color: '#F5F0E8', marginBottom: '6px' }}>{t('agents.platformAgents')}</h3>
+        <p style={{ fontSize: '14px', color: 'rgba(245,240,232,0.55)', marginBottom: '16px' }}>{t('agents.platformDesc')}</p>
+        <div style={{ display: 'grid', gap: '12px', marginBottom: '40px' }}>
+          {moduleAgents.map((agent, i) => (
+            <MktAgentCard key={i} agent={agent} expanded={expandedModule === i} onToggle={() => setExpandedModule(expandedModule === i ? null : i)} />
+          ))}
+        </div>
+
+        <h3 className="font-serif" style={{ fontSize: '20px', color: '#F5F0E8', marginBottom: '6px' }}>{t('agents.sectorAgents')}</h3>
+        <p style={{ fontSize: '14px', color: 'rgba(245,240,232,0.55)', marginBottom: '16px' }}>{t('agents.sectorDesc')}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px', marginBottom: '32px' }}>
+          {sectorAgents.map((agent, i) => (
+            <MktAgentCard key={i} agent={agent} expanded={expandedSector === i} onToggle={() => setExpandedSector(expandedSector === i ? null : i)} />
+          ))}
+        </div>
+
+        <p style={{ fontSize: '13px', color: 'rgba(245,240,232,0.6)', lineHeight: 1.7, textAlign: 'center', maxWidth: '720px', margin: '0 auto', fontStyle: 'italic', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+          {t('agents.responsibleNote')}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ── Built by practitioners ────────────────────────────────────────────────────
 export function Team() {
   const { t } = useTranslation();
