@@ -594,6 +594,39 @@ const translations = {
     'landing.segments.5.title': 'Corporate ESG & sustainability teams',
     'landing.segments.5.desc': 'CSDDD-obligated companies and their supplier networks needing structured supply-chain due diligence and EU Taxonomy-aligned reporting.',
 
+    // Hero — expanded draft copy
+    'landing.heroTagline': 'Cooperatr empowers companies to solve intractable problems, access the funding to scale and expand, and fosters resilient relationships across sectors and geographies.',
+    'landing.heroSub': 'Our expertise and technology helps SMEs fulfill their mission: solve real world problems while turning a profit.',
+    'landing.heroBody': 'Every year, governments, development banks, foundations, and impact investors put billions toward food security, clean energy, water, and other critical challenges — much of it meant for private companies with the expertise to deliver. Most of those companies never see it. Cooperatr changes that, handling everything from finding the right opportunities and writing the proposal to managing delivery, reporting, and compliance once the work is won.',
+
+    // You run the business
+    'landing.runBiz.title': 'You run the business. Cooperatr handles the rest.',
+    'landing.runBiz.body1': 'You keep doing what you do best: growing crops, building solar, engineering water systems, running your company.',
+    'landing.runBiz.body2': 'Cooperatr finds the funding and contracts that genuinely fit, designs the project, writes the proposal, lines up the partners, and manages reporting and compliance once you win. No new department to build. No bureaucratic system to learn from scratch. No upfront cost.',
+
+    // What Cooperatr does
+    'landing.whatWeDo.kicker': 'What Cooperatr does',
+    'landing.whatWeDo.title': 'Both a platform and an implementation partner.',
+    'landing.whatWeDo.platform.label': 'As a platform',
+    'landing.whatWeDo.platform.body': 'Cooperatr scans funding pipelines across public, multilateral, and private sources, surfaces project opportunities matched to a company’s actual capabilities, develops competitive proposals, identifies and vets consortium partners, and supports reporting and compliance through delivery. Engagement runs on a success-fee basis with no upfront cost.',
+    'landing.whatWeDo.partner.label': 'As an implementation partner',
+    'landing.whatWeDo.partner.body': 'Cooperatr participates directly in development projects as prime contractor or subcontractor, bringing sector knowledge and field experience in international development to project delivery.',
+
+    // A working example
+    'landing.example.kicker': 'A working example',
+    'landing.example.title': 'A precision-irrigation company in Almería.',
+    'landing.example.body1': 'Consider a precision-irrigation company in Almería with fifteen years of technical expertise and no history of international bidding. Global Gateway and AECID water programmes across West Africa and Latin America fund exactly this kind of capability, but the company has neither the time nor the procedural knowledge to pursue them, and assumes such contracts go to larger engineering firms.',
+    'landing.example.body2': 'This is precisely the company the funding is designed to reach. Cooperatr identifies the water-access programme that fits, designs the project around the company’s existing strengths, drafts the proposal, and helps secure a partner on the ground.',
+    'landing.example.body3': 'The company stays focused on the technical work. Everything between the opportunity and the contract is handled.',
+
+    // Built by practitioners
+    'landing.team.kicker': 'Built by practitioners',
+    'landing.team.title': 'Built by practitioners.',
+    'landing.team.body': 'The team behind Cooperatr brings direct experience across the full development project lifecycle — in proposal development, private sector engagement, and implementation across Latin America, West Africa, South Asia, and Southeast Asia. The academic research underpinning the platform examines the structural shift underway in global development finance and the private-sector-led model emerging to replace it. The technical team brings federal SaaS architecture and scaled product experience. EU institutional coverage spans Global Gateway and NDICI contracting directly from Brussels.',
+
+    // Landing footer (draft)
+    'landing.footer': 'Cooperatr by Paradise Street Capital, S.L. — Seville, Andalusia',
+
     // Footer + legal pages
     'footer.tagline': 'Cooperatr by Paradise Street Capital, S.L.U. — Seville, Andalusia — Built for the European development finance market.',
     'footer.privacy': 'Privacy',
@@ -1170,6 +1203,29 @@ const translations = {
     // Auto-translated by i18n-sync
     'disc.form.website': 'Sitio Web (opcional)',
     'disc.form.linkedin': 'URL de LinkedIn (opcional)',
+
+    // Landing redesign — English in both blocks for now (ES copy pending)
+    'landing.heroTagline': 'Cooperatr empowers companies to solve intractable problems, access the funding to scale and expand, and fosters resilient relationships across sectors and geographies.',
+    'landing.heroSub': 'Our expertise and technology helps SMEs fulfill their mission: solve real world problems while turning a profit.',
+    'landing.heroBody': 'Every year, governments, development banks, foundations, and impact investors put billions toward food security, clean energy, water, and other critical challenges — much of it meant for private companies with the expertise to deliver. Most of those companies never see it. Cooperatr changes that, handling everything from finding the right opportunities and writing the proposal to managing delivery, reporting, and compliance once the work is won.',
+    'landing.runBiz.title': 'You run the business. Cooperatr handles the rest.',
+    'landing.runBiz.body1': 'You keep doing what you do best: growing crops, building solar, engineering water systems, running your company.',
+    'landing.runBiz.body2': 'Cooperatr finds the funding and contracts that genuinely fit, designs the project, writes the proposal, lines up the partners, and manages reporting and compliance once you win. No new department to build. No bureaucratic system to learn from scratch. No upfront cost.',
+    'landing.whatWeDo.kicker': 'What Cooperatr does',
+    'landing.whatWeDo.title': 'Both a platform and an implementation partner.',
+    'landing.whatWeDo.platform.label': 'As a platform',
+    'landing.whatWeDo.platform.body': 'Cooperatr scans funding pipelines across public, multilateral, and private sources, surfaces project opportunities matched to a company’s actual capabilities, develops competitive proposals, identifies and vets consortium partners, and supports reporting and compliance through delivery. Engagement runs on a success-fee basis with no upfront cost.',
+    'landing.whatWeDo.partner.label': 'As an implementation partner',
+    'landing.whatWeDo.partner.body': 'Cooperatr participates directly in development projects as prime contractor or subcontractor, bringing sector knowledge and field experience in international development to project delivery.',
+    'landing.example.kicker': 'A working example',
+    'landing.example.title': 'A precision-irrigation company in Almería.',
+    'landing.example.body1': 'Consider a precision-irrigation company in Almería with fifteen years of technical expertise and no history of international bidding. Global Gateway and AECID water programmes across West Africa and Latin America fund exactly this kind of capability, but the company has neither the time nor the procedural knowledge to pursue them, and assumes such contracts go to larger engineering firms.',
+    'landing.example.body2': 'This is precisely the company the funding is designed to reach. Cooperatr identifies the water-access programme that fits, designs the project around the company’s existing strengths, drafts the proposal, and helps secure a partner on the ground.',
+    'landing.example.body3': 'The company stays focused on the technical work. Everything between the opportunity and the contract is handled.',
+    'landing.team.kicker': 'Built by practitioners',
+    'landing.team.title': 'Built by practitioners.',
+    'landing.team.body': 'The team behind Cooperatr brings direct experience across the full development project lifecycle — in proposal development, private sector engagement, and implementation across Latin America, West Africa, South Asia, and Southeast Asia. The academic research underpinning the platform examines the structural shift underway in global development finance and the private-sector-led model emerging to replace it. The technical team brings federal SaaS architecture and scaled product experience. EU institutional coverage spans Global Gateway and NDICI contracting directly from Brussels.',
+    'landing.footer': 'Cooperatr by Paradise Street Capital, S.L. — Seville, Andalusia',
   },
 } as const;
 

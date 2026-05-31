@@ -67,6 +67,7 @@ export default function Dashboard() {
   return (
     <div style={{ fontFamily: "DM Sans, sans-serif" }}>
 
+      {/* Hero */}
       <div style={{
         minHeight: '100vh',
         background: 'linear-gradient(rgba(15,22,35,0.72), rgba(15,22,35,0.62)), url(https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1800&q=80) center/cover no-repeat',
@@ -82,8 +83,11 @@ export default function Dashboard() {
             <span style={{ borderBottom: '3px solid #4a9eff', paddingBottom: '2px' }}>{t('landing.heroHighlight')}</span>
             {' '}{t('landing.heroSuffix')}
           </h1>
-          <p style={{ fontSize: 'clamp(16px, 2vw, 19px)', color: 'rgba(245,240,232,0.72)', lineHeight: 1.7, maxWidth: '640px', margin: '0 auto 40px' }}>
-            {t('landing.heroDesc')}
+          <p style={{ fontSize: 'clamp(17px, 2.2vw, 21px)', color: 'rgba(245,240,232,0.82)', lineHeight: 1.6, maxWidth: '680px', margin: '0 auto 18px' }}>
+            {t('landing.heroTagline')}
+          </p>
+          <p style={{ fontSize: 'clamp(15px, 2vw, 17px)', color: 'rgba(245,240,232,0.62)', lineHeight: 1.7, maxWidth: '620px', margin: '0 auto 40px' }}>
+            {t('landing.heroSub')}
           </p>
           <Link href="/opportunities">
             <button style={{ backgroundColor: '#fff', color: '#1A2332', fontWeight: '700', fontSize: '16px', padding: '16px 36px', borderRadius: '4px', border: 'none', cursor: 'pointer', marginBottom: '12px' }}>
@@ -101,12 +105,31 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* You run the business */}
+      <div style={{ backgroundColor: '#fff', padding: '80px 32px' }}>
+        <div style={{ maxWidth: '780px', margin: '0 auto', textAlign: 'center' }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '24px' }}>
+            {t('landing.runBiz.title')}
+          </h2>
+          <p style={{ fontSize: '17px', color: '#1A2332', lineHeight: 1.7, marginBottom: '18px' }}>
+            {t('landing.runBiz.body1')}
+          </p>
+          <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, margin: 0 }}>
+            {t('landing.runBiz.body2')}
+          </p>
+        </div>
+      </div>
+
+      {/* The market right now */}
       <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
           <p style={{ fontSize: '12px', fontWeight: '700', color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('landing.marketLabel')}</p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '48px' }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '24px' }}>
             {t('landing.marketTitle')}
           </h2>
+          <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, maxWidth: '700px', margin: '0 auto 40px' }}>
+            {t('landing.heroBody')}
+          </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
             {missed.map((text, i) => (
               <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '8px', padding: '20px 24px' }}>
@@ -118,6 +141,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', backgroundColor: '#D4CFC6' }}>
         {stats.map(s => (
           <div key={s.label} style={{ backgroundColor: '#F7F5F0', padding: '32px', textAlign: 'center' }}>
@@ -164,29 +188,30 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Segments — who we serve */}
+      {/* What Cooperatr does — platform + implementation partner */}
       <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
-              {t('landing.segments.kicker')}
+              {t('landing.whatWeDo.kicker')}
             </p>
             <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25 }}>
-              {t('landing.segments.title')}
+              {t('landing.whatWeDo.title')}
             </h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-            {segments.map((s) => (
-              <div key={s.title} style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '8px', padding: '28px' }}>
-                <div style={{ fontSize: '24px', marginBottom: '14px' }}>{s.icon}</div>
-                <h3 className="font-serif" style={{ fontSize: '17px', color: '#1A2332', marginBottom: '10px', lineHeight: 1.3 }}>
-                  {t(s.title)}
-                </h3>
-                <p style={{ fontSize: '13px', color: '#4A5568', lineHeight: 1.65, margin: 0 }}>
-                  {t(s.desc)}
-                </p>
-              </div>
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '32px' }}>
+              <h3 className="font-serif" style={{ fontSize: '20px', color: '#1A2332', marginBottom: '14px' }}>{t('landing.whatWeDo.platform.label')}</h3>
+              <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.7, margin: 0 }}>
+                {t('landing.whatWeDo.platform.body')}
+              </p>
+            </div>
+            <div style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '32px' }}>
+              <h3 className="font-serif" style={{ fontSize: '20px', color: '#1A2332', marginBottom: '14px' }}>{t('landing.whatWeDo.partner.label')}</h3>
+              <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.7, margin: 0 }}>
+                {t('landing.whatWeDo.partner.body')}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -246,6 +271,25 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* A working example */}
+      <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
+        <div style={{ maxWidth: '820px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              {t('landing.example.kicker')}
+            </p>
+            <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', color: '#1A2332', lineHeight: 1.25 }}>
+              {t('landing.example.title')}
+            </h2>
+          </div>
+          <div style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '36px', borderLeft: '4px solid #1f6cc5' }}>
+            <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, marginTop: 0, marginBottom: '18px' }}>{t('landing.example.body1')}</p>
+            <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, marginBottom: '18px' }}>{t('landing.example.body2')}</p>
+            <p style={{ fontSize: '15px', color: '#1A2332', lineHeight: 1.75, fontWeight: 600, margin: 0 }}>{t('landing.example.body3')}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Engine section */}
       <div style={{ backgroundColor: '#1A2332', padding: '80px 32px' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -300,6 +344,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Five modules */}
       <div style={{ backgroundColor: '#fff', padding: '80px 32px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '56px' }}>
@@ -328,6 +373,49 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Who it serves — segments */}
+      <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
+              {t('landing.segments.kicker')}
+            </p>
+            <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25 }}>
+              {t('landing.segments.title')}
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            {segments.map((s) => (
+              <div key={s.title} style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '8px', padding: '28px' }}>
+                <div style={{ fontSize: '24px', marginBottom: '14px' }}>{s.icon}</div>
+                <h3 className="font-serif" style={{ fontSize: '17px', color: '#1A2332', marginBottom: '10px', lineHeight: 1.3 }}>
+                  {t(s.title)}
+                </h3>
+                <p style={{ fontSize: '13px', color: '#4A5568', lineHeight: 1.65, margin: 0 }}>
+                  {t(s.desc)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Built by practitioners */}
+      <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E8E2D8' }}>
+        <div style={{ maxWidth: '780px', margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
+            {t('landing.team.kicker')}
+          </p>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '24px' }}>
+            {t('landing.team.title')}
+          </h2>
+          <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, margin: 0 }}>
+            {t('landing.team.body')}
+          </p>
+        </div>
+      </div>
+
+      {/* FAQ */}
       <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
         <div style={{ maxWidth: '860px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
@@ -345,6 +433,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Final CTA */}
       <div style={{ backgroundColor: '#1A2332', padding: '80px 32px', textAlign: 'center' }}>
         <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 48px)', color: '#F5F0E8', marginBottom: '16px', lineHeight: 1.2 }}>{t('landing.bottomCta')}</h2>
         <p style={{ color: 'rgba(245,240,232,0.6)', fontSize: '17px', maxWidth: '460px', margin: '0 auto 36px', lineHeight: 1.7 }}>{t('landing.bottomCtaDesc')}</p>
@@ -354,6 +443,13 @@ export default function Dashboard() {
           </button>
         </Link>
         <p style={{ fontSize: '12px', color: 'rgba(245,240,232,0.3)', marginTop: '14px' }}>{t('landing.bottomCtaSub')}</p>
+      </div>
+
+      {/* Footer */}
+      <div style={{ backgroundColor: '#141b28', padding: '28px 32px', textAlign: 'center' }}>
+        <p style={{ fontSize: '12px', color: 'rgba(245,240,232,0.4)', letterSpacing: '0.5px', margin: 0 }}>
+          {t('landing.footer')}
+        </p>
       </div>
 
     </div>
