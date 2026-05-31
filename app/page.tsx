@@ -89,7 +89,7 @@ export default function Dashboard() {
           <h1 className="font-serif" style={{ fontSize: 'clamp(38px, 6vw, 72px)', color: '#F5F0E8', lineHeight: 1.1, marginBottom: '28px', letterSpacing: '-1px' }}>
             {t('landing.heroPrefix')}{' '}
             <span style={{ borderBottom: '3px solid #4a9eff', paddingBottom: '2px' }}>{t('landing.heroHighlight')}</span>
-            {' '}{t('landing.heroSuffix')}
+            {t('landing.heroSuffix')}
           </h1>
           <p style={{ fontSize: 'clamp(17px, 2.2vw, 21px)', color: 'rgba(245,240,232,0.82)', lineHeight: 1.6, maxWidth: '680px', margin: '0 auto 18px' }}>
             {t('landing.heroTagline')}

@@ -185,9 +185,9 @@ const translations = {
     'landing.comingSoon': 'COMING SOON',
 
     // Landing — hero highlight + ctaNoCommit
-    'landing.heroHighlight': 'EU and post-USAID development finance',
-    'landing.heroPrefix': 'We design and win',
-    'landing.heroSuffix': 'projects — for companies entering the market.',
+    'landing.heroHighlight': 'solve intractable problems',
+    'landing.heroPrefix': 'Cooperatr empowers companies to',
+    'landing.heroSuffix': ', access the funding to scale and expand, and fosters resilient relationships across sectors and geographies.',
     'landing.bottomCtaDesc': 'Enter your company profile and get a strategic preview of cooperation projects designed for your capabilities — in under two minutes.',
     'landing.bottomCtaSub': 'No upfront cost. No commitment. You pay only when you win.',
 
@@ -828,9 +828,9 @@ const translations = {
     'landing.live': 'ACTIVO',
     'landing.comingSoon': 'PRÓXIMAMENTE',
 
-    'landing.heroHighlight': 'financiación al desarrollo UE y post-USAID',
-    'landing.heroPrefix': 'Diseñamos y ganamos proyectos de',
-    'landing.heroSuffix': '— para empresas que entran al mercado.',
+    'landing.heroHighlight': 'resolver problemas complejos',
+    'landing.heroPrefix': 'Cooperatr capacita a las empresas para',
+    'landing.heroSuffix': ', acceder a la financiación para crecer y expandirse, y fomenta relaciones resilientes entre sectores y geografías.',
     'landing.bottomCtaDesc': 'Introduce el perfil de tu empresa y obtén una vista previa estratégica de proyectos de cooperación diseñados para tus capacidades — en menos de dos minutos.',
     'landing.bottomCtaSub': 'Sin coste inicial. Sin compromiso. Solo pagas cuando ganas.',
 
