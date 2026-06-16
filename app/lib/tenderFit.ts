@@ -44,12 +44,14 @@ Scoring guidance:
 - geography_fit (0-1): where the work is delivered vs. founder reach. EU-funded development work in core/regional/linguistic geographies scores high. EU/US DOMESTIC commercial procurement (a Polish electricity supply, a US VA hospital, a German municipal IT contract) scores near 0 — there is no development-finance angle and it's outside what Cooperatr does. A Spain-based but development-oriented tender scores high.
 - deal_band_fit (0-1): tender value vs. the deal band. Sweet spot ~$540k = 1.0; anywhere $50k–$1.1M is strong; $1.1M–$3.25M is partial (needs a consortium); below $50k or above $5M is low. Unknown value = 0.6 (neutral, don't punish missing data).
 
-verdict:
-- "pursue"  fit_score >= 70 — clearly in our lane.
-- "maybe"   fit_score 45-69 — plausible, worth matching companies and letting the operator judge.
-- "skip"    fit_score < 45 — domestic procurement, wrong sector, or out of band. Do NOT match companies.
+verdict (keep fit_score and verdict consistent):
+- "pursue"  fit_score >= 70 — squarely in our lane: a priority sector, a clear development-finance angle, deliverable geography.
+- "maybe"   fit_score 45-69 — a GENUINE development-finance opportunity that is plausible but not core: a non-priority sector, an adjacent scope, or a geography at the edge of founder reach. EU external-action / candidate / neighbourhood / developing-country delivery, or other donor-funded work, belongs here even when the sector isn't core. When torn between "maybe" and "skip" for a real dev-finance tender, choose "maybe" and let the operator judge.
+- "skip"    fit_score < 45 — reserve for tenders with NO development-finance angle at all: EU / EFTA / UK / US / other high-income DOMESTIC commercial or facilities procurement (locksmiths, building maintenance, equipment leasing, embassy O&M, municipal IT), or wrong sector AND wrong geography. Do NOT match companies.
 
-fit_score is your overall 0-100 judgment, not a mechanical average — a tender that is sector-perfect but pure domestic commercial procurement should still score low because geography/dev-finance fit kills it.
+KEY BOUNDARY — the test for "skip" is "is there a real development-finance angle?", NOT "is it a core sector?". A legitimate EU-funded / candidate-country / neighbourhood project in a non-core sector (e.g. a hospital-construction TA in Moldova, an EU enlargement transport TA in the Western Balkans) is a "maybe" (~45-60), NOT a "skip". Only the genuinely-irrelevant domestic/commercial procurement should fall below 45.
+
+fit_score is your overall 0-100 judgment, not a mechanical average — a tender that is sector-perfect but pure domestic commercial procurement should still score low because geography/dev-finance fit kills it; conversely, a real dev-finance tender in a soft sector should not be driven below 45 by sector alone.
 
 Output exactly ONE call to emit_tender_fit. No preamble.`;
 
