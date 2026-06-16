@@ -79,11 +79,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
+  const supabase = createServerClient();
+  const resource = req.nextUrl.searchParams.get('resource') || 'matches';
+
+  // ── resource=tenders ──────────────────────────────────────────────────────
+  // Drives Step 1 (Verify) and the left column of Step 2 (Match). Lists passing
+  // tenders by bd_status, annotated with their tender-fit score/verdict and a
+  // match-count / top-score aggregate.
+  if (resource === 'tenders') {
+    return getTenders(req, supabase);
+  }
+
+  // ── resource=matches (default) ────────────────────────────────────────────
+  // Drives the Step-2 right column (per-tender ranked companies) and Step 3
+  // (pursuing). Supports tender_id, status, and warm-only filters.
   const status = req.nextUrl.searchParams.get('status') || 'suggested';
+  const tenderId = req.nextUrl.searchParams.get('tender_id');
   const warmOnly = req.nextUrl.searchParams.get('warm_only') === 'true';
   const limit = Math.min(parseInt(req.nextUrl.searchParams.get('limit') || '100', 10) || 100, 500);
-
-  const supabase = createServerClient();
 
   // Aliased FK select pulls the joined rows in one round-trip.
   let query = supabase
@@ -108,6 +121,9 @@ export async function GET(req: NextRequest) {
     .order('matched_at', { ascending: false })
     .limit(limit);
 
+  if (tenderId) {
+    query = query.eq('tender_id', tenderId);
+  }
   if (status && status !== 'all') {
     query = query.eq('status', status);
   }
@@ -137,6 +153,110 @@ export async function GET(req: NextRequest) {
   });
 }
 
+// ----------------------------------------------------------------------------
+// Tender listing for the pipeline stage views
+// ----------------------------------------------------------------------------
+
+interface TenderListRow {
+  id: string;
+  source: string;
+  source_ref: string;
+  url: string | null;
+  title: string | null;
+  donor: string | null;
+  buyer: string | null;
+  country: string | null;
+  sectors: string[] | null;
+  value_usd_min: number | null;
+  value_usd_max: number | null;
+  deadline_at: string | null;
+  published_at: string | null;
+  translations: Record<string, { title?: string; description?: string }> | null;
+  source_language: string | null;
+  tender_fit_score: number | null;
+  tender_fit_verdict: string | null;
+  tender_fit_reasons: { sector_fit?: number; geography_fit?: number; deal_band_fit?: number; reasons?: string[] } | null;
+  bd_status: string;
+}
+
+async function getTenders(req: NextRequest, supabase: ReturnType<typeof createServerClient>) {
+  // stage: pending | verified | rejected. Default 'pending' (Step 1 inbox).
+  const stage = req.nextUrl.searchParams.get('stage') || 'pending';
+  // By default Step 1 hides 'skip'-verdict tenders (domestic procurement, wrong
+  // band, etc.); include_skip=true reveals them so the operator can override.
+  const includeSkip = req.nextUrl.searchParams.get('include_skip') === 'true';
+  const limit = Math.min(parseInt(req.nextUrl.searchParams.get('limit') || '200', 10) || 200, 500);
+
+  let q = supabase
+    .from('tenders')
+    .select(
+      `id, source, source_ref, url, title, donor, buyer, country, sectors,
+       value_usd_min, value_usd_max, deadline_at, published_at, translations, source_language,
+       tender_fit_score, tender_fit_verdict, tender_fit_reasons, bd_status`,
+    )
+    .eq('passes_filter', true)
+    .order('tender_fit_score', { ascending: false, nullsFirst: false })
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  if (stage && stage !== 'all') {
+    q = q.eq('bd_status', stage);
+  }
+
+  const { data, error } = await q;
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  let tenders = (data as unknown as TenderListRow[]) || [];
+
+  // Step-1 inbox hides 'skip' verdicts unless asked. Null verdict = not yet
+  // scored → keep (still needs review).
+  if (stage === 'pending' && !includeSkip) {
+    tenders = tenders.filter((t) => t.tender_fit_verdict !== 'skip');
+  }
+
+  // Match aggregate per tender: count + top score (drives the "N companies"
+  // badge and Step-2 readiness).
+  const ids = tenders.map((t) => t.id);
+  const matchAgg: Record<string, { count: number; topScore: number }> = {};
+  if (ids.length > 0) {
+    const ID_CHUNK = 100;
+    for (let i = 0; i < ids.length; i += ID_CHUNK) {
+      const slice = ids.slice(i, i + ID_CHUNK);
+      const { data: ms } = await supabase
+        .from('tender_matches')
+        .select('tender_id, score')
+        .in('tender_id', slice);
+      for (const m of (ms || []) as Array<{ tender_id: string; score: number | null }>) {
+        const a = (matchAgg[m.tender_id] ||= { count: 0, topScore: 0 });
+        a.count += 1;
+        a.topScore = Math.max(a.topScore, Math.round(m.score ?? 0));
+      }
+    }
+  }
+
+  const enriched = tenders.map((t) => ({
+    ...t,
+    match_count: matchAgg[t.id]?.count ?? 0,
+    top_score: matchAgg[t.id]?.topScore ?? 0,
+  }));
+
+  // Stage counts for the tabs (pending / verified / rejected).
+  const byStage: Record<string, number> = {};
+  const { data: stageRows } = await supabase
+    .from('tenders')
+    .select('bd_status')
+    .eq('passes_filter', true);
+  for (const row of (stageRows || []) as Array<{ bd_status: string }>) {
+    byStage[row.bd_status] = (byStage[row.bd_status] || 0) + 1;
+  }
+
+  return NextResponse.json({
+    tenders: enriched,
+    totals: { byStage, returned: enriched.length },
+  });
+}
+
 // ============================================================================
 // PATCH /api/admin/bd
 // Update a single match's status / notes / feedback. Used by the Pursue button,
@@ -159,14 +279,38 @@ export async function PATCH(req: NextRequest) {
     notes?: string;
     feedback?: string;
     feedback_signal?: 'up' | 'down' | null;
+    tenderId?: string;
+    bd_status?: string;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
+
+  // ── Tender verify / reject (Step 1) ─────────────────────────────────────────
+  // body: { tenderId, bd_status: 'pending'|'verified'|'rejected' }
+  if (body.tenderId) {
+    const validBd = new Set(['pending', 'verified', 'rejected']);
+    if (!body.bd_status || !validBd.has(body.bd_status)) {
+      return NextResponse.json({ error: `invalid bd_status: ${body.bd_status}` }, { status: 400 });
+    }
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('tenders')
+      .update({ bd_status: body.bd_status, bd_status_at: new Date().toISOString() })
+      .eq('id', body.tenderId)
+      .select('id, bd_status, bd_status_at')
+      .single();
+    if (error) {
+      console.error('[bd PATCH] tender update failed', { tenderId: body.tenderId, error: error.message });
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ tender: data });
+  }
+
   if (!body.matchId) {
-    return NextResponse.json({ error: 'matchId required' }, { status: 400 });
+    return NextResponse.json({ error: 'matchId or tenderId required' }, { status: 400 });
   }
 
   const validStatus = new Set(['suggested', 'reviewed', 'pursuing', 'dropped', 'won', 'lost']);

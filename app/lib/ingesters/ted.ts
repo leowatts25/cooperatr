@@ -48,12 +48,54 @@ const EU27_ALPHA3 = new Set([
   'PRT', 'ROU', 'SVK', 'SVN', 'SWE',
 ]);
 
-// EU Commission / EEAS / agencies buying for domestic EU admin are still EU-27
-// buyers — not dev-finance. These buyer keywords flag genuine TA contracts:
+// Wealthy non-EU economies that ALSO publish to TED (EFTA/EEA, UK, micro-states)
+// or could otherwise appear as a buyer country. Their *domestic* procurement is
+// ordinary commercial/public-sector contracting, NOT development finance.
+//
+// This set is the fix for the "outside EU-27 ⇒ dev-finance" bug: Norway,
+// Switzerland and post-Brexit UK are not in EU27_ALPHA3, so the old gate flagged
+// EVERY Norwegian/Swiss/UK domestic notice (hospital fire alarms, locksmith
+// frameworks, excavator leasing, roof waterproofing, lab equipment) as
+// dev-finance and flooded the BD scanner with irrelevant tenders. These are
+// high-income, non-ODA-recipient countries — treat them like EU-27: they only
+// qualify on an explicit dev-finance TEXT signal, never on geography alone.
+const HIGH_INCOME_NON_DEVFINANCE_ALPHA3 = new Set([
+  // EFTA / EEA
+  'NOR', 'ISL', 'LIE', 'CHE',
+  // United Kingdom (post-Brexit; still publishes some notices to TED)
+  'GBR', 'UK',
+  // European micro-states
+  'AND', 'MCO', 'SMR', 'VAT',
+  // Other high-income, non-recipient economies that may surface as a buyer
+  'USA', 'US', 'CAN', 'AUS', 'NZL', 'JPN', 'KOR', 'SGP', 'ISR', 'HKG', 'TWN',
+  'ARE', 'QAT', 'KWT', 'SAU', 'BHR', 'OMN',
+]);
+
+// Countries whose domestic procurement is NOT, by geography alone, development
+// finance. The geography heuristic only treats a buyer as dev-finance when its
+// country is OUTSIDE this set (i.e. a candidate / neighbourhood / developing
+// country such as Moldova, Serbia, Ukraine, or a Global-South nation).
+const DOMESTIC_NON_DEVFINANCE_ALPHA3 = new Set([
+  ...EU27_ALPHA3,
+  ...HIGH_INCOME_NON_DEVFINANCE_ALPHA3,
+]);
+
+// STRONG, unambiguous dev-finance markers. An EU Commission / EEAS / agency or
+// any EU-27 / high-income buyer only qualifies as dev-finance when one of these
+// appears — they name an external-action instrument, a development framing, or a
+// beneficiary region.
+//
+// Deliberately EXCLUDED (they were here before and caused false positives):
+// "technical assistance", "capacity building", "advisory services",
+// "policy/sector/institutional reform". Those words appear constantly in
+// ordinary domestic IT/consulting procurement (e.g. an EEA geospatial "Topic
+// Centre" or a Czech OSINT-software tender both matched "capacity building").
+// A genuine dev contract that mentions TA/capacity building almost always ALSO
+// names a beneficiary geography or EU instrument — which is captured below — so
+// dropping the generics costs little recall and buys a lot of precision. A
+// developing-country buyer still passes on geography alone (see isDevFinanceRelevant).
 const DEV_FINANCE_SIGNALS = [
-  'technical assistance',
-  'capacity building', 'capacity-building',
-  'twinning',
+  // EU external-action instruments & bodies
   'ndici',
   'global gateway',
   'ipa iii', 'ipa ii', ' ipa ',
@@ -61,27 +103,26 @@ const DEV_FINANCE_SIGNALS = [
   'europeaid',
   'dg intpa',
   'devco',
+  'neighbourhood policy',
+  'eastern partnership',
+  'pre-accession',
+  'accession process',
+  'twinning',          // EU institution-building instrument (member-state ↔ beneficiary)
+  'sigma ',            // EU/OECD public-administration reform programme for candidates
+  // Development framing
   'developing countr',
   'development cooperation',
   'international development',
+  'official development assistance',
+  ' oda ',
+  // Development / beneficiary regions
+  'western balkans',
   'sub-saharan',
   'west africa', 'east africa', 'southern africa', 'central africa',
   'horn of africa',
   'latin america', 'caribbean',
   'central asia',
   'south asia',
-  'eastern partnership',
-  'western balkans',
-  'neighbourhood policy',
-  'sigma ',
-  'official development assistance',
-  ' oda ',
-  'pre-accession',
-  'accession process',
-  'institutional reform',
-  'sector reform',
-  'policy reform',
-  'advisory services',
 ];
 
 function isDevFinanceRelevant(
@@ -89,8 +130,12 @@ function isDevFinanceRelevant(
   title: string | null,
   description: string | null,
 ): boolean {
-  // Buyer outside EU-27 → likely dev-finance (IPA candidate countries, neighbours, etc.)
-  if (country && country.trim() && !EU27_ALPHA3.has(country.trim().toUpperCase())) {
+  // Buyer in a candidate / neighbourhood / developing country → likely
+  // dev-finance (IPA candidates, Eastern Partnership, Global South, etc.).
+  // Wealthy non-EU economies (EFTA/EEA, UK, micro-states, other high-income
+  // non-recipients) are explicitly NOT treated as dev-finance on geography
+  // alone — they fall through to the text-signal scan, same as EU-27 buyers.
+  if (country && country.trim() && !DOMESTIC_NON_DEVFINANCE_ALPHA3.has(country.trim().toUpperCase())) {
     return true;
   }
   // Text signal scan

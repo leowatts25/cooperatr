@@ -49,3 +49,6 @@ next-env.d.ts
 
 # Local IDE/agent state
 /.claude/
+
+# Local data backups (contain DB rows — never commit)
+garbage-discovery-backup-*.json

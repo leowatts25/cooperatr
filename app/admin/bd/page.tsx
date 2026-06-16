@@ -6,8 +6,7 @@ import { getCurrentUser, ADMIN_EMAIL } from '@/app/lib/supabase-auth';
 import { useTranslation } from '@/app/lib/i18n/context';
 
 // Helper: pick the best translation for the user's current locale, with
-// fallback chain locale → en → null. Used by every page that displays
-// tender content.
+// fallback chain locale → en → null.
 function pickTranslation(
   translations: Record<string, { title?: string; description?: string }> | null | undefined,
   locale: string,
@@ -17,12 +16,48 @@ function pickTranslation(
 }
 
 // ============================================================================
-// /admin/bd — weekly BD review dashboard
-// Table of scored (tender × scouted_company) pairings sorted by score desc.
-// Filters: status chip + "warm-intro only" toggle.
-// Action: "Pursue" → PATCH status='pursuing', then navigate to M2 stub
-//   (/proposals/new?tender_id=...&company_id=...).
+// /admin/bd — BD pipeline (3 stages)
+//   ① Verify   — confirm AI-screened tenders as real opportunities
+//   ② Match    — two columns: verified tenders ↔ ranked company candidates
+//   ③ Pursuing — pairs moved forward to the proposal stage
 // ============================================================================
+
+type Stage = 'verify' | 'match' | 'pursue';
+
+interface TenderFitReasons {
+  sector_fit?: number;
+  geography_fit?: number;
+  deal_band_fit?: number;
+  reasons?: string[];
+}
+
+interface TenderItem {
+  id: string;
+  source: string;
+  source_ref: string;
+  url: string | null;
+  title: string | null;
+  donor: string | null;
+  buyer: string | null;
+  country: string | null;
+  sectors: string[] | null;
+  value_usd_min: number | null;
+  value_usd_max: number | null;
+  deadline_at: string | null;
+  translations: Record<string, { title?: string; description?: string }> | null;
+  source_language: string | null;
+  tender_fit_score: number | null;
+  tender_fit_verdict: string | null;
+  tender_fit_reasons: TenderFitReasons | null;
+  bd_status: string;
+  match_count: number;
+  top_score: number;
+}
+
+interface TendersResponse {
+  tenders: TenderItem[];
+  totals: { byStage: Record<string, number>; returned: number };
+}
 
 interface BdMatch {
   id: string;
@@ -45,25 +80,7 @@ interface BdMatch {
   warm_intro_via_contact_id: string | null;
   matched_at: string;
   reviewed_at: string | null;
-  tender: {
-    id: string;
-    source: string;
-    source_ref: string;
-    url: string | null;
-    title: string | null;
-    donor: string | null;
-    buyer: string | null;
-    country: string | null;
-    sectors: string[] | null;
-    value_usd_min: number | null;
-    value_usd_max: number | null;
-    deadline_at: string | null;
-    translations: Record<string, { title?: string; description?: string }> | null;
-    source_language: string | null;
-    tender_fit_score: number | null;
-    tender_fit_verdict: string | null;
-    tender_fit_reasons: { sector_fit?: number; geography_fit?: number; deal_band_fit?: number; reasons?: string[] } | null;
-  } | null;
+  tender: (Omit<TenderItem, 'bd_status' | 'match_count' | 'top_score'>) | null;
   company: {
     id: string;
     name: string;
@@ -82,47 +99,22 @@ interface BdMatch {
   } | null;
 }
 
-interface BdResponse {
+interface MatchesResponse {
   matches: BdMatch[];
   totals: { byStatus: Record<string, number>; returned: number };
 }
 
-const STATUS_TABS: Array<{ key: string; label: string }> = [
-  { key: 'suggested', label: 'Suggested' },
-  { key: 'reviewed', label: 'Reviewed' },
-  { key: 'pursuing', label: 'Pursuing' },
-  { key: 'dropped', label: 'Dropped' },
-  { key: 'won', label: 'Won' },
-  { key: 'lost', label: 'Lost' },
-  { key: 'all', label: 'All' },
+const STAGES: Array<{ key: Stage; label: string; hint: string }> = [
+  { key: 'verify', label: '① Verify tenders', hint: 'Confirm the good opportunities' },
+  { key: 'match', label: '② Match companies', hint: 'Rank candidates per tender' },
+  { key: 'pursue', label: '③ Pursuing', hint: 'Moved forward' },
 ];
 
 export default function AdminBdPage() {
   const router = useRouter();
   const { locale } = useTranslation();
-  const [matches, setMatches] = useState<BdMatch[]>([]);
-  const [totals, setTotals] = useState<BdResponse['totals']>({ byStatus: {}, returned: 0 });
-  const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [statusTab, setStatusTab] = useState('suggested');
-  const [warmOnly, setWarmOnly] = useState(false);
-  const [pursuingId, setPursuingId] = useState<string | null>(null);
-
-  const fetchMatches = useCallback(async (status: string, warm: boolean) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL, status });
-      if (warm) params.set('warm_only', 'true');
-      const res = await fetch(`/api/admin/bd?${params}`);
-      const data = (await res.json()) as BdResponse;
-      setMatches(data.matches || []);
-      setTotals(data.totals || { byStatus: {}, returned: 0 });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [stage, setStage] = useState<Stage>('verify');
 
   useEffect(() => {
     async function init() {
@@ -132,78 +124,9 @@ export default function AdminBdPage() {
         return;
       }
       setIsAdmin(true);
-      await fetchMatches('suggested', false);
     }
     init();
-  }, [router, fetchMatches]);
-
-  async function handlePursue(match: BdMatch) {
-    if (!match.tender || !match.company) return;
-    setPursuingId(match.id);
-    try {
-      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL });
-      const res = await fetch(`/api/admin/bd?${params}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId: match.id, status: 'pursuing' }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Pursue failed');
-      }
-      // Stub hand-off to M2 (Proposal Writer). The /proposals/new page does
-      // not yet read tender_id / company_id; this commit just establishes
-      // the contract — full M2 wiring is a separate chunk.
-      const ph = new URLSearchParams({
-        tender_id: match.tender.id,
-        company_id: match.company.id,
-      });
-      router.push(`/proposals/new?${ph}`);
-    } catch (err) {
-      console.error(err);
-      alert(err instanceof Error ? err.message : 'Pursue failed');
-      setPursuingId(null);
-    }
-  }
-
-  async function handleStatusChange(matchId: string, status: string) {
-    try {
-      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL });
-      const res = await fetch(`/api/admin/bd?${params}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId, status }),
-      });
-      if (!res.ok) throw new Error('status update failed');
-      await fetchMatches(statusTab, warmOnly);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  // Save per-match feedback (free text + optional thumbs). Updates local state
-  // optimistically so the textarea keeps its value without a full refetch.
-  async function handleFeedback(matchId: string, feedback: string, signal: 'up' | 'down' | null) {
-    try {
-      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL });
-      const res = await fetch(`/api/admin/bd?${params}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId, feedback, feedback_signal: signal }),
-      });
-      if (!res.ok) throw new Error('feedback save failed');
-      setMatches((prev) =>
-        prev.map((m) =>
-          m.id === matchId
-            ? { ...m, feedback, feedback_signal: signal, feedback_at: new Date().toISOString() }
-            : m,
-        ),
-      );
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  }
+  }, [router]);
 
   if (!isAdmin) {
     return (
@@ -214,72 +137,140 @@ export default function AdminBdPage() {
   }
 
   return (
-    <div style={{ padding: '32px 24px', maxWidth: 1280, margin: '0 auto' }}>
-      <div style={{ marginBottom: 28 }}>
+    <div style={{ padding: '32px 24px', maxWidth: 1320, margin: '0 auto' }}>
+      <div style={{ marginBottom: 22 }}>
         <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>
-          BD scanner — Weekly review
+          BD pipeline
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-          Scored (tender × company) pairings. Pursue moves the match into M2 and hands the pair off to the Proposal Writer.
+          Verify good tenders → match them to ranked companies → pursue the best pairs.
         </p>
       </div>
 
-      {/* Status chips + warm toggle */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-        {STATUS_TABS.map((tab) => {
-          const count = tab.key === 'all'
-            ? Object.values(totals.byStatus).reduce((a, b) => a + b, 0)
-            : (totals.byStatus[tab.key] || 0);
-          const active = statusTab === tab.key;
+      {/* Stage switcher */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+        {STAGES.map((s) => {
+          const active = stage === s.key;
           return (
             <button
-              key={tab.key}
-              onClick={() => { setStatusTab(tab.key); fetchMatches(tab.key, warmOnly); }}
+              key={s.key}
+              onClick={() => setStage(s.key)}
               style={{
-                padding: '6px 12px',
-                borderRadius: 999,
+                padding: '10px 16px',
+                borderRadius: 10,
                 border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
                 background: active ? 'var(--accent)' : 'var(--bg-surface)',
                 color: active ? '#fff' : 'var(--text-primary)',
-                fontSize: 12,
-                fontWeight: 600,
+                fontSize: 13,
+                fontWeight: 700,
                 cursor: 'pointer',
+                textAlign: 'left',
               }}
             >
-              {tab.label} <span style={{ opacity: 0.7, fontWeight: 500 }}>· {count}</span>
+              <div>{s.label}</div>
+              <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.75, marginTop: 2 }}>{s.hint}</div>
             </button>
           );
         })}
+      </div>
+
+      {stage === 'verify' && <VerifyStage locale={locale} />}
+      {stage === 'match' && <MatchStage locale={locale} />}
+      {stage === 'pursue' && <PursueStage locale={locale} />}
+    </div>
+  );
+}
+
+// ============================================================================
+// Stage 1 — Verify tenders
+// ============================================================================
+
+function VerifyStage({ locale }: { locale: string }) {
+  const [tenders, setTenders] = useState<TenderItem[]>([]);
+  const [byStage, setByStage] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [includeSkip, setIncludeSkip] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const fetchTenders = useCallback(async (skip: boolean) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL, resource: 'tenders', stage: 'pending' });
+      if (skip) params.set('include_skip', 'true');
+      const res = await fetch(`/api/admin/bd?${params}`);
+      const data = (await res.json()) as TendersResponse;
+      setTenders(data.tenders || []);
+      setByStage(data.totals?.byStage || {});
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchTenders(includeSkip); }, [fetchTenders, includeSkip]);
+
+  async function setBdStatus(tenderId: string, bd_status: 'verified' | 'rejected') {
+    setBusyId(tenderId);
+    try {
+      const res = await fetch(`/api/admin/bd?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenderId, bd_status }),
+      });
+      if (!res.ok) throw new Error('update failed');
+      // Optimistic: drop from the pending list.
+      setTenders((prev) => prev.filter((t) => t.id !== tenderId));
+      setByStage((prev) => ({
+        ...prev,
+        pending: Math.max(0, (prev.pending || 0) - 1),
+        [bd_status]: (prev[bd_status] || 0) + 1,
+      }));
+    } catch (err) {
+      console.error(err);
+      alert('Could not update tender');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          Pending <strong style={{ color: 'var(--text-primary)' }}>{byStage.pending ?? 0}</strong>
+          {'  ·  '}Verified <strong style={{ color: '#22C55E' }}>{byStage.verified ?? 0}</strong>
+          {'  ·  '}Rejected <strong style={{ color: 'var(--text-muted)' }}>{byStage.rejected ?? 0}</strong>
+        </span>
         <div style={{ flex: 1 }} />
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)' }}>
-          <input
-            type="checkbox"
-            checked={warmOnly}
-            onChange={(e) => { setWarmOnly(e.target.checked); fetchMatches(statusTab, e.target.checked); }}
-          />
-          Warm intros only
+          <input type="checkbox" checked={includeSkip} onChange={(e) => setIncludeSkip(e.target.checked)} />
+          Show low-fit (skip-rated)
         </label>
       </div>
 
       {loading ? (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} style={{ height: 100, background: 'var(--bg-surface)', borderRadius: 12, animation: 'skeleton 1.5s infinite' }} />
-          ))}
-        </div>
-      ) : matches.length === 0 ? (
-        <EmptyState statusTab={statusTab} warmOnly={warmOnly} />
+        <SkeletonList />
+      ) : tenders.length === 0 ? (
+        <Empty icon="✅" title="No tenders awaiting review" sub="New tenders appear here after the ingest + tender-fit cron runs. Verified ones move to Step 2." />
       ) : (
         <div style={{ display: 'grid', gap: 10 }}>
-          {matches.map((m) => (
-            <MatchRow
-              key={m.id}
-              match={m}
+          {tenders.map((t) => (
+            <TenderCard
+              key={t.id}
+              tender={t}
               locale={locale}
-              onPursue={handlePursue}
-              onStatusChange={handleStatusChange}
-              onFeedback={handleFeedback}
-              pursuing={pursuingId === m.id}
+              busy={busyId === t.id}
+              actions={
+                <>
+                  <button onClick={() => setBdStatus(t.id, 'verified')} disabled={busyId === t.id} style={primaryBtn(busyId === t.id)}>
+                    ✓ Verify
+                  </button>
+                  <button onClick={() => setBdStatus(t.id, 'rejected')} disabled={busyId === t.id} style={ghostBtn}>
+                    ✗ Reject
+                  </button>
+                </>
+              }
             />
           ))}
         </div>
@@ -288,21 +279,353 @@ export default function AdminBdPage() {
   );
 }
 
-function EmptyState({ statusTab, warmOnly }: { statusTab: string; warmOnly: boolean }) {
+// ============================================================================
+// Stage 2 — Match (two columns: verified tenders ↔ ranked companies)
+// ============================================================================
+
+function MatchStage({ locale }: { locale: string }) {
+  const [tenders, setTenders] = useState<TenderItem[]>([]);
+  const [loadingTenders, setLoadingTenders] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [matches, setMatches] = useState<BdMatch[]>([]);
+  const [loadingMatches, setLoadingMatches] = useState(false);
+  const [finding, setFinding] = useState(false);
+  const [actionId, setActionId] = useState<string | null>(null);
+
+  const fetchTenders = useCallback(async () => {
+    setLoadingTenders(true);
+    try {
+      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL, resource: 'tenders', stage: 'verified' });
+      const res = await fetch(`/api/admin/bd?${params}`);
+      const data = (await res.json()) as TendersResponse;
+      setTenders(data.tenders || []);
+      setSelectedId((cur) => cur || data.tenders?.[0]?.id || null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingTenders(false);
+    }
+  }, []);
+
+  const fetchMatches = useCallback(async (tenderId: string) => {
+    setLoadingMatches(true);
+    try {
+      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL, resource: 'matches', tender_id: tenderId, status: 'all' });
+      const res = await fetch(`/api/admin/bd?${params}`);
+      const data = (await res.json()) as MatchesResponse;
+      // Hide ones already moved to pursue/won/lost — those live in Step 3.
+      setMatches((data.matches || []).filter((m) => !['pursuing', 'won', 'lost'].includes(m.status)));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMatches(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchTenders(); }, [fetchTenders]);
+  useEffect(() => { if (selectedId) fetchMatches(selectedId); }, [selectedId, fetchMatches]);
+
+  async function findCompanies(tenderId: string) {
+    setFinding(true);
+    try {
+      const res = await fetch(`/api/admin/bd/find-companies?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenderId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'find failed');
+      await fetchMatches(tenderId);
+      await fetchTenders();
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'Find companies failed');
+    } finally {
+      setFinding(false);
+    }
+  }
+
+  async function moveToPursue(matchId: string) {
+    setActionId(matchId);
+    try {
+      const res = await fetch(`/api/admin/bd?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, status: 'pursuing' }),
+      });
+      if (!res.ok) throw new Error('update failed');
+      setMatches((prev) => prev.filter((m) => m.id !== matchId));
+    } catch (err) {
+      console.error(err);
+      alert('Could not move to pursue');
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function dropMatch(matchId: string) {
+    setActionId(matchId);
+    try {
+      const res = await fetch(`/api/admin/bd?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, status: 'dropped' }),
+      });
+      if (!res.ok) throw new Error('update failed');
+      setMatches((prev) => prev.filter((m) => m.id !== matchId));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  const selected = tenders.find((t) => t.id === selectedId) || null;
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) 1fr', gap: 16, alignItems: 'start' }}>
+      {/* Left column — verified tenders */}
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 10 }}>
+          Verified tenders
+        </div>
+        {loadingTenders ? (
+          <SkeletonList rows={3} h={72} />
+        ) : tenders.length === 0 ? (
+          <Empty icon="📥" title="No verified tenders yet" sub="Verify tenders in Step 1 to start matching." />
+        ) : (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {tenders.map((t) => {
+              const active = t.id === selectedId;
+              const title = pickTranslation(t.translations, locale)?.title || t.title || t.source_ref;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedId(t.id)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                    background: active ? 'rgba(31,108,197,0.08)' : 'var(--bg-surface)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <FitBadge score={t.tender_fit_score} verdict={t.tender_fit_verdict} />
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
+                      background: t.match_count >= 5 ? '#22C55E20' : t.match_count > 0 ? '#F59E0B20' : 'var(--bg-elevated)',
+                      color: t.match_count >= 5 ? '#22C55E' : t.match_count > 0 ? '#F59E0B' : 'var(--text-muted)',
+                    }}>
+                      {t.match_count} {t.match_count === 1 ? 'company' : 'companies'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.35 }}>
+                    {title?.slice(0, 90)}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                    {[t.source, t.country, t.donor].filter(Boolean).join(' · ')}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Right column — ranked companies for the selected tender */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>
+            Ranked companies {selected ? `· ${matches.length}` : ''}
+          </div>
+          <div style={{ flex: 1 }} />
+          {selected && (
+            <button onClick={() => findCompanies(selected.id)} disabled={finding} style={primaryBtn(finding)}>
+              {finding ? 'Finding…' : matches.length > 0 ? '↻ Find more' : '🔎 Find companies'}
+            </button>
+          )}
+        </div>
+
+        {!selected ? (
+          <Empty icon="←" title="Select a verified tender" sub="Pick a tender on the left to see its ranked company candidates." />
+        ) : loadingMatches ? (
+          <SkeletonList rows={3} />
+        ) : matches.length === 0 ? (
+          <Empty
+            icon="🔎"
+            title="No companies matched yet"
+            sub={finding ? 'Searching the market…' : 'Click “Find companies” to run discovery + matching for this tender (takes ~1 min).'}
+          />
+        ) : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {matches.map((m) => (
+              <MatchRow
+                key={m.id}
+                match={m}
+                locale={locale}
+                busy={actionId === m.id}
+                onPursue={() => moveToPursue(m.id)}
+                onDrop={() => dropMatch(m.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Stage 3 — Pursuing
+// ============================================================================
+
+function PursueStage({ locale }: { locale: string }) {
+  const [matches, setMatches] = useState<BdMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusTab, setStatusTab] = useState('pursuing');
+
+  const fetchMatches = useCallback(async (status: string) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL, resource: 'matches', status });
+      const res = await fetch(`/api/admin/bd?${params}`);
+      const data = (await res.json()) as MatchesResponse;
+      setMatches(data.matches || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchMatches(statusTab); }, [fetchMatches, statusTab]);
+
+  async function changeStatus(matchId: string, status: string) {
+    try {
+      const res = await fetch(`/api/admin/bd?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId, status }),
+      });
+      if (!res.ok) throw new Error('update failed');
+      await fetchMatches(statusTab);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const tabs = [
+    { key: 'pursuing', label: 'Pursuing' },
+    { key: 'won', label: 'Won' },
+    { key: 'lost', label: 'Lost' },
+    { key: 'dropped', label: 'Dropped' },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        {tabs.map((tab) => {
+          const active = statusTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setStatusTab(tab.key)}
+              style={{
+                padding: '6px 12px', borderRadius: 999,
+                border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                background: active ? 'var(--accent)' : 'var(--bg-surface)',
+                color: active ? '#fff' : 'var(--text-primary)',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {loading ? (
+        <SkeletonList />
+      ) : matches.length === 0 ? (
+        <Empty icon="🎯" title={`Nothing in ${statusTab}`} sub="Move matches here from Step 2 with the Pursue button." />
+      ) : (
+        <div style={{ display: 'grid', gap: 10 }}>
+          {matches.map((m) => (
+            <MatchRow key={m.id} match={m} locale={locale} mode="pursue" onStatusChange={(s) => changeStatus(m.id, s)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Shared presentational components
+// ============================================================================
+
+function TenderCard({
+  tender,
+  locale,
+  actions,
+  busy,
+}: {
+  tender: TenderItem;
+  locale: string;
+  actions: React.ReactNode;
+  busy: boolean;
+}) {
+  const t = tender;
+  const translated = pickTranslation(t.translations, locale);
+  const displayTitle = translated?.title || t.title || t.source_ref || '(tender)';
+  const isTranslated = !!translated?.title && translated.title !== t.title;
+  const valueLabel = formatValue(t.value_usd_min, t.value_usd_max);
+  const deadline = t.deadline_at ? new Date(t.deadline_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
+
   return (
     <div style={{
-      textAlign: 'center',
-      padding: 60,
       background: 'var(--bg-surface)',
-      borderRadius: 16,
       border: '1px solid var(--border)',
+      borderRadius: 12,
+      padding: '14px 18px',
+      display: 'grid',
+      gridTemplateColumns: '1fr auto',
+      gap: 16,
+      alignItems: 'start',
+      opacity: busy ? 0.6 : 1,
     }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
-      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--text-primary)', marginBottom: 8 }}>
-        No matches in <em>{statusTab}</em>{warmOnly ? ' with warm intros' : ''}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+          <FitBadge score={t.tender_fit_score} verdict={t.tender_fit_verdict} />
+          <span style={badgeStyle('source')}>{t.source}</span>
+          {t.donor && <span style={badgeStyle('donor')}>{t.donor}</span>}
+          {t.country && <span style={badgeStyle('country')}>📍 {t.country}</span>}
+          {(t.sectors || []).map((s) => <span key={s} style={badgeStyle('sector')}>{s.replace(/_/g, ' ')}</span>)}
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+          {t.url
+            ? <a href={t.url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{displayTitle} ↗</a>
+            : displayTitle}
+        </div>
+        {isTranslated && t.title && (
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 6, opacity: 0.7 }}>
+            Original: {t.title}
+          </div>
+        )}
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
+          {t.buyer && <span>{t.buyer}</span>}
+          {valueLabel && <span>{valueLabel}</span>}
+          {deadline && <span style={{ color: '#F59E0B' }}>Deadline {deadline}</span>}
+        </div>
+        {t.tender_fit_reasons?.reasons && t.tender_fit_reasons.reasons.length > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5 }}>
+            {t.tender_fit_reasons.reasons.join(' · ')}
+          </div>
+        )}
       </div>
-      <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-        Matches appear here after the daily ingest+match cron runs against ingested tenders.
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 120 }}>
+        {actions}
       </div>
     </div>
   );
@@ -311,30 +634,27 @@ function EmptyState({ statusTab, warmOnly }: { statusTab: string; warmOnly: bool
 function MatchRow({
   match,
   locale,
+  mode = 'match',
+  busy,
   onPursue,
+  onDrop,
   onStatusChange,
-  onFeedback,
-  pursuing,
 }: {
   match: BdMatch;
   locale: string;
-  onPursue: (m: BdMatch) => void;
-  onStatusChange: (id: string, status: string) => void;
-  onFeedback: (id: string, feedback: string, signal: 'up' | 'down' | null) => Promise<void>;
-  pursuing: boolean;
+  mode?: 'match' | 'pursue';
+  busy?: boolean;
+  onPursue?: () => void;
+  onDrop?: () => void;
+  onStatusChange?: (status: string) => void;
 }) {
   const t = match.tender;
   const c = match.company;
   const w = match.warm_contact;
   const score = Math.round(match.score ?? 0);
   const scoreColor = score >= 85 ? '#22C55E' : score >= 65 ? '#F59E0B' : score >= 40 ? '#FB923C' : '#EF4444';
-  const valueLabel = formatValue(t?.value_usd_min ?? null, t?.value_usd_max ?? null);
-  const deadline = t?.deadline_at ? new Date(t.deadline_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
-
-  // Translation pick: user's locale first, then English, then the raw original.
   const translated = pickTranslation(t?.translations, locale);
-  const displayTitle = translated?.title || t?.title || t?.source_ref || '(deleted tender)';
-  const isTranslated = !!translated?.title && translated.title !== t?.title;
+  const displayTitle = translated?.title || t?.title || t?.source_ref || '(tender)';
 
   return (
     <div style={{
@@ -343,103 +663,48 @@ function MatchRow({
       borderRadius: 12,
       padding: '14px 18px',
       display: 'grid',
-      gridTemplateColumns: '72px 1fr auto',
+      gridTemplateColumns: '64px 1fr auto',
       gap: 16,
       alignItems: 'start',
+      opacity: busy ? 0.6 : 1,
     }}>
-      {/* Score block */}
-      <div style={{
-        background: '#0F1623',
-        border: `2px solid ${scoreColor}`,
-        borderRadius: 10,
-        padding: '10px 6px',
-        textAlign: 'center',
-      }}>
+      <div style={{ background: '#0F1623', border: `2px solid ${scoreColor}`, borderRadius: 10, padding: '10px 6px', textAlign: 'center' }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: scoreColor, lineHeight: 1 }}>{score}</div>
         <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 }}>score</div>
       </div>
 
-      {/* Main column */}
       <div>
-        {/* Top tag row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-          <span style={badgeStyle('source')}>{t?.source || '—'}</span>
-          {t?.donor && <span style={badgeStyle('donor')}>{t.donor}</span>}
-          {t?.country && <span style={badgeStyle('country')}>📍 {t.country}</span>}
-          {(t?.sectors || []).map((s) => <span key={s} style={badgeStyle('sector')}>{s.replace(/_/g, ' ')}</span>)}
-          {typeof t?.tender_fit_score === 'number' && (
-            <span
-              title={(t.tender_fit_reasons?.reasons || []).join(' · ')}
-              style={{
-                ...badgeStyle('fit'),
-                background: t.tender_fit_score >= 70 ? '#22C55E20' : t.tender_fit_score >= 45 ? '#F59E0B20' : '#EF444420',
-                color: t.tender_fit_score >= 70 ? '#22C55E' : t.tender_fit_score >= 45 ? '#F59E0B' : '#EF4444',
-              }}
-            >
-              tender-fit {Math.round(t.tender_fit_score)}{t.tender_fit_verdict ? ` · ${t.tender_fit_verdict}` : ''}
-            </span>
-          )}
-          {w && (
-            <span style={{ ...badgeStyle('warm'), display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              🤝 warm: {[w.first_name, w.last_name].filter(Boolean).join(' ') || '(contact)'}
-              {w.position && <em style={{ opacity: 0.8, fontStyle: 'normal' }}> · {w.position}</em>}
-            </span>
-          )}
-        </div>
-
-        {/* Tender title — prefer translated for user locale, fall back to original */}
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-          {t?.url
-            ? <a href={t.url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                {displayTitle} ↗
-              </a>
-            : displayTitle}
-          {isTranslated && t?.source_language && t.source_language !== locale && (
-            <span style={{ fontSize: 10, marginLeft: 8, color: 'var(--text-muted)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              {t.source_language} → {locale}
-            </span>
-          )}
-        </div>
-        {isTranslated && t?.title && (
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 6, opacity: 0.7 }}>
-            Original: {t.title}
-          </div>
-        )}
-
-        {/* Tender meta */}
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-          {t?.buyer && <span>{t.buyer}</span>}
-          {valueLabel && <span>{valueLabel}</span>}
-          {deadline && <span style={{ color: '#F59E0B' }}>Deadline {deadline}</span>}
-        </div>
-
-        {/* Company row */}
-        <div style={{
-          fontSize: 13, color: 'var(--text-primary)', marginBottom: 8,
-          padding: '6px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: 8,
-          display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-        }}>
-          <strong>{c?.name || '(deleted company)'}</strong>
-          {c?.country && <span style={{ color: 'var(--text-muted)' }}>· {c.country}</span>}
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {c?.name || '(deleted company)'}
+          {c?.country && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)' }}>· {c.country}</span>}
           {c?.size_band && <span style={badgeStyle('size')}>{c.size_band}</span>}
           {(c?.sectors || []).map((s) => <span key={s} style={badgeStyle('sectorSm')}>{s.replace(/_/g, ' ')}</span>)}
           {c?.website && <a href={c.website} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 11 }}>↗ site</a>}
         </div>
 
-        {/* Rationale */}
-        {match.rationale && (
-          <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: 8 }}>
-            {match.rationale}
+        {mode === 'pursue' && (
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
+            for {t?.url ? <a href={t.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)' }}>{displayTitle?.slice(0, 70)} ↗</a> : displayTitle?.slice(0, 70)}
           </div>
         )}
 
-        {/* Fit dimensions + extras */}
+        {w && (
+          <div style={{ marginBottom: 6 }}>
+            <span style={{ ...badgeStyle('warm'), display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              🤝 warm: {[w.first_name, w.last_name].filter(Boolean).join(' ') || '(contact)'}
+              {w.position && <em style={{ opacity: 0.8, fontStyle: 'normal' }}> · {w.position}</em>}
+            </span>
+          </div>
+        )}
+
+        {match.rationale && (
+          <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: 8 }}>{match.rationale}</div>
+        )}
+
         {match.fit_dimensions && (
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
             {Object.entries(match.fit_dimensions).map(([k, v]) => (
-              <span key={k}>
-                <strong style={{ color: 'var(--text-primary)' }}>{k}</strong> {(v * 100).toFixed(0)}
-              </span>
+              <span key={k}><strong style={{ color: 'var(--text-primary)' }}>{k}</strong> {(v * 100).toFixed(0)}</span>
             ))}
           </div>
         )}
@@ -453,53 +718,27 @@ function MatchRow({
             <strong>Risks:</strong> {match.risks.join(' · ')}
           </div>
         )}
-
-        {/* Stage-3 opportunity-engine expansion */}
-        {match.opportunity_expansion && (
-          <OpportunityExpansionBlock expansion={match.opportunity_expansion} />
-        )}
-
-        {/* Feedback box — recalibration signal */}
-        <FeedbackBox match={match} onFeedback={onFeedback} />
+        {match.opportunity_expansion && <OpportunityExpansionBlock expansion={match.opportunity_expansion} />}
       </div>
 
-      {/* Action column */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 130 }}>
-        <button
-          onClick={() => onPursue(match)}
-          disabled={pursuing || match.status === 'pursuing' || !t || !c}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: 'none',
-            background: pursuing || match.status === 'pursuing' ? 'var(--bg-elevated)' : 'var(--accent)',
-            color: pursuing || match.status === 'pursuing' ? 'var(--text-muted)' : '#0F1623',
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: pursuing || match.status === 'pursuing' ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {pursuing ? 'Pursuing…' : match.status === 'pursuing' ? '✓ Pursuing' : 'Pursue →'}
-        </button>
-        <select
-          value={match.status}
-          onChange={(e) => onStatusChange(match.id, e.target.value)}
-          style={{
-            padding: '6px 10px',
-            borderRadius: 8,
-            border: '1px solid var(--border)',
-            background: 'var(--bg-surface)',
-            color: 'var(--text-primary)',
-            fontSize: 11,
-          }}
-        >
-          <option value="suggested">suggested</option>
-          <option value="reviewed">reviewed</option>
-          <option value="pursuing">pursuing</option>
-          <option value="dropped">dropped</option>
-          <option value="won">won</option>
-          <option value="lost">lost</option>
-        </select>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 124 }}>
+        {mode === 'match' ? (
+          <>
+            <button onClick={onPursue} disabled={busy} style={primaryBtn(!!busy)}>Pursue →</button>
+            <button onClick={onDrop} disabled={busy} style={ghostBtn}>Drop</button>
+          </>
+        ) : (
+          <select
+            value={match.status}
+            onChange={(e) => onStatusChange?.(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: 12 }}
+          >
+            <option value="pursuing">pursuing</option>
+            <option value="won">won</option>
+            <option value="lost">lost</option>
+            <option value="dropped">dropped</option>
+          </select>
+        )}
       </div>
     </div>
   );
@@ -528,28 +767,16 @@ function OpportunityExpansionBlock({
       {open && (
         <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--text-primary)', display: 'grid', gap: 8 }}>
           {expansion.consortium_partners && expansion.consortium_partners.length > 0 && (
-            <div>
-              <strong style={{ color: 'var(--text-muted)' }}>Consortium:</strong>{' '}
-              {expansion.consortium_partners.join(' · ')}
-            </div>
+            <div><strong style={{ color: 'var(--text-muted)' }}>Consortium:</strong> {expansion.consortium_partners.join(' · ')}</div>
           )}
           {expansion.impact_investors && expansion.impact_investors.length > 0 && (
-            <div>
-              <strong style={{ color: 'var(--text-muted)' }}>Impact capital:</strong>{' '}
-              {expansion.impact_investors.join(' · ')}
-            </div>
+            <div><strong style={{ color: 'var(--text-muted)' }}>Impact capital:</strong> {expansion.impact_investors.join(' · ')}</div>
           )}
           {expansion.blended_finance_angle && (
-            <div>
-              <strong style={{ color: 'var(--text-muted)' }}>Blended finance:</strong>{' '}
-              {expansion.blended_finance_angle}
-            </div>
+            <div><strong style={{ color: 'var(--text-muted)' }}>Blended finance:</strong> {expansion.blended_finance_angle}</div>
           )}
           {expansion.expanded_impact && (
-            <div>
-              <strong style={{ color: 'var(--text-muted)' }}>Expanded impact:</strong>{' '}
-              {expansion.expanded_impact}
-            </div>
+            <div><strong style={{ color: 'var(--text-muted)' }}>Expanded impact:</strong> {expansion.expanded_impact}</div>
           )}
         </div>
       )}
@@ -557,86 +784,56 @@ function OpportunityExpansionBlock({
   );
 }
 
-function FeedbackBox({
-  match,
-  onFeedback,
-}: {
-  match: BdMatch;
-  onFeedback: (id: string, feedback: string, signal: 'up' | 'down' | null) => Promise<void>;
-}) {
-  const [text, setText] = useState(match.feedback || '');
-  const [signal, setSignal] = useState<'up' | 'down' | null>(
-    match.feedback_signal === 'up' || match.feedback_signal === 'down' ? match.feedback_signal : null,
-  );
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(match.feedback_at);
-
-  const dirty = text !== (match.feedback || '') || signal !== (match.feedback_signal || null);
-
-  async function save(nextSignal?: 'up' | 'down' | null) {
-    const sig = nextSignal === undefined ? signal : nextSignal;
-    setSaving(true);
-    try {
-      await onFeedback(match.id, text, sig);
-      setSavedAt(new Date().toISOString());
-      if (nextSignal !== undefined) setSignal(nextSignal);
-    } catch {
-      /* handled upstream */
-    } finally {
-      setSaving(false);
-    }
+function FitBadge({ score, verdict }: { score: number | null; verdict: string | null }) {
+  if (typeof score !== 'number') {
+    return <span style={{ ...badgeStyle('fit'), background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>unscored</span>;
   }
-
-  const thumbBtn = (kind: 'up' | 'down'): React.CSSProperties => {
-    const active = signal === kind;
-    const color = kind === 'up' ? '#22C55E' : '#EF4444';
-    return {
-      padding: '4px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
-      border: `1px solid ${active ? color : 'var(--border)'}`,
-      background: active ? `${color}20` : 'var(--bg-surface)',
-      color: active ? color : 'var(--text-muted)',
-    };
-  };
-
+  const color = score >= 70 ? '#22C55E' : score >= 45 ? '#F59E0B' : '#EF4444';
   return (
-    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed var(--border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-muted)' }}>
-          Feedback (recalibrates future scoring)
-        </span>
-        <button type="button" onClick={() => save(signal === 'up' ? null : 'up')} disabled={saving} style={thumbBtn('up')}>👍</button>
-        <button type="button" onClick={() => save(signal === 'down' ? null : 'down')} disabled={saving} style={thumbBtn('down')}>👎</button>
-        {savedAt && !dirty && <span style={{ fontSize: 11, color: '#22C55E' }}>✓ saved</span>}
-      </div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Why is this match good or bad? e.g. 'wrong sector', 'this company doesn't need us', 'great fit — pursue'…"
-          rows={2}
-          style={{
-            flex: 1, resize: 'vertical', padding: '6px 10px', borderRadius: 8,
-            border: '1px solid var(--border)', background: 'var(--bg-surface)',
-            color: 'var(--text-primary)', fontSize: 12, fontFamily: 'inherit',
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => save()}
-          disabled={saving || !dirty}
-          style={{
-            padding: '8px 14px', borderRadius: 8, border: 'none',
-            background: dirty && !saving ? 'var(--accent)' : 'var(--bg-elevated)',
-            color: dirty && !saving ? '#0F1623' : 'var(--text-muted)',
-            fontSize: 12, fontWeight: 700, cursor: dirty && !saving ? 'pointer' : 'not-allowed',
-          }}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
+    <span style={{ ...badgeStyle('fit'), background: `${color}20`, color }}>
+      fit {Math.round(score)}{verdict ? ` · ${verdict}` : ''}
+    </span>
+  );
+}
+
+function SkeletonList({ rows = 4, h = 100 }: { rows?: number; h?: number }) {
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{ height: h, background: 'var(--bg-surface)', borderRadius: 12, animation: 'skeleton 1.5s infinite' }} />
+      ))}
     </div>
   );
 }
+
+function Empty({ icon, title, sub }: { icon: string; title: string; sub: string }) {
+  return (
+    <div style={{ textAlign: 'center', padding: 48, background: 'var(--bg-surface)', borderRadius: 16, border: '1px solid var(--border)' }}>
+      <div style={{ fontSize: 40, marginBottom: 12 }}>{icon}</div>
+      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--text-primary)', marginBottom: 8 }}>{title}</div>
+      <div style={{ color: 'var(--text-muted)', fontSize: 14, maxWidth: 420, margin: '0 auto' }}>{sub}</div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Style helpers
+// ----------------------------------------------------------------------------
+
+function primaryBtn(disabled: boolean): React.CSSProperties {
+  return {
+    padding: '8px 14px', borderRadius: 8, border: 'none',
+    background: disabled ? 'var(--bg-elevated)' : 'var(--accent)',
+    color: disabled ? 'var(--text-muted)' : '#fff',
+    fontSize: 12, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer',
+  };
+}
+
+const ghostBtn: React.CSSProperties = {
+  padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)',
+  background: 'var(--bg-surface)', color: 'var(--text-muted)',
+  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+};
 
 function badgeStyle(kind: string): React.CSSProperties {
   const colors: Record<string, [string, string]> = {
@@ -651,14 +848,8 @@ function badgeStyle(kind: string): React.CSSProperties {
   };
   const [fg, bg] = colors[kind] || ['#7A90A8', '#7A90A820'];
   return {
-    fontSize: kind === 'sectorSm' ? 10 : 10,
-    padding: '2px 8px',
-    borderRadius: 8,
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    background: bg,
-    color: fg,
+    fontSize: 10, padding: '2px 8px', borderRadius: 8, fontWeight: 600,
+    textTransform: 'uppercase', letterSpacing: 0.3, background: bg, color: fg,
   };
 }
 
