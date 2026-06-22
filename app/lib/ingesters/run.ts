@@ -262,21 +262,39 @@ async function ingestEftPortal(sectors: SectorRow[], supabase: Supabase): Promis
   let upserted = 0;
   let passedFilter = 0;
 
-  const PAGES = 3;
-  const PAGE_SIZE = 50;
+  // SEDIA returns ~24 language copies of each notice, so a page is mostly
+  // duplicates of a few distinct notices. The English-only filter (eftportal.ts)
+  // thins each page; we still paginate deep + dedup by callIdentifier to
+  // accumulate enough DISTINCT notices. (Earlier PAGES=3/SIZE=50 yielded only ~4.)
+  // Broadened query set (below) does the breadth; keep pages modest per query
+  // so total fetches stay within the cron's time budget. English-only + dedup
+  // means each page yields few distinct notices, and most queries exhaust early.
+  const PAGES = 6;
+  const PAGE_SIZE = 100;
   const SINCE_DAYS = 7; // Larger window: dev-finance calls open for weeks, not days
 
   // Plain-text topical queries, NOT callIdentifier-prefix queries. The prefix
   // form ('EC-INTPA OR EC-DEVCO …') matches SEDIA's entire historical corpus
   // for those offices — thousands of CLOSED tenders — and sorting by startDate
-  // buries the few OPEN/FORTHCOMING calls far beyond the pages we fetch, so the
-  // biddable filter returned 0 every run (EU_FT was empty all-time). Topical
-  // text queries rank live, relevant dev-finance calls near the top: each of
-  // these surfaces ~20-25 OPEN/FORTHCOMING biddable notices in the first 3 pages.
+  // buries the few OPEN/FORTHCOMING calls far beyond the pages we fetch.
+  // Topical text queries rank live, relevant dev-finance calls near the top.
+  //
+  // Broadened set: each query is deduped by callIdentifier (globally across
+  // queries), so overlap is cheap and more queries = wider distinct coverage.
+  // Mix EU external-action instruments + Cooperatr's priority sectors.
   const searchQueries = [
     'INTPA development cooperation',
     'NEAR IPA neighbourhood',
+    'Global Gateway',
     'humanitarian assistance',
+    'technical assistance evaluation',
+    'governance public administration reform',
+    'water sanitation infrastructure',
+    'renewable energy access',
+    'agriculture rural development food security',
+    'private sector development',
+    'climate environment adaptation',
+    'EU delegation services contract',
   ];
 
   // Track refs we've already processed to deduplicate across queries

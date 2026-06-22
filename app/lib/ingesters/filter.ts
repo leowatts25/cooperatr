@@ -22,8 +22,11 @@ export interface FilterResult {
 }
 
 // User-defined cooperatr criteria (Leo's answers in chat).
-export const VALUE_USD_FLOOR = 20_000;      // tiny TA contracts welcome
-export const VALUE_USD_CEILING = 5_000_000; // filters out big-prime deals we can't lead
+export const VALUE_USD_FLOOR = 20_000;       // tiny TA contracts welcome
+// Raised from 5M: large EU framework / TA contracts (€8M–€25M) are consortium
+// opportunities, not disqualifiers — the Stage-1 tender-fit LLM judges deal-band
+// fit far better than a hard cutoff, so this is just a sanity ceiling now.
+export const VALUE_USD_CEILING = 50_000_000;
 
 // Geographies in scope: EU (all 27), DR, USA, plus any project country surfaced
 // by the tender itself. Effectively: never filter out by geography in v1.

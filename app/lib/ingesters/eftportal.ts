@@ -213,6 +213,14 @@ export async function fetchEftNotices(opts: FetchOpts): Promise<FetchResult> {
     const sortStatus = pickMeta(meta, 'sortStatus');
     const deadlineStr = pickMeta(meta, 'deadlineDate');
 
+    // SEDIA returns the SAME notice once per EU language (~24 copies). Keep only
+    // the English index so each notice appears once and stores an English title;
+    // without this, every 50-row page is mostly language duplicates and only a
+    // handful of distinct notices ever survive dedup. (Notices with no language
+    // field are kept as-is.)
+    const lang = pickMeta(meta, 'language');
+    if (lang && lang.toLowerCase() !== 'en') return false;
+
     // Only process procurement contracts and grant call-for-proposals
     if (typeVal !== '0' && typeVal !== '2') return false;
 
@@ -297,10 +305,24 @@ export function normalizeEftNotice(raw: RawEftNotice, sectors: SectorRow[]): Nor
     ...cpvSectors.map((s) => `cpv:${s}`),
   ];
 
-  // EU F&T portal tenders are already dev-finance by definition (INTPA/NEAR programmes).
-  // We still require the sector keyword match but skip the additional dev-finance gate
-  // that TED needs (TED ingests all EU domestic procurement too).
-  const passes = keywordFilter.passes;
+  // EU F&T portal tenders are dev-finance by definition (INTPA/NEAR/Global Gateway).
+  // Do NOT gate on sector keyword or value here — that wrongly rejected genuine EU
+  // TA ("DG NEAR Residual Error Rate Study", €8M+ framework contracts) before the
+  // smart screener ever saw them. Let every dev-native notice through to the Stage-1
+  // tender-fit LLM, which is the real relevance gate (it correctly skips off-topic ones).
+  //
+  // One exception: EU Delegations procure for their OWN premises (security, cleaning,
+  // scanners, vehicle fleet) — that's running buildings, not development finance.
+  // Reject these so we don't burn Stage-1 calls on them. (Mirrors the SAM_GOV
+  // diplomatic-facility gate.)
+  const opsText = `${title ?? ''} ${description ?? ''}`.toLowerCase();
+  const EU_DELEGATION_OPS_SIGNALS = [
+    'security service', 'security works', 'security installation', 'security scanner',
+    'cleaning service', 'janitorial', 'guard service', 'catering service',
+    'removal service', 'vehicle fleet', 'fuel supply', 'office supplies', 'furniture supply',
+  ];
+  const isDelegationOps = EU_DELEGATION_OPS_SIGNALS.some((s) => opsText.includes(s));
+  const passes = !isDelegationOps;
 
   return {
     source: 'EU_FT',

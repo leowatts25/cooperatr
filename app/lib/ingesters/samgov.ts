@@ -180,12 +180,36 @@ const DOMESTIC_PROCUREMENT_AGENCY_SIGNALS = [
   'general services administration', 'department of justice',
 ];
 
+// US diplomatic-post facilities & custodial O&M abroad is the US government
+// running its own buildings — NOT development finance. These leak through the
+// "foreign place-of-performance" rule (a consulate is abroad) and even through
+// the intl-dev-agency rule (State runs OBO), so reject them FIRST regardless of
+// agency. e.g. "Residential Water Pump Replacement at U.S. Consulate", embassy
+// janitorial, OBO preventive maintenance.
+const FACILITY_OPS_SIGNALS = [
+  'consulate', 'embassy', 'u.s. mission', 'us mission', 'diplomatic post',
+  'overseas buildings operations', ' obo ', 'chief of mission residence',
+  'ambassador', 'marine security guard', 'guard services',
+  'janitorial', 'custodial', 'grounds maintenance', 'pest control',
+  'elevator maintenance', 'hvac maintenance', 'generator maintenance',
+  'preventive maintenance', 'facility maintenance', 'facilities maintenance',
+  'building maintenance', 'fire alarm',
+];
+
 function devFinanceGate(
   buyer: string | null,
   country: string | null,
   title: string | null,
   description: string | null,
 ): { passes: boolean; reason: string } {
+  const text = `${title ?? ''} ${description ?? ''}`.toLowerCase();
+
+  // Negative gate first: running US diplomatic facilities is never dev-finance,
+  // no matter the agency or location.
+  if (FACILITY_OPS_SIGNALS.some((s) => text.includes(s))) {
+    return { passes: false, reason: 'rejected: US diplomatic-facility / O&M ops (not dev-finance)' };
+  }
+
   const b = (buyer ?? '').toLowerCase();
   if (INTL_DEV_AGENCY_SIGNALS.some((s) => b.includes(s))) {
     return { passes: true, reason: 'dev-finance: intl-dev agency' };
