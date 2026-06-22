@@ -307,14 +307,18 @@ function MatchStage({ locale }: { locale: string }) {
     }
   }, []);
 
+  const [pursuingBid, setPursuingBid] = useState(false);
+
   const fetchMatches = useCallback(async (tenderId: string) => {
     setLoadingMatches(true);
     try {
       const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL, resource: 'matches', tender_id: tenderId, status: 'all' });
       const res = await fetch(`/api/admin/bd?${params}`);
       const data = (await res.json()) as MatchesResponse;
-      // Hide ones already moved to pursue/won/lost — those live in Step 3.
-      setMatches((data.matches || []).filter((m) => !['pursuing', 'won', 'lost'].includes(m.status)));
+      // Show all candidate companies except dropped ones. A 'pursuing' match here
+      // means it's been tagged as the preferred partner (highlighted), NOT moved
+      // out — advancing the bid happens at the tender level now.
+      setMatches((data.matches || []).filter((m) => m.status !== 'dropped'));
     } catch (err) {
       console.error(err);
     } finally {
@@ -345,19 +349,43 @@ function MatchStage({ locale }: { locale: string }) {
     }
   }
 
-  async function moveToPursue(matchId: string) {
-    setActionId(matchId);
+  // Advance the BID (tender) to Step 3 — no company selection required.
+  async function pursueBid(tenderId: string) {
+    setPursuingBid(true);
     try {
       const res = await fetch(`/api/admin/bd?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId, status: 'pursuing' }),
+        body: JSON.stringify({ tenderId, bd_status: 'pursuing' }),
       });
       if (!res.ok) throw new Error('update failed');
-      setMatches((prev) => prev.filter((m) => m.id !== matchId));
+      setTenders((prev) => {
+        const next = prev.filter((t) => t.id !== tenderId);
+        setSelectedId((cur) => (cur === tenderId ? next[0]?.id ?? null : cur));
+        return next;
+      });
     } catch (err) {
       console.error(err);
-      alert('Could not move to pursue');
+      alert('Could not pursue this bid');
+    } finally {
+      setPursuingBid(false);
+    }
+  }
+
+  // Optional: tag/untag a company as the preferred partner for this bid.
+  async function togglePreferred(m: BdMatch) {
+    const next = m.status === 'pursuing' ? 'suggested' : 'pursuing';
+    setActionId(m.id);
+    try {
+      const res = await fetch(`/api/admin/bd?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId: m.id, status: next }),
+      });
+      if (!res.ok) throw new Error('update failed');
+      setMatches((prev) => prev.map((x) => (x.id === m.id ? { ...x, status: next } : x)));
+    } catch (err) {
+      console.error(err);
     } finally {
       setActionId(null);
     }
@@ -434,43 +462,68 @@ function MatchStage({ locale }: { locale: string }) {
         )}
       </div>
 
-      {/* Right column — ranked companies for the selected tender */}
+      {/* Right column — the bid + its candidate companies */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>
-            Ranked companies {selected ? `· ${matches.length}` : ''}
-          </div>
-          <div style={{ flex: 1 }} />
-          {selected && (
-            <button onClick={() => findCompanies(selected.id)} disabled={finding} style={primaryBtn(finding)}>
-              {finding ? 'Finding…' : matches.length > 0 ? '↻ Find more' : '🔎 Find companies'}
-            </button>
-          )}
-        </div>
-
         {!selected ? (
-          <Empty icon="←" title="Select a verified tender" sub="Pick a tender on the left to see its ranked company candidates." />
-        ) : loadingMatches ? (
-          <SkeletonList rows={3} />
-        ) : matches.length === 0 ? (
-          <Empty
-            icon="🔎"
-            title="No companies matched yet"
-            sub={finding ? 'Searching the market…' : 'Click “Find companies” to run discovery + matching for this tender (takes ~1 min).'}
-          />
+          <Empty icon="←" title="Select a verified tender" sub="Pick a tender on the left to review the bid and its candidate companies." />
         ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
-            {matches.map((m) => (
-              <MatchRow
-                key={m.id}
-                match={m}
-                locale={locale}
-                busy={actionId === m.id}
-                onPursue={() => moveToPursue(m.id)}
-                onDrop={() => dropMatch(m.id)}
+          <>
+            {/* Bid banner — the opportunity-level action. No company required. */}
+            <div style={{
+              background: 'var(--bg-surface)', border: '1px solid var(--accent)', borderRadius: 12,
+              padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+            }}>
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 4 }}>
+                  Pursue this opportunity
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.35 }}>
+                  {pickTranslation(selected.translations, locale)?.title || selected.title || selected.source_ref}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Advances the bid to Step 3 — you don’t need to pick a partner yet.
+                </div>
+              </div>
+              <button onClick={() => pursueBid(selected.id)} disabled={pursuingBid} style={{ ...primaryBtn(pursuingBid), fontSize: 14, padding: '12px 22px' }}>
+                {pursuingBid ? 'Pursuing…' : 'Pursue this bid →'}
+              </button>
+            </div>
+
+            {/* Candidate companies */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)' }}>
+                Candidate companies · {matches.length} <span style={{ fontWeight: 500, textTransform: 'none' }}>(optional — tag a preferred partner)</span>
+              </div>
+              <div style={{ flex: 1 }} />
+              <button onClick={() => findCompanies(selected.id)} disabled={finding} style={ghostBtn}>
+                {finding ? 'Finding…' : matches.length > 0 ? '↻ Find more' : '🔎 Find companies'}
+              </button>
+            </div>
+
+            {loadingMatches ? (
+              <SkeletonList rows={3} />
+            ) : matches.length === 0 ? (
+              <Empty
+                icon="🔎"
+                title="No companies matched yet"
+                sub={finding ? 'Searching the market…' : 'Optional — click “Find companies” to surface candidate partners (takes ~1 min). You can still pursue the bid without them.'}
               />
-            ))}
-          </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {matches.map((m) => (
+                  <MatchRow
+                    key={m.id}
+                    match={m}
+                    locale={locale}
+                    busy={actionId === m.id}
+                    preferred={m.status === 'pursuing'}
+                    onPreferred={() => togglePreferred(m)}
+                    onDrop={() => dropMatch(m.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -482,17 +535,30 @@ function MatchStage({ locale }: { locale: string }) {
 // ============================================================================
 
 function PursueStage({ locale }: { locale: string }) {
-  const [matches, setMatches] = useState<BdMatch[]>([]);
+  const [bids, setBids] = useState<TenderItem[]>([]);
+  const [matchesByTender, setMatchesByTender] = useState<Record<string, BdMatch[]>>({});
   const [loading, setLoading] = useState(true);
   const [statusTab, setStatusTab] = useState('pursuing');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const fetchMatches = useCallback(async (status: string) => {
+  const fetchBids = useCallback(async (stage: string) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL, resource: 'matches', status });
+      const params = new URLSearchParams({ adminEmail: ADMIN_EMAIL, resource: 'tenders', stage });
       const res = await fetch(`/api/admin/bd?${params}`);
-      const data = (await res.json()) as MatchesResponse;
-      setMatches(data.matches || []);
+      const data = (await res.json()) as TendersResponse;
+      const list = data.tenders || [];
+      setBids(list);
+      // Fetch candidate companies for each bid in parallel.
+      const entries = await Promise.all(
+        list.map(async (t) => {
+          const mp = new URLSearchParams({ adminEmail: ADMIN_EMAIL, resource: 'matches', tender_id: t.id, status: 'all' });
+          const mr = await fetch(`/api/admin/bd?${mp}`);
+          const md = (await mr.json()) as MatchesResponse;
+          return [t.id, (md.matches || []).filter((m) => m.status !== 'dropped')] as const;
+        }),
+      );
+      setMatchesByTender(Object.fromEntries(entries));
     } catch (err) {
       console.error(err);
     } finally {
@@ -500,19 +566,23 @@ function PursueStage({ locale }: { locale: string }) {
     }
   }, []);
 
-  useEffect(() => { fetchMatches(statusTab); }, [fetchMatches, statusTab]);
+  useEffect(() => { fetchBids(statusTab); }, [fetchBids, statusTab]);
 
-  async function changeStatus(matchId: string, status: string) {
+  async function changeBidStatus(tenderId: string, bd_status: string) {
+    setBusyId(tenderId);
     try {
       const res = await fetch(`/api/admin/bd?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId, status }),
+        body: JSON.stringify({ tenderId, bd_status }),
       });
       if (!res.ok) throw new Error('update failed');
-      await fetchMatches(statusTab);
+      setBids((prev) => prev.filter((t) => t.id !== tenderId));
     } catch (err) {
       console.error(err);
+      alert('Could not update bid');
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -520,7 +590,6 @@ function PursueStage({ locale }: { locale: string }) {
     { key: 'pursuing', label: 'Pursuing' },
     { key: 'won', label: 'Won' },
     { key: 'lost', label: 'Lost' },
-    { key: 'dropped', label: 'Dropped' },
   ];
 
   return (
@@ -548,15 +617,107 @@ function PursueStage({ locale }: { locale: string }) {
 
       {loading ? (
         <SkeletonList />
-      ) : matches.length === 0 ? (
-        <Empty icon="🎯" title={`Nothing in ${statusTab}`} sub="Move matches here from Step 2 with the Pursue button." />
+      ) : bids.length === 0 ? (
+        <Empty icon="🎯" title={`Nothing in ${statusTab}`} sub="Pursue a bid from Step 2 (no company needed) and it lands here." />
       ) : (
-        <div style={{ display: 'grid', gap: 10 }}>
-          {matches.map((m) => (
-            <MatchRow key={m.id} match={m} locale={locale} mode="pursue" onStatusChange={(s) => changeStatus(m.id, s)} />
+        <div style={{ display: 'grid', gap: 14 }}>
+          {bids.map((t) => (
+            <BidCard
+              key={t.id}
+              tender={t}
+              matches={matchesByTender[t.id] || []}
+              locale={locale}
+              statusTab={statusTab}
+              busy={busyId === t.id}
+              onStatus={(s) => changeBidStatus(t.id, s)}
+            />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// A pursued opportunity (bid) with its candidate companies underneath.
+function BidCard({
+  tender,
+  matches,
+  locale,
+  statusTab,
+  busy,
+  onStatus,
+}: {
+  tender: TenderItem;
+  matches: BdMatch[];
+  locale: string;
+  statusTab: string;
+  busy: boolean;
+  onStatus: (s: string) => void;
+}) {
+  const t = tender;
+  const title = pickTranslation(t.translations, locale)?.title || t.title || t.source_ref;
+  const valueLabel = formatValue(t.value_usd_min, t.value_usd_max);
+  const deadline = t.deadline_at ? new Date(t.deadline_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
+  const preferred = matches.filter((m) => m.status === 'pursuing');
+  const others = matches.filter((m) => m.status !== 'pursuing');
+
+  return (
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', opacity: busy ? 0.6 : 1 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 260 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+            <FitBadge score={t.tender_fit_score} verdict={t.tender_fit_verdict} />
+            <span style={badgeStyle('source')}>{t.source}</span>
+            {t.country && <span style={badgeStyle('country')}>📍 {t.country.length > 24 ? t.country.slice(0, 24) + '…' : t.country}</span>}
+            {t.donor && <span style={badgeStyle('donor')}>{t.donor}</span>}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+            {t.url ? <a href={t.url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{title} ↗</a> : title}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6 }}>
+            {valueLabel && <span>{valueLabel}</span>}
+            {deadline && <span style={{ color: '#F59E0B' }}>Deadline {deadline}</span>}
+          </div>
+        </div>
+        {/* Bid-level actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 130 }}>
+          {statusTab === 'pursuing' ? (
+            <>
+              <button onClick={() => onStatus('won')} disabled={busy} style={{ ...primaryBtn(busy), background: busy ? 'var(--bg-elevated)' : '#22C55E' }}>✓ Won</button>
+              <button onClick={() => onStatus('lost')} disabled={busy} style={ghostBtn}>Lost</button>
+              <button onClick={() => onStatus('verified')} disabled={busy} style={ghostBtn}>↩ Back to Match</button>
+            </>
+          ) : (
+            <button onClick={() => onStatus('pursuing')} disabled={busy} style={ghostBtn}>↩ Reopen</button>
+          )}
+        </div>
+      </div>
+
+      {/* Candidate companies */}
+      <div style={{ marginTop: 14, borderTop: '1px dashed var(--border)', paddingTop: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-muted)', marginBottom: 8 }}>
+          {matches.length === 0 ? 'No candidate companies yet' : `Candidate companies · ${matches.length}${preferred.length ? ` · ★ ${preferred.length} preferred` : ''}`}
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {[...preferred, ...others].map((m) => (
+            <div key={m.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8,
+              background: m.status === 'pursuing' ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${m.status === 'pursuing' ? 'rgba(34,197,94,0.4)' : 'var(--border)'}`,
+            }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: scoreColorFor(m.score), minWidth: 28 }}>{Math.round(m.score ?? 0)}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {m.status === 'pursuing' && <span title="Preferred partner">★ </span>}
+                  {m.company?.name || '(company)'}
+                  {m.company?.country && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}> · {m.company.country}</span>}
+                </div>
+                {m.rationale && <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4, marginTop: 2 }}>{m.rationale.slice(0, 120)}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -634,32 +795,28 @@ function TenderCard({
 function MatchRow({
   match,
   locale,
-  mode = 'match',
   busy,
-  onPursue,
+  preferred,
+  onPreferred,
   onDrop,
-  onStatusChange,
 }: {
   match: BdMatch;
   locale: string;
-  mode?: 'match' | 'pursue';
   busy?: boolean;
-  onPursue?: () => void;
+  preferred?: boolean;
+  onPreferred?: () => void;
   onDrop?: () => void;
-  onStatusChange?: (status: string) => void;
 }) {
-  const t = match.tender;
+  void locale;
   const c = match.company;
   const w = match.warm_contact;
   const score = Math.round(match.score ?? 0);
   const scoreColor = score >= 85 ? '#22C55E' : score >= 65 ? '#F59E0B' : score >= 40 ? '#FB923C' : '#EF4444';
-  const translated = pickTranslation(t?.translations, locale);
-  const displayTitle = translated?.title || t?.title || t?.source_ref || '(tender)';
 
   return (
     <div style={{
       background: 'var(--bg-surface)',
-      border: `1px solid ${w ? 'var(--accent)' : 'var(--border)'}`,
+      border: `1px solid ${preferred ? 'rgba(34,197,94,0.5)' : w ? 'var(--accent)' : 'var(--border)'}`,
       borderRadius: 12,
       padding: '14px 18px',
       display: 'grid',
@@ -675,18 +832,13 @@ function MatchRow({
 
       <div>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {preferred && <span title="Preferred partner" style={{ color: '#22C55E' }}>★</span>}
           {c?.name || '(deleted company)'}
           {c?.country && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)' }}>· {c.country}</span>}
           {c?.size_band && <span style={badgeStyle('size')}>{c.size_band}</span>}
           {(c?.sectors || []).map((s) => <span key={s} style={badgeStyle('sectorSm')}>{s.replace(/_/g, ' ')}</span>)}
           {c?.website && <a href={c.website} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 11 }}>↗ site</a>}
         </div>
-
-        {mode === 'pursue' && (
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
-            for {t?.url ? <a href={t.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)' }}>{displayTitle?.slice(0, 70)} ↗</a> : displayTitle?.slice(0, 70)}
-          </div>
-        )}
 
         {w && (
           <div style={{ marginBottom: 6 }}>
@@ -722,23 +874,17 @@ function MatchRow({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 124 }}>
-        {mode === 'match' ? (
-          <>
-            <button onClick={onPursue} disabled={busy} style={primaryBtn(!!busy)}>Pursue →</button>
-            <button onClick={onDrop} disabled={busy} style={ghostBtn}>Drop</button>
-          </>
-        ) : (
-          <select
-            value={match.status}
-            onChange={(e) => onStatusChange?.(e.target.value)}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: 12 }}
-          >
-            <option value="pursuing">pursuing</option>
-            <option value="won">won</option>
-            <option value="lost">lost</option>
-            <option value="dropped">dropped</option>
-          </select>
-        )}
+        <button
+          onClick={onPreferred}
+          disabled={busy}
+          title="Tag as preferred partner (optional)"
+          style={preferred
+            ? { padding: '8px 14px', borderRadius: 8, border: '1px solid #22C55E', background: 'rgba(34,197,94,0.15)', color: '#22C55E', fontSize: 12, fontWeight: 700, cursor: 'pointer' }
+            : { ...ghostBtn }}
+        >
+          {preferred ? '★ Preferred' : '☆ Prefer'}
+        </button>
+        <button onClick={onDrop} disabled={busy} style={ghostBtn}>Drop</button>
       </div>
     </div>
   );
@@ -851,6 +997,11 @@ function badgeStyle(kind: string): React.CSSProperties {
     fontSize: 10, padding: '2px 8px', borderRadius: 8, fontWeight: 600,
     textTransform: 'uppercase', letterSpacing: 0.3, background: bg, color: fg,
   };
+}
+
+function scoreColorFor(score: number | null): string {
+  const s = Math.round(score ?? 0);
+  return s >= 85 ? '#22C55E' : s >= 65 ? '#F59E0B' : s >= 40 ? '#FB923C' : '#EF4444';
 }
 
 function formatValue(min: number | null, max: number | null): string | null {

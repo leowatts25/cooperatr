@@ -291,7 +291,7 @@ export async function PATCH(req: NextRequest) {
   // ── Tender verify / reject (Step 1) ─────────────────────────────────────────
   // body: { tenderId, bd_status: 'pending'|'verified'|'rejected' }
   if (body.tenderId) {
-    const validBd = new Set(['pending', 'verified', 'rejected']);
+    const validBd = new Set(['pending', 'verified', 'pursuing', 'won', 'lost', 'rejected']);
     if (!body.bd_status || !validBd.has(body.bd_status)) {
       return NextResponse.json({ error: `invalid bd_status: ${body.bd_status}` }, { status: 400 });
     }
