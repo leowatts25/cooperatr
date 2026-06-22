@@ -50,6 +50,9 @@ interface TenderItem {
   tender_fit_verdict: string | null;
   tender_fit_reasons: TenderFitReasons | null;
   bd_status: string;
+  bd_notes: string | null;
+  bd_ai_feedback: string | null;
+  bd_ai_feedback_at: string | null;
   match_count: number;
   top_score: number;
 }
@@ -523,6 +526,8 @@ function MatchStage({ locale }: { locale: string }) {
                 ))}
               </div>
             )}
+
+            <OpportunityNotes key={selected.id} tender={selected} />
           </>
         )}
       </div>
@@ -718,6 +723,106 @@ function BidCard({
           ))}
         </div>
       </div>
+
+      <OpportunityNotes tender={t} />
+    </div>
+  );
+}
+
+// ============================================================================
+// Operator notes + AI feedback on an opportunity (tender-level)
+// ============================================================================
+
+function OpportunityNotes({ tender }: { tender: TenderItem }) {
+  const [notes, setNotes] = useState(tender.bd_notes || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(!!tender.bd_notes);
+  const [feedback, setFeedback] = useState(tender.bd_ai_feedback || '');
+  const [loadingFb, setLoadingFb] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const dirty = notes !== (tender.bd_notes || '');
+
+  async function save(): Promise<boolean> {
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/admin/bd?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenderId: tender.id, bd_notes: notes }),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setSaved(true);
+      return true;
+    } catch (e) {
+      setErr('Could not save notes');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function getFeedback() {
+    setLoadingFb(true);
+    setErr(null);
+    try {
+      if (dirty) {
+        const ok = await save();
+        if (!ok) return;
+      }
+      const res = await fetch(`/api/admin/bd/opportunity-feedback?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenderId: tender.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'feedback failed');
+      setFeedback(data.feedback);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'AI feedback failed');
+    } finally {
+      setLoadingFb(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 14, border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', background: 'rgba(255,255,255,0.02)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-muted)' }}>
+          📝 Notes
+        </span>
+        {saved && !dirty && <span style={{ fontSize: 11, color: '#22C55E' }}>✓ saved</span>}
+      </div>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Your intel, strategy, partner thoughts, questions… then ask the AI to react."
+        rows={3}
+        style={{
+          width: '100%', resize: 'vertical', padding: '8px 10px', borderRadius: 8,
+          border: '1px solid var(--border)', background: 'var(--bg-surface)',
+          color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit',
+        }}
+      />
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button onClick={save} disabled={saving || !dirty} style={dirty && !saving ? primaryBtn(false) : ghostBtn}>
+          {saving ? 'Saving…' : 'Save notes'}
+        </button>
+        <button onClick={getFeedback} disabled={loadingFb || (!notes.trim())} style={ghostBtn} title="Claude reviews this opportunity + your notes">
+          {loadingFb ? 'Thinking…' : '✨ Get AI feedback'}
+        </button>
+        {err && <span style={{ fontSize: 12, color: '#EF4444' }}>{err}</span>}
+      </div>
+      {feedback && (
+        <div style={{ marginTop: 12, borderTop: '1px dashed var(--border)', paddingTop: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--accent)', marginBottom: 6 }}>
+            ✨ AI feedback
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+            {feedback}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

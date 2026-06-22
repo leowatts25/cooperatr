@@ -177,6 +177,9 @@ interface TenderListRow {
   tender_fit_verdict: string | null;
   tender_fit_reasons: { sector_fit?: number; geography_fit?: number; deal_band_fit?: number; reasons?: string[] } | null;
   bd_status: string;
+  bd_notes: string | null;
+  bd_ai_feedback: string | null;
+  bd_ai_feedback_at: string | null;
 }
 
 async function getTenders(req: NextRequest, supabase: ReturnType<typeof createServerClient>) {
@@ -192,7 +195,8 @@ async function getTenders(req: NextRequest, supabase: ReturnType<typeof createSe
     .select(
       `id, source, source_ref, url, title, donor, buyer, country, sectors,
        value_usd_min, value_usd_max, deadline_at, published_at, translations, source_language,
-       tender_fit_score, tender_fit_verdict, tender_fit_reasons, bd_status`,
+       tender_fit_score, tender_fit_verdict, tender_fit_reasons, bd_status,
+       bd_notes, bd_ai_feedback, bd_ai_feedback_at`,
     )
     .eq('passes_filter', true)
     .order('tender_fit_score', { ascending: false, nullsFirst: false })
@@ -281,6 +285,7 @@ export async function PATCH(req: NextRequest) {
     feedback_signal?: 'up' | 'down' | null;
     tenderId?: string;
     bd_status?: string;
+    bd_notes?: string;
   };
   try {
     body = await req.json();
@@ -288,19 +293,30 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  // ── Tender verify / reject (Step 1) ─────────────────────────────────────────
-  // body: { tenderId, bd_status: 'pending'|'verified'|'rejected' }
+  // ── Tender-level update (Step 1 verify/reject, Step 2/3 pursue, notes) ───────
+  // body: { tenderId, bd_status?, bd_notes? } — at least one of bd_status/bd_notes.
   if (body.tenderId) {
-    const validBd = new Set(['pending', 'verified', 'pursuing', 'won', 'lost', 'rejected']);
-    if (!body.bd_status || !validBd.has(body.bd_status)) {
-      return NextResponse.json({ error: `invalid bd_status: ${body.bd_status}` }, { status: 400 });
+    const updates: Record<string, unknown> = {};
+    if (body.bd_status !== undefined) {
+      const validBd = new Set(['pending', 'verified', 'pursuing', 'won', 'lost', 'rejected']);
+      if (!validBd.has(body.bd_status)) {
+        return NextResponse.json({ error: `invalid bd_status: ${body.bd_status}` }, { status: 400 });
+      }
+      updates.bd_status = body.bd_status;
+      updates.bd_status_at = new Date().toISOString();
+    }
+    if (typeof body.bd_notes === 'string') {
+      updates.bd_notes = body.bd_notes;
+    }
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'nothing to update (bd_status or bd_notes required)' }, { status: 400 });
     }
     const supabase = createServerClient();
     const { data, error } = await supabase
       .from('tenders')
-      .update({ bd_status: body.bd_status, bd_status_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', body.tenderId)
-      .select('id, bd_status, bd_status_at')
+      .select('id, bd_status, bd_status_at, bd_notes')
       .single();
     if (error) {
       console.error('[bd PATCH] tender update failed', { tenderId: body.tenderId, error: error.message });
