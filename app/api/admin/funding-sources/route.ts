@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/app/lib/supabase';
+import { discoverFundingSources } from '@/app/lib/funderDiscovery';
+
+export const maxDuration = 120; // web-search funder research can run long
 
 const ADMIN_EMAIL = 'leowatts25@gmail.com';
 
@@ -56,4 +59,24 @@ export async function PATCH(req: NextRequest) {
   const { data, error } = await supabase.from('funding_sources').update(updates).eq('id', body.id).select('id, status, last_reviewed_at').single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ source: data });
+}
+
+// POST /api/admin/funding-sources  — AI-discover new funding sources (inverted
+// discovery): web-search research → upsert into the registry flagged needs-review.
+//   body: { focus?: string }
+export async function POST(req: NextRequest) {
+  if (req.nextUrl.searchParams.get('adminEmail') !== ADMIN_EMAIL) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+  let body: { focus?: string } = {};
+  try { body = await req.json(); } catch { /* focus optional */ }
+
+  const supabase = createServerClient();
+  try {
+    const res = await discoverFundingSources(supabase, { focus: body.focus });
+    return NextResponse.json({ inserted: res.inserted, matched: res.matched, found: res.funders.length });
+  } catch (err) {
+    console.error('[funding-sources discover] failed', err);
+    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  }
 }

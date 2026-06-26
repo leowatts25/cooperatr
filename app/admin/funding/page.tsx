@@ -45,6 +45,8 @@ export default function AdminFundingPage() {
   const [loading, setLoading] = useState(true);
   const [statusTab, setStatusTab] = useState('active');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverMsg, setDiscoverMsg] = useState<string | null>(null);
 
   const fetchSources = useCallback(async (status: string) => {
     setLoading(true);
@@ -82,6 +84,24 @@ export default function AdminFundingPage() {
     } catch (err) { console.error(err); } finally { setBusyId(null); }
   }
 
+  async function discover() {
+    setDiscovering(true);
+    setDiscoverMsg(null);
+    try {
+      const res = await fetch(`/api/admin/funding-sources?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'discovery failed');
+      setDiscoverMsg(`Added ${data.inserted} new source${data.inserted === 1 ? '' : 's'} (flagged "needs review").`);
+      await fetchSources(statusTab);
+    } catch (err) {
+      setDiscoverMsg(err instanceof Error ? err.message : 'Discovery failed');
+    } finally {
+      setDiscovering(false);
+    }
+  }
+
   if (!isAdmin) {
     return <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: 'var(--text-muted)' }}>Checking access…</div></div>;
   }
@@ -90,11 +110,17 @@ export default function AdminFundingPage() {
 
   return (
     <div style={{ padding: '32px 24px', maxWidth: 1100, margin: '0 auto' }}>
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>Funding sources</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-          Standing funds, instruments & facilities (no dated calls) — ongoing vehicles you engage relationally. Seeded with Global Gateway.
-        </p>
+      <div style={{ marginBottom: 18, display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 280 }}>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, color: 'var(--text-primary)', marginBottom: 4 }}>Funding sources</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+            Standing funds, instruments & facilities (no dated calls) — ongoing vehicles you engage relationally. Seeded with Global Gateway.
+          </p>
+          {discoverMsg && <p style={{ color: 'var(--accent)', fontSize: 13, marginTop: 6 }}>{discoverMsg}</p>}
+        </div>
+        <button onClick={discover} disabled={discovering} style={{ ...primaryBtn, padding: '10px 16px', fontSize: 13, cursor: discovering ? 'wait' : 'pointer' }}>
+          {discovering ? 'Researching…' : '✨ Discover sources'}
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
