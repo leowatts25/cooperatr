@@ -662,7 +662,7 @@ function BidCard({
   const t = tender;
   const title = pickTranslation(t.translations, locale)?.title || t.title || t.source_ref;
   const valueLabel = formatValue(t.value_usd_min, t.value_usd_max);
-  const deadline = t.deadline_at ? new Date(t.deadline_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
+  const dl = deadlineLabel(t.deadline_at);
   const preferred = matches.filter((m) => m.status === 'pursuing');
   const others = matches.filter((m) => m.status !== 'pursuing');
 
@@ -681,7 +681,7 @@ function BidCard({
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6 }}>
             {valueLabel && <span>{valueLabel}</span>}
-            {deadline && <span style={{ color: '#F59E0B' }}>Deadline {deadline}</span>}
+            <span style={{ color: dl.rolling ? '#22C55E' : '#F59E0B' }}>{dl.text}</span>
           </div>
         </div>
         {/* Bid-level actions */}
@@ -847,7 +847,7 @@ function TenderCard({
   const displayTitle = translated?.title || t.title || t.source_ref || '(tender)';
   const isTranslated = !!translated?.title && translated.title !== t.title;
   const valueLabel = formatValue(t.value_usd_min, t.value_usd_max);
-  const deadline = t.deadline_at ? new Date(t.deadline_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null;
+  const dl = deadlineLabel(t.deadline_at);
 
   return (
     <div style={{
@@ -882,7 +882,7 @@ function TenderCard({
         <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
           {t.buyer && <span>{t.buyer}</span>}
           {valueLabel && <span>{valueLabel}</span>}
-          {deadline && <span style={{ color: '#F59E0B' }}>Deadline {deadline}</span>}
+          <span style={{ color: dl.rolling ? '#22C55E' : '#F59E0B' }}>{dl.text}</span>
         </div>
         {t.tender_fit_reasons?.reasons && t.tender_fit_reasons.reasons.length > 0 && (
           <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5 }}>
@@ -1102,6 +1102,17 @@ function badgeStyle(kind: string): React.CSSProperties {
     fontSize: 10, padding: '2px 8px', borderRadius: 8, fontWeight: 600,
     textTransform: 'uppercase', letterSpacing: 0.3, background: bg, color: fg,
   };
+}
+
+// We only ingest OPEN/FORTHCOMING notices, and EU rolling facilities (e.g.
+// Global Gateway) carry stale/past deadlines while still being open. So a past
+// or missing deadline means "rolling / open-ended", NOT expired.
+function deadlineLabel(deadlineAt: string | null): { text: string; rolling: boolean } {
+  if (!deadlineAt) return { text: 'Open / rolling', rolling: true };
+  const d = new Date(deadlineAt);
+  if (isNaN(d.getTime())) return { text: 'Open / rolling', rolling: true };
+  if (d.getTime() < Date.now()) return { text: 'Open / rolling', rolling: true };
+  return { text: `Deadline ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`, rolling: false };
 }
 
 function scoreColorFor(score: number | null): string {

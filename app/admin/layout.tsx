@@ -11,6 +11,7 @@ import Link from 'next/link';
 const ADMIN_TABS: Array<{ href: string; label: string; match: (p: string) => boolean }> = [
   { href: '/admin', label: 'Users', match: (p) => p === '/admin' },
   { href: '/admin/bd', label: 'BD scanner', match: (p) => p.startsWith('/admin/bd') },
+  { href: '/admin/funding', label: 'Funding sources', match: (p) => p.startsWith('/admin/funding') },
   { href: '/admin/tenders', label: 'Tenders', match: (p) => p === '/admin/tenders' || p === '/admin/tenders/' },
   { href: '/admin/tenders?view=contacts', label: 'Contacts', match: (p) => p.startsWith('/admin/tenders') && typeof window !== 'undefined' && window.location.search.includes('view=contacts') },
 ];
