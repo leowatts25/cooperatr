@@ -69,6 +69,8 @@ export interface DiscoveredCandidate {
   size_band: string | null;      // 'micro' | 'small' | 'medium' | 'large'
   geographic_footprint: string[]; // ISO 3166-1 alpha-2 codes of delivery countries
   why_a_fit: string;             // 1 sentence: why this candidate fits THIS tender
+  confidence?: number;           // 0.0-1.0 — how sure the firm is real + correctly described (web-verified)
+  evidence_url?: string | null;  // a source URL backing the firm (company site / registry / past-win notice)
 }
 
 export interface DiscoveryResult {
@@ -106,20 +108,28 @@ GOOD candidates look like:
 - Sector specialists with proven delivery in the project country or comparable markets
 - Companies that have already won similar instruments (e.g., past NDICI agri tranches, prior AECID Sahel work)
 
+USE WEB SEARCH to find and VERIFY candidates — do not rely on memory alone:
+- Search for real, currently-operating firms in the tender's sector + geography (e.g. "<sector> consulting firm <country> EU funded", "<niche> SME <region> NDICI contractor").
+- For niche/long-tail scopes, search rather than guess — memory misses small specialist SMEs and invents plausible-but-fake ones.
+- Ground EVERY candidate in a real source you found (company site, business registry, a past-award notice). Put that URL in evidence_url.
+- VERIFY before returning: the firm exists, operates in the right sector, is roughly the right size (a forgotten-market SME, not a global prime), and is not one of the excluded entity types above.
+
 For each candidate, return:
-- name           (exact legal name where you know it; otherwise best known form)
+- name           (exact legal name; verify spelling via the source)
 - country        (ISO 3166-1 alpha-2, HQ country)
-- website        (canonical domain if known, else null)
+- website        (canonical domain — from the source you found)
 - description    (1-2 sentences: what they do, sub-sector specialty, relevant track record)
 - sectors        (from: agri_food, renewable_energy, water_tech, circular_esg, critical_minerals, human_rights, capacity_building)
-- past_donor_wins (free-text named donor+program, e.g. "AECID 2023 (Senegal solar microgrid)")
+- past_donor_wins (named donor+program, e.g. "AECID 2023 (Senegal solar microgrid)")
 - size_band      (micro <10, small 10-50, medium 50-250, large 250+ staff)
 - geographic_footprint (ISO 3166-1 alpha-2 codes of countries where they have delivered)
 - why_a_fit      (one sentence explaining why this candidate could win THIS specific tender)
+- confidence     (0.0-1.0 — how sure you are the firm is real and correctly described. 0.9+ = confirmed via a source you found; <0.5 = unverified/uncertain)
+- evidence_url   (a source URL backing this firm; null only if you truly couldn't find one)
 
-Be conservative: if you don't recognise enough firms in the niche, return fewer rather than padding with low-confidence guesses. A list of 3 solid candidates beats 10 speculative ones.
+Be conservative: a list of 3 web-verified candidates beats 10 speculative ones. Do not pad with low-confidence guesses — if unsure and unable to verify, omit the firm.
 
-Output via the emit_candidates tool. No prose preamble.`;
+After researching, you MUST finish by calling the emit_candidates tool with the verified list. No prose preamble in the final answer.`;
 
 const discoveryTool: Anthropic.Tool = {
   name: 'emit_candidates',
@@ -143,6 +153,8 @@ const discoveryTool: Anthropic.Tool = {
             size_band: { type: ['string', 'null'], enum: [...['micro', 'small', 'medium', 'large'], null] },
             geographic_footprint: { type: 'array', items: { type: 'string' } },
             why_a_fit: { type: 'string' },
+            confidence: { type: 'number', minimum: 0, maximum: 1, description: 'How sure the firm is real + correctly described (web-verified). 0.9+ confirmed via a found source.' },
+            evidence_url: { type: ['string', 'null'], description: 'A source URL backing this firm.' },
           },
         },
       },
@@ -173,22 +185,37 @@ ${tender.description ? `\nDescription:\n${tender.description.slice(0, 1500)}` : 
 
 Return 5-10 real bidding-capable EU/US SMEs with a credible path to win this. Skip multilaterals, UN agencies, government bodies, and pure grant-only INGOs. Prefer firms with past donor-program wins.`;
 
-  const response = await client.messages.create({
+  const system = [
+    { type: 'text' as const, text: DISCOVERY_SYSTEM, cache_control: { type: 'ephemeral' as const } },
+  ];
+  // Anthropic server-side web search tool. Cast: the SDK's Tool union in this
+  // version doesn't include the web_search literal, but the API accepts it.
+  const webSearchTool = { type: 'web_search_20250305', name: 'web_search', max_uses: 5 } as unknown as Anthropic.Tool;
+
+  // Pass 1: let the model web-search to find + verify real firms, then emit.
+  let response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    // 4000 (was 6000): enough for 5-10 candidates while trimming the per-call
-    // output burst against the 8k-tokens/min tier cap.
-    max_tokens: 4000,
-    system: [
-      {
-        type: 'text',
-        text: DISCOVERY_SYSTEM,
-        cache_control: { type: 'ephemeral' },
-      },
-    ],
-    tools: [discoveryTool],
-    tool_choice: { type: 'tool', name: 'emit_candidates' },
+    max_tokens: 6000, // web-search results inflate context; output is the candidate JSON
+    system,
+    tools: [webSearchTool, discoveryTool],
+    tool_choice: { type: 'auto' },
     messages: [{ role: 'user', content: userPrompt }],
   });
+  let emitBlock = response.content.find((b) => b.type === 'tool_use' && b.name === 'emit_candidates');
+
+  // Fallback: if the model ended on text after researching (no emit), force the
+  // tool once. (No web search here — just structure what it already found.)
+  if (!emitBlock || emitBlock.type !== 'tool_use') {
+    response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      system,
+      tools: [discoveryTool],
+      tool_choice: { type: 'tool', name: 'emit_candidates' },
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+    emitBlock = response.content.find((b) => b.type === 'tool_use' && b.name === 'emit_candidates');
+  }
 
   const tokens = {
     input: response.usage.input_tokens,
@@ -197,12 +224,14 @@ Return 5-10 real bidding-capable EU/US SMEs with a credible path to win this. Sk
     cache_create: response.usage.cache_creation_input_tokens ?? 0,
   };
 
-  const emitBlock = response.content.find((b) => b.type === 'tool_use' && b.name === 'emit_candidates');
   if (!emitBlock || emitBlock.type !== 'tool_use') {
     return { candidates: [], inserted_company_ids: [], matched_existing_ids: [], tokens };
   }
   const candidates = ((emitBlock.input as { candidates?: DiscoveredCandidate[] }).candidates || [])
-    .filter((c) => c && c.name && c.name.trim());
+    .filter((c) => c && c.name && c.name.trim())
+    // Drop unverified/low-confidence guesses (confidence defaults to 1 when the
+    // fallback path didn't set it, so we never over-filter the safety net).
+    .filter((c) => (c.confidence ?? 1) >= 0.4);
 
   if (opts?.dryRun) {
     return { candidates, inserted_company_ids: [], matched_existing_ids: [], tokens };
@@ -268,7 +297,11 @@ Return 5-10 real bidding-capable EU/US SMEs with a credible path to win this. Sk
           past_donor_wins: cand.past_donor_wins,
           discovered_via: 'claude_discovery',
           discovered_for_tender_id: tender.id,
-          evidence_notes: cand.why_a_fit,
+          evidence_notes: [
+            cand.why_a_fit,
+            cand.evidence_url ? `Source: ${cand.evidence_url}` : null,
+            typeof cand.confidence === 'number' ? `Confidence: ${cand.confidence.toFixed(2)}` : null,
+          ].filter(Boolean).join(' · '),
         })
         .select('id')
         .single();
