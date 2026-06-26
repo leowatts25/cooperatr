@@ -205,13 +205,10 @@ export async function fetchEftNotices(opts: FetchOpts): Promise<FetchResult> {
   // (An earlier version filtered startDate within `sinceDays`; that rejected
   // 100% of results because the newest INTPA tenders publish months before
   // their deadlines.)
-  const now = new Date();
-
   const notices = rawResults.filter((r) => {
     const meta = r.metadata ?? {};
     const typeVal = pickMeta(meta, 'type');
     const sortStatus = pickMeta(meta, 'sortStatus');
-    const deadlineStr = pickMeta(meta, 'deadlineDate');
 
     // SEDIA returns the SAME notice once per EU language (~24 copies). Keep only
     // the English index so each notice appears once and stores an English title;
@@ -224,17 +221,15 @@ export async function fetchEftNotices(opts: FetchOpts): Promise<FetchResult> {
     // Only process procurement contracts and grant call-for-proposals
     if (typeVal !== '0' && typeVal !== '2') return false;
 
-    // Accept: OPEN (1) and FORTHCOMING (2) only — these are biddable.
-    // Skip: CLOSED (3) and UNDER EVALUATION (4) — submission window has passed.
+    // Accept OPEN (1) and FORTHCOMING (2); skip CLOSED (3) / UNDER EVALUATION (4).
+    //
+    // We TRUST sortStatus and do NOT additionally reject on a past deadlineDate.
+    // SEDIA frequently marks a call OPEN while exposing a stale or first-stage
+    // deadlineDate in the past — e.g. "Global Gateway Early-Stage Investment
+    // Mechanism" and "Global Gateway Transport and Urban Facility 2" are both
+    // status=OPEN but show passed dates. The old deadline-in-future check silently
+    // dropped every such live opportunity, so Global Gateway calls never ingested.
     if (sortStatus !== '1' && sortStatus !== '2') return false;
-
-    // If there's a deadline, it must still be in the future. FORTHCOMING calls
-    // (and any with a missing/unparseable deadline) are kept — they haven't
-    // opened yet or the deadline isn't published.
-    if (deadlineStr) {
-      const deadline = new Date(deadlineStr);
-      if (!isNaN(deadline.getTime()) && deadline < now) return false;
-    }
 
     return true;
   });
