@@ -24,6 +24,7 @@ export interface ClientRow {
   certifications: string[] | null;
   ceo_name: string | null;
   ceo_background: string | null;
+  market: string | null;   // 'intl_dev' | 'us_domestic' — which tender universe to match against
 }
 
 interface TenderRow {
@@ -135,44 +136,68 @@ export async function matchClientAgainstTenders(
   clientId: string,
   opts: { maxTenders?: number } = {},
 ): Promise<{ scored: number; written: number; errors: string[] }> {
-  const { maxTenders = 40 } = opts;
+  const { maxTenders = 30 } = opts;
   const errors: string[] = [];
 
   const { data: c, error: cErr } = await supabase.from('clients').select('*').eq('id', clientId).single();
   if (cErr || !c) throw new Error(`client not found: ${cErr?.message || 'no row'}`);
   const clientRow = c as ClientRow;
 
-  // Pool: passing tenders the fit-gate didn't reject outright.
-  const { data: tenders, error: tErr } = await supabase
+  // Pool = the client's OWN market universe. A US-domestic client matches
+  // grants.gov (market='us_domestic'); an international client matches the EU/
+  // intl-dev tenders. Never cross the streams.
+  const market = clientRow.market || 'intl_dev';
+  let q = supabase
     .from('tenders')
     .select('id, source, source_ref, title, description, donor, buyer, country, sectors, value_usd_min, value_usd_max')
     .eq('passes_filter', true)
-    .neq('tender_fit_verdict', 'skip')
+    .eq('market', market);
+  // The intl-dev tender-fit gate doesn't apply to us_domestic grants (they're
+  // pre-relevant), so only skip-filter the intl universe.
+  if (market === 'intl_dev') q = q.neq('tender_fit_verdict', 'skip');
+  const { data: tenders, error: tErr } = await q
     .order('tender_fit_score', { ascending: false, nullsFirst: false })
     .limit(maxTenders);
   if (tErr) throw new Error(`tenders: ${tErr.message}`);
 
-  let scored = 0, written = 0;
-  for (const t of (tenders || []) as TenderRow[]) {
-    try {
-      const s = await scoreClientTender(clientRow, t);
-      scored += 1;
-      const { error: upErr } = await supabase.from('client_tender_matches').upsert({
-        client_id: clientId,
-        tender_id: t.id,
-        score: s.score,
-        rationale: s.rationale,
-        fit_dimensions: s.fit_dimensions,
-        partner_stack: s.partner_stack ?? null,
-        risks: s.risks ?? null,
-        matched_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'client_id,tender_id' });
-      if (upErr) errors.push(`${t.source_ref}: ${upErr.message}`);
-      else written += 1;
-    } catch (err) {
-      errors.push(`${t.source_ref}: ${err instanceof Error ? err.message : String(err)}`);
+  const pool = (tenders || []) as TenderRow[];
+  const poolIds = new Set(pool.map((t) => t.id));
+
+  // Clear stale matches from the OTHER market (e.g. after the client's market
+  // changed) so a portal never shows opportunities from the wrong universe.
+  const { data: existing } = await supabase.from('client_tender_matches').select('id, tender_id').eq('client_id', clientId);
+  const stale = (existing || []).filter((m) => !poolIds.has((m as { tender_id: string }).tender_id));
+  // Only prune ones whose tender is in a different market (keep same-market history).
+  if (stale.length) {
+    const staleTenderIds = stale.map((m) => (m as { tender_id: string }).tender_id);
+    const { data: staleTenders } = await supabase.from('tenders').select('id, market').in('id', staleTenderIds);
+    const otherMarketIds = (staleTenders || []).filter((t) => (t as { market: string }).market !== market).map((t) => (t as { id: string }).id);
+    if (otherMarketIds.length) {
+      await supabase.from('client_tender_matches').delete().eq('client_id', clientId).in('tender_id', otherMarketIds);
     }
   }
+
+  // Score with light concurrency to stay under the function time budget.
+  let scored = 0, written = 0;
+  const CONCURRENCY = 4;
+  const queue = [...pool];
+  async function worker() {
+    while (queue.length) {
+      const t = queue.shift()!;
+      try {
+        const s = await scoreClientTender(clientRow, t);
+        scored += 1;
+        const { error: upErr } = await supabase.from('client_tender_matches').upsert({
+          client_id: clientId, tender_id: t.id, score: s.score, rationale: s.rationale,
+          fit_dimensions: s.fit_dimensions, partner_stack: s.partner_stack ?? null, risks: s.risks ?? null,
+          matched_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        }, { onConflict: 'client_id,tender_id' });
+        if (upErr) errors.push(`${t.source_ref}: ${upErr.message}`); else written += 1;
+      } catch (err) {
+        errors.push(`${t.source_ref}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   return { scored, written, errors };
 }

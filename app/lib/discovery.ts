@@ -346,6 +346,7 @@ export async function runDiscoveryForRecentTenders(
     .from('tenders')
     .select('id, title, description, donor, buyer, country, sectors, type, value_usd_min, value_usd_max, deadline_at')
     .eq('passes_filter', true)
+    .eq('market', 'intl_dev')   // company discovery is for the intl-dev universe; US grants are client-matched
     .gte('published_at', since)
     .order('published_at', { ascending: false })
     .limit(maxTenders);

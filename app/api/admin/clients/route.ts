@@ -105,7 +105,7 @@ export async function PATCH(req: NextRequest) {
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  const allowed = ['name', 'website', 'description', 'sectors', 'geographies', 'size_band', 'capabilities', 'past_wins', 'certifications', 'ceo_name', 'ceo_background', 'ceo_linkedin', 'status'];
+  const allowed = ['name', 'website', 'description', 'sectors', 'geographies', 'size_band', 'capabilities', 'past_wins', 'certifications', 'ceo_name', 'ceo_background', 'ceo_linkedin', 'status', 'market'];
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   for (const k of allowed) if (k in body) updates[k] = body[k];
 

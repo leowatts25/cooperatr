@@ -199,6 +199,7 @@ async function getTenders(req: NextRequest, supabase: ReturnType<typeof createSe
        bd_notes, bd_ai_feedback, bd_ai_feedback_at`,
     )
     .eq('passes_filter', true)
+    .eq('market', 'intl_dev')   // the BD scanner is the international-dev universe; US grants live under Clients
     .order('tender_fit_score', { ascending: false, nullsFirst: false })
     .order('published_at', { ascending: false })
     .limit(limit);

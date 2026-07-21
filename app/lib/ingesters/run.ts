@@ -8,6 +8,7 @@ import { createServerClient } from '@/app/lib/supabase';
 import { fetchTedNotices, normalizeTedNotice } from './ted';
 import { fetchSamGovOpportunities, normalizeSamGovOpportunity } from './samgov';
 import { fetchEftNotices, normalizeEftNotice } from './eftportal';
+import { ingestGrantsGov } from './grantsgov';
 import type { SectorRow } from './filter';
 
 export interface SourceResult {
@@ -86,6 +87,22 @@ export async function runAllIngesters(supabase: Supabase): Promise<IngestRunResu
       source: 'EU_FT', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [],
       skipped: true, skipReason: 'EU_FT_PORTAL_ENABLED=false',
     });
+  }
+
+  // grants.gov — US federal grants (market='us_domestic'). Public API, no key.
+  // Feeds the US-domestic client universe; disable with US_GRANTS_ENABLED=false.
+  const grantsEnabled = process.env.US_GRANTS_ENABLED !== 'false';
+  if (grantsEnabled) {
+    try {
+      const g = await ingestGrantsGov(supabase);
+      results.push({ source: 'GRANTS_GOV', fetched: g.fetched, normalized: g.fetched, upserted: g.upserted, passedFilter: g.upserted, errors: g.errors });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[ingest] grants.gov failed:', msg);
+      results.push({ source: 'GRANTS_GOV', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [msg] });
+    }
+  } else {
+    results.push({ source: 'GRANTS_GOV', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [], skipped: true, skipReason: 'US_GRANTS_ENABLED=false' });
   }
 
   // ----------------------------------------------------------------------

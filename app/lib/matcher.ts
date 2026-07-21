@@ -968,6 +968,7 @@ export async function matchRecentTenders(
     .from('tenders')
     .select('id')
     .eq('passes_filter', true)
+    .eq('market', 'intl_dev')   // intl-dev company matching only; US grants are matched per-client
     .gte('published_at', sinceIso)
     .order('published_at', { ascending: false })
     .limit(Math.max(maxTenders * 3, 200));  // overscan, we'll trim after skip-filter

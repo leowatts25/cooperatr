@@ -16,6 +16,7 @@ interface Client {
   sectors: string[] | null; geographies: string[] | null; size_band: string | null;
   capabilities: string | null; past_wins: string[] | null; certifications: string[] | null;
   ceo_name: string | null; ceo_background: string | null; ceo_linkedin: string | null;
+  market: string | null;
   last_researched_at: string | null;
 }
 interface Match {
@@ -70,6 +71,16 @@ export default function ClientPortalPage() {
     } catch (e) { setMsg(e instanceof Error ? e.message : 'Match failed'); } finally { setMatching(false); }
   }
 
+  async function setMarket(market: string) {
+    try {
+      await fetch(`/api/admin/clients?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: clientId, market }),
+      });
+      setClient((c) => (c ? { ...c, market } : c));
+      setMsg('Market updated — re-match to refresh the pool.');
+    } catch (e) { console.error(e); }
+  }
+
   if (!isAdmin) return <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: 'var(--text-muted)' }}>Checking access…</div></div>;
 
   return (
@@ -92,9 +103,18 @@ export default function ClientPortalPage() {
                 </div>
                 {client.website && <a href={client.website} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--accent)' }}>{client.website} ↗</a>}
               </div>
-              <button onClick={runMatch} disabled={matching} style={{ padding: '11px 18px', borderRadius: 8, border: 'none', background: matching ? 'var(--bg-elevated)' : 'var(--accent)', color: matching ? 'var(--text-muted)' : '#fff', fontSize: 14, fontWeight: 700, cursor: matching ? 'wait' : 'pointer' }}>
-                {matching ? 'Matching…' : matches.length ? '↻ Re-match tenders' : '🎯 Match tenders'}
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+                <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Market
+                  <select value={client.market || 'intl_dev'} onChange={(e) => setMarket(e.target.value)} style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: 12 }}>
+                    <option value="intl_dev">International dev</option>
+                    <option value="us_domestic">US domestic</option>
+                  </select>
+                </label>
+                <button onClick={runMatch} disabled={matching} style={{ padding: '11px 18px', borderRadius: 8, border: 'none', background: matching ? 'var(--bg-elevated)' : 'var(--accent)', color: matching ? 'var(--text-muted)' : '#fff', fontSize: 14, fontWeight: 700, cursor: matching ? 'wait' : 'pointer' }}>
+                  {matching ? 'Matching…' : matches.length ? '↻ Re-match tenders' : '🎯 Match tenders'}
+                </button>
+              </div>
             </div>
             {msg && <div style={{ fontSize: 13, color: 'var(--accent)', marginTop: 8 }}>{msg}</div>}
             {client.description && <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.55, marginTop: 12 }}>{client.description}</p>}
