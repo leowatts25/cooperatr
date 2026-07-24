@@ -71,6 +71,25 @@ export default function ClientPortalPage() {
     } catch (e) { setMsg(e instanceof Error ? e.message : 'Match failed'); } finally { setMatching(false); }
   }
 
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ email: string; tempPassword: string | null; reused: boolean } | null>(null);
+  const [inviteErr, setInviteErr] = useState<string | null>(null);
+
+  async function inviteCeo() {
+    if (!inviteEmail.trim()) return;
+    setInviting(true); setInviteErr(null); setInviteResult(null);
+    try {
+      const res = await fetch(`/api/admin/clients/invite?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId, email: inviteEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'invite failed');
+      setInviteResult({ email: data.email, tempPassword: data.tempPassword, reused: data.reused });
+      setInviteEmail('');
+    } catch (e) { setInviteErr(e instanceof Error ? e.message : 'Invite failed'); } finally { setInviting(false); }
+  }
+
   async function setMarket(market: string) {
     try {
       await fetch(`/api/admin/clients?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
@@ -121,6 +140,29 @@ export default function ClientPortalPage() {
             {client.capabilities && <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55, marginTop: 8 }}><strong style={{ color: 'var(--text-primary)' }}>Capabilities:</strong> {client.capabilities}</p>}
             {client.ceo_name && <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55, marginTop: 8 }}><strong style={{ color: 'var(--text-primary)' }}>CEO — {client.ceo_name}:</strong> {client.ceo_background || '—'}</p>}
             {(client.past_wins || []).length > 0 && <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}><strong style={{ color: 'var(--text-primary)' }}>Past wins:</strong> {(client.past_wins || []).join(' · ')}</p>}
+
+            {/* Invite the client's CEO to their own login */}
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px dashed var(--border)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-muted)', marginBottom: 6 }}>Client login</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="ceo@company.com" style={{ width: 240, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: 13 }} />
+                <button onClick={inviteCeo} disabled={inviting || !inviteEmail.trim()} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: inviting || !inviteEmail.trim() ? 'var(--bg-elevated)' : 'var(--accent)', color: inviting || !inviteEmail.trim() ? 'var(--text-muted)' : '#fff', fontSize: 13, fontWeight: 700, cursor: inviting ? 'wait' : 'pointer' }}>
+                  {inviting ? 'Creating…' : '✉ Give this client a login'}
+                </button>
+                {inviteErr && <span style={{ fontSize: 12, color: '#EF4444' }}>{inviteErr}</span>}
+              </div>
+              {inviteResult && (
+                <div style={{ marginTop: 8, fontSize: 13, color: 'var(--text-primary)', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 8, padding: '10px 12px' }}>
+                  {inviteResult.reused ? (
+                    <>Linked existing account <strong>{inviteResult.email}</strong> to this client. They sign in at <strong>/portal</strong> with their existing password.</>
+                  ) : (
+                    <>Account created. Share these with the client — they sign in at <strong>/portal</strong>:<br />
+                    Email: <strong>{inviteResult.email}</strong><br />
+                    Temp password: <strong style={{ fontFamily: 'monospace' }}>{inviteResult.tempPassword}</strong></>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Matched tenders */}
