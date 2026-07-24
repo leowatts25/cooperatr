@@ -25,13 +25,26 @@ export async function POST(req: NextRequest) {
   let userId: string | null = null;
   let created = false;
 
-  // Create the auth user (email pre-confirmed). If they already exist, reuse.
+  // Create the auth user (email pre-confirmed). If they already exist, resolve
+  // the existing auth user and reset its password so the admin has a shareable
+  // credential (works whether they originally used a password or a magic link).
   const { data, error } = await supabase.auth.admin.createUser({ email, password: tempPassword, email_confirm: true });
   if (error) {
-    if (error.message.toLowerCase().includes('already')) {
-      const { data: prof } = await supabase.from('user_profiles').select('id').eq('email', email).maybeSingle();
-      userId = prof?.id ?? null;
-      if (!userId) return NextResponse.json({ error: 'That email already has an account but I could not resolve its id. Link it manually.' }, { status: 409 });
+    if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('registered')) {
+      // Page through the auth users to find this email (admin API, not user_profiles).
+      for (let page = 1; page <= 30 && !userId; page++) {
+        const { data: list } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
+        const u = list?.users?.find((x) => (x.email || '').toLowerCase() === email);
+        if (u) userId = u.id;
+        if (!list || list.users.length < 200) break;
+      }
+      if (!userId) {
+        const { data: prof } = await supabase.from('user_profiles').select('id').eq('email', email).maybeSingle();
+        userId = prof?.id ?? null;
+      }
+      if (!userId) return NextResponse.json({ error: 'That email already has an account but I could not resolve its id.' }, { status: 409 });
+      // Reset the password to the shareable temp one.
+      await supabase.auth.admin.updateUserById(userId, { password: tempPassword, email_confirm: true });
     } else {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
@@ -53,8 +66,8 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     email,
-    // Only returned when we just created the account; existing accounts keep their password.
-    tempPassword: created ? tempPassword : null,
+    // Always share-able: newly created OR reset on an existing account.
+    tempPassword,
     reused: !created,
     loginUrl: '/portal',
   });

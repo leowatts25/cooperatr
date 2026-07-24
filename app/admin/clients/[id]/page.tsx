@@ -153,13 +153,11 @@ export default function ClientPortalPage() {
               </div>
               {inviteResult && (
                 <div style={{ marginTop: 8, fontSize: 13, color: 'var(--text-primary)', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 8, padding: '10px 12px' }}>
-                  {inviteResult.reused ? (
-                    <>Linked existing account <strong>{inviteResult.email}</strong> to this client. They sign in at <strong>/portal</strong> with their existing password.</>
-                  ) : (
-                    <>Account created. Share these with the client — they sign in at <strong>/portal</strong>:<br />
-                    Email: <strong>{inviteResult.email}</strong><br />
-                    Temp password: <strong style={{ fontFamily: 'monospace' }}>{inviteResult.tempPassword}</strong></>
-                  )}
+                  {inviteResult.reused
+                    ? <>Linked <strong>{inviteResult.email}</strong> (existing account) to this client and reset its password. Share these — they sign in at <strong>/portal</strong>:</>
+                    : <>Account created + linked. Share these — they sign in at <strong>/portal</strong>:</>}
+                  <br />Email: <strong>{inviteResult.email}</strong>
+                  {inviteResult.tempPassword && <><br />Password: <strong style={{ fontFamily: 'monospace' }}>{inviteResult.tempPassword}</strong></>}
                 </div>
               )}
             </div>
