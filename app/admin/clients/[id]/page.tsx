@@ -75,6 +75,53 @@ export default function ClientPortalPage() {
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ email: string; tempPassword: string | null; reused: boolean; emailed: boolean; emailError: string | null } | null>(null);
   const [inviteErr, setInviteErr] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [researching, setResearching] = useState(false);
+  const [form, setForm] = useState<Record<string, string>>({});
+
+  function startEdit() {
+    if (!client) return;
+    setForm({
+      name: client.name || '', website: client.website || '', size_band: client.size_band || '',
+      sectors: (client.sectors || []).join(', '), geographies: (client.geographies || []).join(', '),
+      capabilities: client.capabilities || '', description: client.description || '',
+      ceo_name: client.ceo_name || '', ceo_background: client.ceo_background || '',
+      past_wins: (client.past_wins || []).join('\n'), certifications: (client.certifications || []).join(', '),
+    });
+    setEditing(true);
+  }
+  const splitComma = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
+  async function saveEdit() {
+    setSaving(true);
+    try {
+      const body = {
+        id: clientId, name: form.name.trim(), website: form.website.trim() || null, size_band: form.size_band || null,
+        sectors: splitComma(form.sectors), geographies: splitComma(form.geographies),
+        capabilities: form.capabilities.trim() || null, description: form.description.trim() || null,
+        ceo_name: form.ceo_name.trim() || null, ceo_background: form.ceo_background.trim() || null,
+        past_wins: form.past_wins.split('\n').map((x) => x.trim()).filter(Boolean), certifications: splitComma(form.certifications),
+      };
+      const res = await fetch(`/api/admin/clients?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setEditing(false);
+      await fetchData();
+    } catch (e) { setMsg(e instanceof Error ? e.message : 'Save failed'); } finally { setSaving(false); }
+  }
+  async function reResearch() {
+    setResearching(true); setMsg(null);
+    try {
+      const res = await fetch(`/api/admin/clients/research?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'research failed');
+      setMsg('Profile refreshed from the website.');
+      await fetchData();
+    } catch (e) { setMsg(e instanceof Error ? e.message : 'Re-research failed'); } finally { setResearching(false); }
+  }
 
   async function inviteCeo() {
     if (!inviteEmail.trim()) return;
@@ -133,13 +180,45 @@ export default function ClientPortalPage() {
                 <button onClick={runMatch} disabled={matching} style={{ padding: '11px 18px', borderRadius: 8, border: 'none', background: matching ? 'var(--bg-elevated)' : 'var(--accent)', color: matching ? 'var(--text-muted)' : '#fff', fontSize: 14, fontWeight: 700, cursor: matching ? 'wait' : 'pointer' }}>
                   {matching ? 'Matching…' : matches.length ? '↻ Re-match tenders' : '🎯 Match tenders'}
                 </button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {!editing && <button onClick={startEdit} style={smallGhost}>✎ Edit</button>}
+                  {!editing && <button onClick={reResearch} disabled={researching} style={smallGhost} title="Re-pull the profile from the website">{researching ? 'Researching…' : '↻ Re-research'}</button>}
+                </div>
               </div>
             </div>
             {msg && <div style={{ fontSize: 13, color: 'var(--accent)', marginTop: 8 }}>{msg}</div>}
-            {client.description && <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.55, marginTop: 12 }}>{client.description}</p>}
-            {client.capabilities && <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55, marginTop: 8 }}><strong style={{ color: 'var(--text-primary)' }}>Capabilities:</strong> {client.capabilities}</p>}
-            {client.ceo_name && <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55, marginTop: 8 }}><strong style={{ color: 'var(--text-primary)' }}>CEO — {client.ceo_name}:</strong> {client.ceo_background || '—'}</p>}
-            {(client.past_wins || []).length > 0 && <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}><strong style={{ color: 'var(--text-primary)' }}>Past wins:</strong> {(client.past_wins || []).join(' · ')}</p>}
+
+            {!editing ? (
+              <>
+                {client.description && <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.55, marginTop: 12 }}>{client.description}</p>}
+                {client.capabilities && <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55, marginTop: 8 }}><strong style={{ color: 'var(--text-primary)' }}>Capabilities:</strong> {client.capabilities}</p>}
+                {client.ceo_name && <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.55, marginTop: 8 }}><strong style={{ color: 'var(--text-primary)' }}>CEO — {client.ceo_name}:</strong> {client.ceo_background || '—'}</p>}
+                {(client.past_wins || []).length > 0 && <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}><strong style={{ color: 'var(--text-primary)' }}>Past wins:</strong> {(client.past_wins || []).join(' · ')}</p>}
+              </>
+            ) : (
+              <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Field label="Name"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={fieldInput(220)} /></Field>
+                  <Field label="Website"><input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://…" style={fieldInput(280)} /></Field>
+                  <Field label="Size"><select value={form.size_band} onChange={(e) => setForm({ ...form, size_band: e.target.value })} style={fieldInput(120)}><option value="">—</option><option value="micro">micro</option><option value="small">small</option><option value="medium">medium</option><option value="large">large</option></select></Field>
+                </div>
+                <Field label="Sectors (comma-separated slugs)"><input value={form.sectors} onChange={(e) => setForm({ ...form, sectors: e.target.value })} style={fieldInput(520)} /></Field>
+                <Field label="Geographies (comma-separated)"><input value={form.geographies} onChange={(e) => setForm({ ...form, geographies: e.target.value })} style={fieldInput(520)} /></Field>
+                <Field label="Capabilities"><textarea value={form.capabilities} onChange={(e) => setForm({ ...form, capabilities: e.target.value })} rows={2} style={{ ...fieldInput(520), width: '100%', resize: 'vertical' }} /></Field>
+                <Field label="Description"><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} style={{ ...fieldInput(520), width: '100%', resize: 'vertical' }} /></Field>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Field label="CEO name"><input value={form.ceo_name} onChange={(e) => setForm({ ...form, ceo_name: e.target.value })} style={fieldInput(220)} /></Field>
+                  <Field label="Certifications (comma-separated)"><input value={form.certifications} onChange={(e) => setForm({ ...form, certifications: e.target.value })} style={fieldInput(280)} /></Field>
+                </div>
+                <Field label="CEO background (matching signal)"><textarea value={form.ceo_background} onChange={(e) => setForm({ ...form, ceo_background: e.target.value })} rows={2} style={{ ...fieldInput(520), width: '100%', resize: 'vertical' }} /></Field>
+                <Field label="Past wins (one per line)"><textarea value={form.past_wins} onChange={(e) => setForm({ ...form, past_wins: e.target.value })} rows={3} style={{ ...fieldInput(520), width: '100%', resize: 'vertical' }} /></Field>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={saveEdit} disabled={saving} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: saving ? 'var(--bg-elevated)' : 'var(--accent)', color: saving ? 'var(--text-muted)' : '#fff', fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'Saving…' : 'Save changes'}</button>
+                  <button onClick={() => setEditing(false)} style={smallGhost}>Cancel</button>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', alignSelf: 'center' }}>Tip: if the website changed, update it above then use ↻ Re-research to re-pull the profile.</span>
+                </div>
+              </div>
+            )}
 
             {/* Invite the client's CEO to their own login */}
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px dashed var(--border)' }}>
@@ -227,6 +306,14 @@ function ClientMatchRow({ match }: { match: Match }) {
     </div>
   );
 }
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)' }}>{label}<div style={{ marginTop: 3 }}>{children}</div></label>;
+}
+function fieldInput(w: number): React.CSSProperties {
+  return { width: w, maxWidth: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit' };
+}
+const smallGhost: React.CSSProperties = { padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
 
 function chip(color: string): React.CSSProperties {
   return { fontSize: 10, padding: '2px 8px', borderRadius: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, background: `${color}20`, color };
