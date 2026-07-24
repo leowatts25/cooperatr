@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { createServerClient } from '@/app/lib/supabase';
+import { sendEmail, clientInviteEmail } from '@/app/lib/email';
 
 const ADMIN_EMAIL = 'leowatts25@gmail.com';
 
@@ -60,15 +61,26 @@ export async function POST(req: NextRequest) {
   }, { onConflict: 'id' });
 
   // Link to the client (owner). One owner per client for now.
-  const { error: linkErr } = await supabase.from('clients').update({ owner_user_id: userId }).eq('id', body.clientId);
+  const { data: linked, error: linkErr } = await supabase.from('clients').update({ owner_user_id: userId }).eq('id', body.clientId).select('name').single();
   if (linkErr) return NextResponse.json({ error: `link failed: ${linkErr.message}` }, { status: 500 });
+
+  // Auto-email the client their login (if Resend is configured).
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cooperatr.com';
+  const loginUrl = `${siteUrl}/portal`;
+  let emailed = false;
+  let emailError: string | null = null;
+  const mail = clientInviteEmail({ clientName: linked?.name || 'your company', loginUrl, email, password: tempPassword });
+  const sent = await sendEmail({ to: email, subject: mail.subject, html: mail.html, replyTo: ADMIN_EMAIL });
+  emailed = sent.ok;
+  if (!sent.ok) emailError = sent.error || 'send failed';
 
   return NextResponse.json({
     ok: true,
     email,
-    // Always share-able: newly created OR reset on an existing account.
-    tempPassword,
+    tempPassword, // always share-able (created or reset) — fallback if email isn't set up
     reused: !created,
     loginUrl: '/portal',
+    emailed,
+    emailError,
   });
 }

@@ -73,7 +73,7 @@ export default function ClientPortalPage() {
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
-  const [inviteResult, setInviteResult] = useState<{ email: string; tempPassword: string | null; reused: boolean } | null>(null);
+  const [inviteResult, setInviteResult] = useState<{ email: string; tempPassword: string | null; reused: boolean; emailed: boolean; emailError: string | null } | null>(null);
   const [inviteErr, setInviteErr] = useState<string | null>(null);
 
   async function inviteCeo() {
@@ -85,7 +85,7 @@ export default function ClientPortalPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'invite failed');
-      setInviteResult({ email: data.email, tempPassword: data.tempPassword, reused: data.reused });
+      setInviteResult({ email: data.email, tempPassword: data.tempPassword, reused: data.reused, emailed: data.emailed, emailError: data.emailError });
       setInviteEmail('');
     } catch (e) { setInviteErr(e instanceof Error ? e.message : 'Invite failed'); } finally { setInviting(false); }
   }
@@ -158,6 +158,9 @@ export default function ClientPortalPage() {
                     : <>Account created + linked. Share these — they sign in at <strong>/portal</strong>:</>}
                   <br />Email: <strong>{inviteResult.email}</strong>
                   {inviteResult.tempPassword && <><br />Password: <strong style={{ fontFamily: 'monospace' }}>{inviteResult.tempPassword}</strong></>}
+                  <br />{inviteResult.emailed
+                    ? <span style={{ color: '#22C55E' }}>✉ Login email sent to the client automatically.</span>
+                    : <span style={{ color: '#F59E0B' }}>Email not sent{inviteResult.emailError ? ` (${inviteResult.emailError})` : ''} — share the details above manually.</span>}
                 </div>
               )}
             </div>
