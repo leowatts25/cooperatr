@@ -9,6 +9,7 @@ import { fetchTedNotices, normalizeTedNotice } from './ted';
 import { fetchSamGovOpportunities, normalizeSamGovOpportunity } from './samgov';
 import { fetchEftNotices, normalizeEftNotice } from './eftportal';
 import { ingestGrantsGov } from './grantsgov';
+import { ingestAecid } from './aecid';
 import type { SectorRow } from './filter';
 
 export interface SourceResult {
@@ -103,6 +104,22 @@ export async function runAllIngesters(supabase: Supabase): Promise<IngestRunResu
     }
   } else {
     results.push({ source: 'GRANTS_GOV', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [], skipped: true, skipReason: 'US_GRANTS_ENABLED=false' });
+  }
+
+  // AECID — Spanish development-cooperation grant calls via BDNS (market='intl_dev').
+  // Public JSON API, no key. Disable with AECID_ENABLED=false.
+  const aecidEnabled = process.env.AECID_ENABLED !== 'false';
+  if (aecidEnabled) {
+    try {
+      const a = await ingestAecid(supabase);
+      results.push({ source: 'AECID_BDNS', fetched: a.fetched, normalized: a.fetched, upserted: a.upserted, passedFilter: a.upserted, errors: a.errors });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[ingest] AECID failed:', msg);
+      results.push({ source: 'AECID_BDNS', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [msg] });
+    }
+  } else {
+    results.push({ source: 'AECID_BDNS', fetched: 0, normalized: 0, upserted: 0, passedFilter: 0, errors: [], skipped: true, skipReason: 'AECID_ENABLED=false' });
   }
 
   // ----------------------------------------------------------------------
