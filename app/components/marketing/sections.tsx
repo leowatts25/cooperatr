@@ -56,12 +56,12 @@ export function MarketingTabs() {
 export function PageHero({ titleKey, subKey }: { titleKey: TranslationKey; subKey: TranslationKey }) {
   const { t } = useTranslation();
   return (
-    <div style={{ backgroundColor: '#1A2332', padding: '72px 32px', textAlign: 'center' }}>
+    <div style={{ backgroundColor: '#FFFFFF', padding: '72px 32px', textAlign: 'center' }}>
       <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-        <h1 className="font-serif" style={{ fontSize: 'clamp(30px, 5vw, 52px)', color: '#F5F0E8', lineHeight: 1.15, marginBottom: '18px', letterSpacing: '-0.5px' }}>
+        <h1 className="font-serif" style={{ fontSize: 'clamp(30px, 5vw, 52px)', color: '#17233A', lineHeight: 1.15, marginBottom: '18px', letterSpacing: '-0.5px' }}>
           {t(titleKey)}
         </h1>
-        <p style={{ fontSize: 'clamp(16px, 2vw, 20px)', color: 'rgba(245,240,232,0.7)', lineHeight: 1.55, margin: 0 }}>
+        <p style={{ fontSize: 'clamp(16px, 2vw, 20px)', color: 'rgba(23,35,58,0.7)', lineHeight: 1.55, margin: 0 }}>
           {t(subKey)}
         </p>
       </div>
@@ -228,36 +228,36 @@ export function EngineSection() {
     { num: 4, label: 'landing.engineStep.4.label', desc: 'landing.engineStep.4.desc' },
   ];
   return (
-    <div style={{ backgroundColor: '#1A2332', padding: '80px 32px' }}>
+    <div style={{ backgroundColor: '#FFFFFF', padding: '80px 32px' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '56px' }}>
           <p style={{ fontSize: '11px', fontWeight: '700', color: '#1f6cc5', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('landing.engineKicker')}</p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#F5F0E8', lineHeight: 1.25, marginBottom: '20px' }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', lineHeight: 1.25, marginBottom: '20px' }}>
             {t('landing.engineTitle')}
           </h2>
-          <p style={{ fontSize: '15px', color: 'rgba(245,240,232,0.6)', lineHeight: 1.7, maxWidth: '700px', margin: '0 auto' }}>
+          <p style={{ fontSize: '15px', color: 'rgba(23,35,58,0.6)', lineHeight: 1.7, maxWidth: '700px', margin: '0 auto' }}>
             {t('landing.engineSubtitle')}
           </p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '40px' }}>
           {engineSteps.map((step) => (
-            <div key={step.num} style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '28px' }}>
+            <div key={step.num} style={{ backgroundColor: '#F6F8FB', border: '1px solid #E3E9F1', borderRadius: '10px', padding: '28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(31,108,197,0.2)', border: '1px solid rgba(31,108,197,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: '#1f6cc5' }}>
                   {step.num}
                 </div>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#F5F0E8', margin: 0 }}>
+                <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#17233A', margin: 0 }}>
                   {t(step.label)}
                 </h3>
               </div>
-              <p style={{ fontSize: '13px', color: 'rgba(245,240,232,0.55)', lineHeight: 1.65, margin: 0 }}>
+              <p style={{ fontSize: '13px', color: 'rgba(23,35,58,0.55)', lineHeight: 1.65, margin: 0 }}>
                 {t(step.desc)}
               </p>
             </div>
           ))}
         </div>
         <div style={{ borderTop: '1px solid rgba(31,108,197,0.3)', paddingTop: '24px', textAlign: 'center' }}>
-          <p style={{ fontSize: '15px', color: 'rgba(245,240,232,0.72)', lineHeight: 1.7, maxWidth: '680px', margin: '0 auto', fontStyle: 'italic' }}>
+          <p style={{ fontSize: '15px', color: 'rgba(23,35,58,0.72)', lineHeight: 1.7, maxWidth: '680px', margin: '0 auto', fontStyle: 'italic' }}>
             {t('landing.engineNote')}
           </p>
         </div>
@@ -477,8 +477,8 @@ function MktAgentCard({ agent, expanded, onToggle }: { agent: MktAgent; expanded
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
       style={{
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        border: `1px solid ${expanded ? agent.color + '66' : 'rgba(255,255,255,0.1)'}`,
+        backgroundColor: '#F6F8FB',
+        border: `1px solid ${expanded ? agent.color + '66' : '#E3E9F1'}`,
         borderRadius: '12px', padding: '24px', cursor: 'pointer',
         position: 'relative', overflow: 'hidden', transition: 'border-color 0.2s',
       }}
@@ -490,14 +490,14 @@ function MktAgentCard({ agent, expanded, onToggle }: { agent: MktAgent; expanded
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <span className="font-serif" style={{ fontSize: '17px', color: '#F5F0E8' }}>{t(agent.name)}</span>
+            <span className="font-serif" style={{ fontSize: '17px', color: '#17233A' }}>{t(agent.name)}</span>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />
           </div>
           <div style={{ fontSize: '13px', color: agent.color, marginBottom: '6px' }}>{t(agent.role)}</div>
-          <div style={{ fontSize: '13px', color: 'rgba(245,240,232,0.6)', lineHeight: 1.55 }}>{t(agent.desc)}</div>
+          <div style={{ fontSize: '13px', color: 'rgba(23,35,58,0.6)', lineHeight: 1.55 }}>{t(agent.desc)}</div>
           {expanded && (
-            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.12)' }}>
-              <div style={{ fontSize: '11px', color: 'rgba(245,240,232,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #E3E9F1' }}>
+              <div style={{ fontSize: '11px', color: 'rgba(23,35,58,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
                 {t('agents.expertise')}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -521,34 +521,34 @@ export function AgentRoster() {
   const [expandedSector, setExpandedSector] = useState<number | null>(null);
   const total = moduleAgents.length + sectorAgents.length;
   return (
-    <div style={{ backgroundColor: '#1A2332', padding: '80px 32px' }}>
+    <div style={{ backgroundColor: '#FFFFFF', padding: '80px 32px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, color: '#1f6cc5', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('agents.title')}</p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#F5F0E8', lineHeight: 1.25, marginBottom: '20px' }}>{t('agents.subtitle')}</h2>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', lineHeight: 1.25, marginBottom: '20px' }}>{t('agents.subtitle')}</h2>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22C55E' }} />
             <span style={{ fontSize: '13px', color: '#22C55E', fontWeight: 600 }}>{total} {t('agents.active')}</span>
           </div>
         </div>
 
-        <h3 className="font-serif" style={{ fontSize: '20px', color: '#F5F0E8', marginBottom: '6px' }}>{t('agents.platformAgents')}</h3>
-        <p style={{ fontSize: '14px', color: 'rgba(245,240,232,0.55)', marginBottom: '16px' }}>{t('agents.platformDesc')}</p>
+        <h3 className="font-serif" style={{ fontSize: '20px', color: '#17233A', marginBottom: '6px' }}>{t('agents.platformAgents')}</h3>
+        <p style={{ fontSize: '14px', color: 'rgba(23,35,58,0.55)', marginBottom: '16px' }}>{t('agents.platformDesc')}</p>
         <div style={{ display: 'grid', gap: '12px', marginBottom: '40px' }}>
           {moduleAgents.map((agent, i) => (
             <MktAgentCard key={i} agent={agent} expanded={expandedModule === i} onToggle={() => setExpandedModule(expandedModule === i ? null : i)} />
           ))}
         </div>
 
-        <h3 className="font-serif" style={{ fontSize: '20px', color: '#F5F0E8', marginBottom: '6px' }}>{t('agents.sectorAgents')}</h3>
-        <p style={{ fontSize: '14px', color: 'rgba(245,240,232,0.55)', marginBottom: '16px' }}>{t('agents.sectorDesc')}</p>
+        <h3 className="font-serif" style={{ fontSize: '20px', color: '#17233A', marginBottom: '6px' }}>{t('agents.sectorAgents')}</h3>
+        <p style={{ fontSize: '14px', color: 'rgba(23,35,58,0.55)', marginBottom: '16px' }}>{t('agents.sectorDesc')}</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px', marginBottom: '32px' }}>
           {sectorAgents.map((agent, i) => (
             <MktAgentCard key={i} agent={agent} expanded={expandedSector === i} onToggle={() => setExpandedSector(expandedSector === i ? null : i)} />
           ))}
         </div>
 
-        <p style={{ fontSize: '13px', color: 'rgba(245,240,232,0.6)', lineHeight: 1.7, textAlign: 'center', maxWidth: '720px', margin: '0 auto', fontStyle: 'italic', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+        <p style={{ fontSize: '13px', color: 'rgba(23,35,58,0.6)', lineHeight: 1.7, textAlign: 'center', maxWidth: '720px', margin: '0 auto', fontStyle: 'italic', paddingTop: '20px', borderTop: '1px solid #E3E9F1' }}>
           {t('agents.responsibleNote')}
         </p>
       </div>
@@ -674,7 +674,7 @@ export function ExploreCards() {
                   }}>
                     {c.icon}
                   </div>
-                  <h3 className="font-serif" style={{ fontSize: '22px', color: '#F5F0E8', margin: 0, lineHeight: 1.2 }}>{t(c.title)}</h3>
+                  <h3 className="font-serif" style={{ fontSize: '22px', color: '#17233A', margin: 0, lineHeight: 1.2 }}>{t(c.title)}</h3>
                 </div>
                 {/* body */}
                 <div style={{ padding: '24px 28px 28px', display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -702,15 +702,15 @@ export function ExploreCards() {
 export function FinalCta() {
   const { t } = useTranslation();
   return (
-    <div style={{ backgroundColor: '#1A2332', padding: '80px 32px', textAlign: 'center' }}>
-      <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 48px)', color: '#F5F0E8', marginBottom: '16px', lineHeight: 1.2 }}>{t('landing.bottomCta')}</h2>
-      <p style={{ color: 'rgba(245,240,232,0.6)', fontSize: '17px', maxWidth: '460px', margin: '0 auto 36px', lineHeight: 1.7 }}>{t('landing.bottomCtaDesc')}</p>
+    <div style={{ backgroundColor: '#FFFFFF', padding: '80px 32px', textAlign: 'center' }}>
+      <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 48px)', color: '#17233A', marginBottom: '16px', lineHeight: 1.2 }}>{t('landing.bottomCta')}</h2>
+      <p style={{ color: 'rgba(23,35,58,0.6)', fontSize: '17px', maxWidth: '460px', margin: '0 auto 36px', lineHeight: 1.7 }}>{t('landing.bottomCtaDesc')}</p>
       <Link href="/opportunities">
-        <button style={{ backgroundColor: '#4a9eff', color: '#1A2332', fontWeight: '700', fontSize: '17px', padding: '18px 44px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>
+        <button style={{ backgroundColor: '#1f6cc5', color: '#FFFFFF', fontWeight: '700', fontSize: '17px', padding: '18px 44px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>
           {t('landing.bottomCtaButton')}
         </button>
       </Link>
-      <p style={{ fontSize: '12px', color: 'rgba(245,240,232,0.3)', marginTop: '14px' }}>{t('landing.bottomCtaSub')}</p>
+      <p style={{ fontSize: '12px', color: 'rgba(23,35,58,0.3)', marginTop: '14px' }}>{t('landing.bottomCtaSub')}</p>
     </div>
   );
 }
