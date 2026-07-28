@@ -9,7 +9,7 @@
 interface LogoMarkProps {
   size?: number;
   className?: string;
-  /** Override the accent color (defaults to brand sky-blue). */
+  /** Override the accent color (defaults to brand blue). */
   color?: string;
   style?: React.CSSProperties;
 }
@@ -17,7 +17,7 @@ interface LogoMarkProps {
 export function LogoMark({
   size = 32,
   className = '',
-  color = '#4a9eff',
+  color = '#1f6cc5',
   style,
 }: LogoMarkProps) {
   return (

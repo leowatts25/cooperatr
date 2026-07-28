@@ -22,8 +22,8 @@ interface LogoProps {
   size?: LogoSize;
   /**
    * Which artwork to render.
-   *  - 'light' (default): white wordmark, for use on dark surfaces.
-   *  - 'dark': black wordmark, for use on light surfaces.
+   *  - 'dark' (default): black wordmark, for use on light surfaces.
+   *  - 'light': white wordmark, for use on dark surfaces.
    */
   variant?: LogoVariant;
   className?: string;
@@ -43,7 +43,7 @@ const HEIGHTS: Record<LogoSize, number> = {
 
 export function Logo({
   size = 'md',
-  variant = 'light',
+  variant = 'dark',
   className,
   style,
   priority = false,

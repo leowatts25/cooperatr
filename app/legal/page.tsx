@@ -5,7 +5,7 @@ import { useTranslation } from '@/app/lib/i18n/context';
 export default function LegalNoticePage() {
   const { locale } = useTranslation();
   return (
-    <article style={{ maxWidth: '760px', margin: '0 auto', padding: '64px 32px', fontFamily: 'DM Sans, sans-serif', color: '#1A2332', lineHeight: 1.7, fontSize: '15px' }}>
+    <article style={{ maxWidth: '760px', margin: '0 auto', padding: '64px 32px', fontFamily: 'DM Sans, sans-serif', color: '#17233A', lineHeight: 1.7, fontSize: '15px' }}>
       {locale === 'es' ? <SpanishLegal /> : <EnglishLegal />}
     </article>
   );
@@ -13,7 +13,7 @@ export default function LegalNoticePage() {
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '16px', padding: '10px 0', borderBottom: '1px solid #E8E2D8' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '16px', padding: '10px 0', borderBottom: '1px solid #E3E9F1' }}>
       <span style={{ color: '#718096', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</span>
       <span>{value}</span>
     </div>

@@ -28,7 +28,7 @@ export function MarketingTabs() {
     { href: '/about', key: 'mkt.nav.about' },
   ];
   return (
-    <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #E8E2D8', padding: '0 32px' }}>
+    <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #E3E9F1', padding: '0 32px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
         {links.map((l) => {
           const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
@@ -39,7 +39,7 @@ export function MarketingTabs() {
                 padding: '14px 14px',
                 fontSize: '13px',
                 fontWeight: active ? 700 : 500,
-                color: active ? '#1A2332' : '#718096',
+                color: active ? '#17233A' : '#718096',
                 borderBottom: active ? '2px solid #1f6cc5' : '2px solid transparent',
               }}>
                 {t(l.key)}
@@ -75,10 +75,10 @@ export function RunBiz() {
   return (
     <div style={{ backgroundColor: '#fff', padding: '80px 32px' }}>
       <div style={{ maxWidth: '780px', margin: '0 auto', textAlign: 'center' }}>
-        <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '24px' }}>
+        <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', lineHeight: 1.25, marginBottom: '24px' }}>
           {t('landing.runBiz.title')}
         </h2>
-        <p style={{ fontSize: '17px', color: '#1A2332', lineHeight: 1.7, marginBottom: '18px' }}>
+        <p style={{ fontSize: '17px', color: '#17233A', lineHeight: 1.7, marginBottom: '18px' }}>
           {t('landing.runBiz.body1')}
         </p>
         <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, margin: 0 }}>
@@ -93,25 +93,25 @@ export function RunBiz() {
 export function WhatWeDo() {
   const { t } = useTranslation();
   return (
-    <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
+    <div style={{ backgroundColor: '#F6F8FB', padding: '80px 32px' }}>
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
             {t('landing.whatWeDo.kicker')}
           </p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25 }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', lineHeight: 1.25 }}>
             {t('landing.whatWeDo.title')}
           </h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-          <div style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '32px' }}>
-            <h3 className="font-serif" style={{ fontSize: '20px', color: '#1A2332', marginBottom: '14px' }}>{t('landing.whatWeDo.platform.label')}</h3>
+          <div style={{ backgroundColor: '#fff', border: '1px solid #E3E9F1', borderRadius: '10px', padding: '32px' }}>
+            <h3 className="font-serif" style={{ fontSize: '20px', color: '#17233A', marginBottom: '14px' }}>{t('landing.whatWeDo.platform.label')}</h3>
             <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.7, margin: 0 }}>
               {t('landing.whatWeDo.platform.body')}
             </p>
           </div>
-          <div style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '32px' }}>
-            <h3 className="font-serif" style={{ fontSize: '20px', color: '#1A2332', marginBottom: '14px' }}>{t('landing.whatWeDo.partner.label')}</h3>
+          <div style={{ backgroundColor: '#fff', border: '1px solid #E3E9F1', borderRadius: '10px', padding: '32px' }}>
+            <h3 className="font-serif" style={{ fontSize: '20px', color: '#17233A', marginBottom: '14px' }}>{t('landing.whatWeDo.partner.label')}</h3>
             <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.7, margin: 0 }}>
               {t('landing.whatWeDo.partner.body')}
             </p>
@@ -132,11 +132,11 @@ export function StatsBand() {
     { value: '12', label: t('landing.statsLabel.4') },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1px', backgroundColor: '#D4CFC6' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1px', backgroundColor: '#E3E9F1' }}>
       {stats.map((s) => (
-        <div key={s.label} style={{ backgroundColor: '#F7F5F0', padding: '32px', textAlign: 'center' }}>
+        <div key={s.label} style={{ backgroundColor: '#F6F8FB', padding: '32px', textAlign: 'center' }}>
           <div className="font-serif" style={{ fontSize: '32px', color: '#1f6cc5', marginBottom: '4px' }}>{s.value}</div>
-          <div style={{ fontSize: '11px', color: '#8A8070', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</div>
+          <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</div>
         </div>
       ))}
     </div>
@@ -148,10 +148,10 @@ export function MarketNow() {
   const { t } = useTranslation();
   const missed = [t('landing.missed.1'), t('landing.missed.2'), t('landing.missed.3'), t('landing.missed.4')];
   return (
-    <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
+    <div style={{ backgroundColor: '#F6F8FB', padding: '80px 32px' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
         <p style={{ fontSize: '12px', fontWeight: '700', color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '16px' }}>{t('landing.marketLabel')}</p>
-        <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '24px' }}>
+        <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', lineHeight: 1.25, marginBottom: '24px' }}>
           {t('landing.marketTitle')}
         </h2>
         <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, maxWidth: '700px', margin: '0 auto 40px' }}>
@@ -159,7 +159,7 @@ export function MarketNow() {
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
           {missed.map((text, i) => (
-            <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '8px', padding: '20px 24px' }}>
+            <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', backgroundColor: '#fff', border: '1px solid #E3E9F1', borderRadius: '8px', padding: '20px 24px' }}>
               <span style={{ color: '#1f6cc5', fontSize: '18px', flexShrink: 0 }}>→</span>
               <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.65, margin: 0 }}>{text}</p>
             </div>
@@ -179,13 +179,13 @@ export function PushPipeline() {
     { num: 3, icon: '📩', label: 'landing.push.step.3.label', desc: 'landing.push.step.3.desc' },
   ];
   return (
-    <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E8E2D8' }}>
+    <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E3E9F1' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
             {t('landing.push.kicker')}
           </p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '20px' }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', lineHeight: 1.25, marginBottom: '20px' }}>
             {t('landing.push.title')}
           </h2>
           <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.7, maxWidth: '720px', margin: '0 auto' }}>
@@ -194,14 +194,14 @@ export function PushPipeline() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '32px' }}>
           {pushSteps.map((step) => (
-            <div key={step.num} style={{ backgroundColor: '#F7F5F0', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '28px' }}>
+            <div key={step.num} style={{ backgroundColor: '#F6F8FB', border: '1px solid #E3E9F1', borderRadius: '10px', padding: '28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
                 <span style={{ fontSize: '22px' }}>{step.icon}</span>
                 <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: 'rgba(31,108,197,0.12)', border: '1px solid rgba(31,108,197,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#1f6cc5' }}>
                   {step.num}
                 </div>
               </div>
-              <h3 className="font-serif" style={{ fontSize: '17px', color: '#1A2332', marginBottom: '10px', lineHeight: 1.3 }}>
+              <h3 className="font-serif" style={{ fontSize: '17px', color: '#17233A', marginBottom: '10px', lineHeight: 1.3 }}>
                 {t(step.label)}
               </h3>
               <p style={{ fontSize: '13px', color: '#4A5568', lineHeight: 1.65, margin: 0 }}>
@@ -210,7 +210,7 @@ export function PushPipeline() {
             </div>
           ))}
         </div>
-        <p style={{ fontSize: '13px', color: '#718096', lineHeight: 1.7, textAlign: 'center', maxWidth: '720px', margin: '0 auto', fontStyle: 'italic', paddingTop: '20px', borderTop: '1px solid #E8E2D8' }}>
+        <p style={{ fontSize: '13px', color: '#718096', lineHeight: 1.7, textAlign: 'center', maxWidth: '720px', margin: '0 auto', fontStyle: 'italic', paddingTop: '20px', borderTop: '1px solid #E3E9F1' }}>
           {t('landing.push.note')}
         </p>
       </div>
@@ -276,13 +276,13 @@ export function WorkingExamples() {
     { tab: 'landing.example.2.tab', title: 'landing.example.2.title', body1: 'landing.example.2.body1', body2: 'landing.example.2.body2', body3: 'landing.example.2.body3' },
   ];
   return (
-    <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
+    <div style={{ backgroundColor: '#F6F8FB', padding: '80px 32px' }}>
       <div style={{ maxWidth: '820px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
             {t('landing.example.kicker')}
           </p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', color: '#1A2332', lineHeight: 1.25 }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', color: '#17233A', lineHeight: 1.25 }}>
             {t(examples[activeExample].title)}
           </h2>
         </div>
@@ -298,7 +298,7 @@ export function WorkingExamples() {
                 style={{
                   cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, letterSpacing: '0.3px',
                   padding: '10px 18px', borderRadius: '999px',
-                  border: active ? '1px solid #1f6cc5' : '1px solid #E8E2D8',
+                  border: active ? '1px solid #1f6cc5' : '1px solid #E3E9F1',
                   backgroundColor: active ? '#1f6cc5' : '#fff',
                   color: active ? '#fff' : '#4A5568',
                   transition: 'all 0.15s ease',
@@ -309,10 +309,10 @@ export function WorkingExamples() {
             );
           })}
         </div>
-        <div style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '36px', borderLeft: '4px solid #1f6cc5' }}>
+        <div style={{ backgroundColor: '#fff', border: '1px solid #E3E9F1', borderRadius: '10px', padding: '36px', borderLeft: '4px solid #1f6cc5' }}>
           <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, marginTop: 0, marginBottom: '18px' }}>{t(examples[activeExample].body1)}</p>
           <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, marginBottom: '18px' }}>{t(examples[activeExample].body2)}</p>
-          <p style={{ fontSize: '15px', color: '#1A2332', lineHeight: 1.75, fontWeight: 600, margin: 0 }}>{t(examples[activeExample].body3)}</p>
+          <p style={{ fontSize: '15px', color: '#17233A', lineHeight: 1.75, fontWeight: 600, margin: 0 }}>{t(examples[activeExample].body3)}</p>
         </div>
       </div>
     </div>
@@ -334,22 +334,22 @@ export function Modules() {
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '56px' }}>
           <p style={{ fontSize: '12px', fontWeight: '700', color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>{t('landing.modulesKicker')}</p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', marginBottom: '16px' }}>{t('landing.modulesTitle')}</h2>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', marginBottom: '16px' }}>{t('landing.modulesTitle')}</h2>
           <p style={{ color: '#718096', fontSize: '16px', maxWidth: '520px', margin: '0 auto', lineHeight: 1.7 }}>{t('landing.modulesSubtitle')}</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
           {modules.map((m) => (
             <Link key={m.href} href={m.href} style={{ textDecoration: 'none' }}>
-              <div style={{ backgroundColor: '#F7F5F0', border: '1px solid #E8E2D8', borderRadius: '8px', padding: '28px', height: '100%', cursor: 'pointer' }}>
+              <div style={{ backgroundColor: '#F6F8FB', border: '1px solid #E3E9F1', borderRadius: '8px', padding: '28px', height: '100%', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <span style={{ fontSize: '11px', color: '#A09080', fontWeight: '600', letterSpacing: '1px' }}>{m.num}</span>
+                  <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '600', letterSpacing: '1px' }}>{m.num}</span>
                   {m.live
                     ? <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '20px', backgroundColor: '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' }}>{t('landing.live')}</span>
-                    : <span style={{ fontSize: '10px', fontWeight: '500', padding: '2px 8px', borderRadius: '20px', backgroundColor: '#F0EDE8', color: '#A09080', border: '1px solid #D4CFC6' }}>{t('landing.comingSoon')}</span>
+                    : <span style={{ fontSize: '10px', fontWeight: '500', padding: '2px 8px', borderRadius: '20px', backgroundColor: '#EEF2F7', color: '#94A3B8', border: '1px solid #E3E9F1' }}>{t('landing.comingSoon')}</span>
                   }
                 </div>
                 <div style={{ fontSize: '28px', marginBottom: '14px' }}>{m.icon}</div>
-                <h3 className="font-serif" style={{ fontSize: '19px', color: '#1A2332', marginBottom: '10px' }}>{m.name}</h3>
+                <h3 className="font-serif" style={{ fontSize: '19px', color: '#17233A', marginBottom: '10px' }}>{m.name}</h3>
                 <p style={{ fontSize: '13px', color: '#718096', lineHeight: 1.65 }}>{m.description}</p>
               </div>
             </Link>
@@ -371,21 +371,21 @@ export function Segments() {
     { title: 'landing.segments.5.title', desc: 'landing.segments.5.desc', icon: '📑' },
   ];
   return (
-    <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
+    <div style={{ backgroundColor: '#F6F8FB', padding: '80px 32px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
             {t('landing.segments.kicker')}
           </p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25 }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', lineHeight: 1.25 }}>
             {t('landing.segments.title')}
           </h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
           {segments.map((s) => (
-            <div key={s.title} style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '8px', padding: '28px' }}>
+            <div key={s.title} style={{ backgroundColor: '#fff', border: '1px solid #E3E9F1', borderRadius: '8px', padding: '28px' }}>
               <div style={{ fontSize: '24px', marginBottom: '14px' }}>{s.icon}</div>
-              <h3 className="font-serif" style={{ fontSize: '17px', color: '#1A2332', marginBottom: '10px', lineHeight: 1.3 }}>
+              <h3 className="font-serif" style={{ fontSize: '17px', color: '#17233A', marginBottom: '10px', lineHeight: 1.3 }}>
                 {t(s.title)}
               </h3>
               <p style={{ fontSize: '13px', color: '#4A5568', lineHeight: 1.65, margin: 0 }}>
@@ -403,30 +403,30 @@ export function Segments() {
 export function Windows() {
   const { t } = useTranslation();
   return (
-    <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E8E2D8' }}>
+    <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E3E9F1' }}>
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
             {t('landing.windows.kicker')}
           </p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '16px' }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', lineHeight: 1.25, marginBottom: '16px' }}>
             {t('landing.windows.title')}
           </h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '32px' }}>
-          <div style={{ backgroundColor: '#F7F5F0', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '32px' }}>
+          <div style={{ backgroundColor: '#F6F8FB', border: '1px solid #E3E9F1', borderRadius: '10px', padding: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <span style={{ fontSize: '22px' }}>🇪🇺</span>
-              <h3 className="font-serif" style={{ fontSize: '20px', color: '#1A2332', margin: 0 }}>{t('landing.windows.eu.label')}</h3>
+              <h3 className="font-serif" style={{ fontSize: '20px', color: '#17233A', margin: 0 }}>{t('landing.windows.eu.label')}</h3>
             </div>
             <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.7, margin: 0 }}>
               {t('landing.windows.eu.list')}
             </p>
           </div>
-          <div style={{ backgroundColor: '#F7F5F0', border: '1px solid #E8E2D8', borderRadius: '10px', padding: '32px' }}>
+          <div style={{ backgroundColor: '#F6F8FB', border: '1px solid #E3E9F1', borderRadius: '10px', padding: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <span style={{ fontSize: '22px' }}>🇺🇸</span>
-              <h3 className="font-serif" style={{ fontSize: '20px', color: '#1A2332', margin: 0 }}>{t('landing.windows.us.label')}</h3>
+              <h3 className="font-serif" style={{ fontSize: '20px', color: '#17233A', margin: 0 }}>{t('landing.windows.us.label')}</h3>
             </div>
             <p style={{ fontSize: '14px', color: '#4A5568', lineHeight: 1.7, margin: 0 }}>
               {t('landing.windows.us.list')}
@@ -560,12 +560,12 @@ export function AgentRoster() {
 export function Team() {
   const { t } = useTranslation();
   return (
-    <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E8E2D8' }}>
+    <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E3E9F1' }}>
       <div style={{ maxWidth: '780px', margin: '0 auto', textAlign: 'center' }}>
         <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
           {t('landing.team.kicker')}
         </p>
-        <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '24px' }}>
+        <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3.5vw, 38px)', color: '#17233A', lineHeight: 1.25, marginBottom: '24px' }}>
           {t('landing.team.title')}
         </h2>
         <p style={{ fontSize: '15px', color: '#4A5568', lineHeight: 1.75, margin: 0 }}>
@@ -586,16 +586,16 @@ export function Faq() {
     { q: t('landing.faq.4.q'), a: t('landing.faq.4.a') },
   ];
   return (
-    <div style={{ backgroundColor: '#F7F5F0', padding: '80px 32px' }}>
+    <div style={{ backgroundColor: '#F6F8FB', padding: '80px 32px' }}>
       <div style={{ maxWidth: '860px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <p style={{ fontSize: '12px', fontWeight: '700', color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>{t('landing.faqLabel')}</p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3vw, 38px)', color: '#1A2332' }}>{t('landing.faqTitle')}</h2>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(24px, 3vw, 38px)', color: '#17233A' }}>{t('landing.faqTitle')}</h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
           {objections.map((item, i) => (
-            <div key={i} style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '8px', padding: '24px' }}>
-              <p style={{ fontSize: '14px', fontWeight: '700', color: '#1A2332', marginBottom: '10px', lineHeight: 1.4 }}>{item.q}</p>
+            <div key={i} style={{ backgroundColor: '#fff', border: '1px solid #E3E9F1', borderRadius: '8px', padding: '24px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '700', color: '#17233A', marginBottom: '10px', lineHeight: 1.4 }}>{item.q}</p>
               <p style={{ fontSize: '13px', color: '#718096', lineHeight: 1.65 }}>{item.a}</p>
             </div>
           ))}
@@ -642,13 +642,13 @@ export function ExploreCards() {
     },
   ];
   return (
-    <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E8E2D8' }}>
+    <div style={{ backgroundColor: '#fff', padding: '80px 32px', borderTop: '1px solid #E3E9F1' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <p style={{ fontSize: '12px', fontWeight: 700, color: '#0d3b75', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
             {t('landing.explore.kicker')}
           </p>
-          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#1A2332', lineHeight: 1.25, marginBottom: '16px' }}>
+          <h2 className="font-serif" style={{ fontSize: 'clamp(26px, 4vw, 42px)', color: '#17233A', lineHeight: 1.25, marginBottom: '16px' }}>
             {t('landing.explore.title')}
           </h2>
           <p style={{ fontSize: '16px', color: '#718096', lineHeight: 1.7, maxWidth: '620px', margin: '0 auto' }}>
@@ -658,7 +658,7 @@ export function ExploreCards() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           {cards.map((c) => (
             <Link key={c.href} href={c.href} style={{ textDecoration: 'none' }}>
-              <div style={{ backgroundColor: '#fff', border: '1px solid #E8E2D8', borderRadius: '12px', height: '100%', cursor: 'pointer', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 1px 3px rgba(26,35,50,0.06)' }}>
+              <div style={{ backgroundColor: '#fff', border: '1px solid #E3E9F1', borderRadius: '12px', height: '100%', cursor: 'pointer', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 1px 3px rgba(26,35,50,0.06)' }}>
                 {/* graphic header strip */}
                 <div style={{
                   background: `linear-gradient(135deg, ${c.accent} 0%, #1A2332 140%)`,
