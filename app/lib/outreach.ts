@@ -68,22 +68,39 @@ export async function matchProspect(
   id: string,
   opts: { poolSize?: number } = {},
 ): Promise<ProspectRow> {
-  const { poolSize = 6 } = opts;
+  const { poolSize = 10 } = opts;
   const p = await getProspect(supabase, id);
   if (!p.profile) throw new Error('prospect has no profile — run research first');
 
   const market = p.market || 'intl_dev';
-  let q = supabase
-    .from('tenders')
-    .select('id, source, source_ref, title, description, donor, buyer, country, sectors, value_usd_min, value_usd_max')
-    .eq('passes_filter', true)
-    .eq('market', market);
-  if (market === 'intl_dev') q = q.neq('tender_fit_verdict', 'skip');
-  const { data: tenders, error: tErr } = await q
-    .order('tender_fit_score', { ascending: false, nullsFirst: false })
-    .limit(poolSize);
-  if (tErr) throw new Error(`tender pool: ${tErr.message}`);
-  if (!tenders || tenders.length === 0) throw new Error(`no tenders in market '${market}'`);
+  const basePool = () => {
+    let q = supabase
+      .from('tenders')
+      .select('id, source, source_ref, title, description, donor, buyer, country, sectors, value_usd_min, value_usd_max')
+      .eq('passes_filter', true)
+      .eq('market', market);
+    if (market === 'intl_dev') q = q.neq('tender_fit_verdict', 'skip');
+    return q.order('tender_fit_score', { ascending: false, nullsFirst: false });
+  };
+
+  // Prefer tenders that overlap the prospect's own sectors — a generic
+  // "top tenders" pool produces weak hooks for niche prospects. Fall back to
+  // the generic pool when the sector slice is thin.
+  const sectors = p.profile.sectors || [];
+  type PoolTender = { id: string; source: string; source_ref: string; title: string | null; description: string | null; donor: string | null; buyer: string | null; country: string | null; sectors: string[] | null; value_usd_min: number | null; value_usd_max: number | null };
+  let tenders: PoolTender[] = [];
+  if (sectors.length) {
+    const { data } = await basePool().overlaps('sectors', sectors).limit(poolSize);
+    tenders = (data || []) as PoolTender[];
+  }
+  if (tenders.length < 3) {
+    const { data, error: tErr } = await basePool().limit(poolSize);
+    if (tErr) throw new Error(`tender pool: ${tErr.message}`);
+    const seen = new Set(tenders.map((t) => t.id));
+    for (const t of (data || []) as PoolTender[]) if (!seen.has(t.id)) tenders.push(t);
+    tenders = tenders.slice(0, poolSize);
+  }
+  if (tenders.length === 0) throw new Error(`no tenders in market '${market}'`);
 
   const asClient: ClientRow = {
     id: p.id,
@@ -150,9 +167,17 @@ const draftTool: Anthropic.Tool = {
   },
 };
 
+// Below this fit score we refuse to draft: a weak hook makes a bad first
+// impression and burns the sending domain. The admin sees the block and can
+// re-match later when better tenders land (or override via OUTREACH_MIN_SCORE).
+const MIN_HOOK_SCORE = Number(process.env.OUTREACH_MIN_SCORE || 55);
+
 export async function draftOutreach(supabase: Supabase, id: string): Promise<ProspectRow> {
   const p = await getProspect(supabase, id);
   if (!p.hook_tender_id) throw new Error('prospect has no hook tender — run match first');
+  if (p.match_score != null && p.match_score < MIN_HOOK_SCORE) {
+    throw new Error(`hook fit too weak to email (${Math.round(p.match_score)} < ${MIN_HOOK_SCORE}) — no outreach drafted; re-match when better tenders land`);
+  }
   const { data: tender, error: tErr } = await supabase
     .from('tenders')
     .select('title, donor, buyer, country, value_usd_max, currency, deadline_at, url, source')
