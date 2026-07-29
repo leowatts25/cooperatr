@@ -12,6 +12,7 @@ const ADMIN_TABS: Array<{ href: string; label: string; match: (p: string) => boo
   { href: '/admin', label: 'Users', match: (p) => p === '/admin' },
   { href: '/admin/bd', label: 'BD scanner', match: (p) => p.startsWith('/admin/bd') },
   { href: '/admin/clients', label: 'Clients', match: (p) => p.startsWith('/admin/clients') },
+  { href: '/admin/outreach', label: 'Outreach', match: (p) => p.startsWith('/admin/outreach') },
   { href: '/admin/funding', label: 'Funding sources', match: (p) => p.startsWith('/admin/funding') },
   { href: '/admin/tenders', label: 'Tenders', match: (p) => p === '/admin/tenders' || p === '/admin/tenders/' },
   { href: '/admin/tenders?view=contacts', label: 'Contacts', match: (p) => p.startsWith('/admin/tenders') && typeof window !== 'undefined' && window.location.search.includes('view=contacts') },
