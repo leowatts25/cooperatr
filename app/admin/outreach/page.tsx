@@ -53,6 +53,9 @@ export default function AdminOutreachPage() {
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [form, setForm] = useState({ name: '', website: '', contact_name: '', contact_email: '', country: '', market: 'intl_dev', looking_for: '' });
   const [adding, setAdding] = useState(false);
+  const [src, setSrc] = useState({ market: 'intl_dev', geoFocus: '', count: 5 });
+  const [sourcing, setSourcing] = useState<string | null>(null);
+  const [srcMsg, setSrcMsg] = useState<string | null>(null);
 
   const api = useCallback((path = '') => `/api/admin/prospects${path}?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}`, []);
 
@@ -110,6 +113,22 @@ export default function AdminOutreachPage() {
     await fetchAll();
   }
 
+  async function source(mode: 'tender' | 'scouted') {
+    setSourcing(mode); setSrcMsg(null);
+    try {
+      const body = mode === 'scouted'
+        ? { mode, limit: 25 }
+        : { mode, market: src.market, geoFocus: src.geoFocus.trim() || undefined, count: src.count };
+      const res = await fetch(api('/source'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'sourcing failed');
+      setSrcMsg(`Found ${data.found}, added ${data.inserted} new (${data.skippedDuplicates} already known).`);
+      await fetchAll();
+    } catch (e) {
+      setSrcMsg(e instanceof Error ? e.message : 'sourcing failed');
+    } finally { setSourcing(null); }
+  }
+
   if (!isAdmin) return <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: 'var(--text-muted)' }}>Checking access…</div></div>;
 
   const counts = STATUS_ORDER.map((s) => ({ s, n: prospects.filter((p) => p.status === s).length })).filter((x) => x.n > 0);
@@ -131,6 +150,26 @@ export default function AdminOutreachPage() {
             {s} · {n}
           </span>
         ))}
+      </div>
+
+      {/* Auto-source prospects */}
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>✨ Source prospects</span>
+        <select value={src.market} onChange={(e) => setSrc({ ...src, market: e.target.value })} style={inputStyle(150)}>
+          <option value="intl_dev">International dev</option>
+          <option value="us_domestic">US domestic</option>
+        </select>
+        <input value={src.geoFocus} onChange={(e) => setSrc({ ...src, geoFocus: e.target.value })} placeholder="Geo focus (e.g. Spain, United States)" style={inputStyle(230)} />
+        <select value={src.count} onChange={(e) => setSrc({ ...src, count: Number(e.target.value) })} style={inputStyle(70)}>
+          {[3, 5, 8].map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <button onClick={() => source('tender')} disabled={!!sourcing} style={btnStyle(!!sourcing)}>
+          {sourcing === 'tender' ? 'Searching the web…' : 'Find companies for top tender'}
+        </button>
+        <button onClick={() => source('scouted')} disabled={!!sourcing} style={{ ...btnStyle(!!sourcing), background: sourcing ? 'var(--bg-elevated)' : 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+          {sourcing === 'scouted' ? 'Importing…' : 'Import discovery pool'}
+        </button>
+        {srcMsg && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{srcMsg}</span>}
       </div>
 
       {/* Add prospect */}
